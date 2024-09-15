@@ -86,6 +86,7 @@ Same as event starts, but for individual muons.
 
 # Diagram
 
+```text
 h5_file
 │
 ├── particle_1 (muatm, nuatm, nue2)
@@ -118,4 +119,4 @@ h5_file
 └── particle_n
     └── ... (same structure as particle_1)
 
-Note: For each branch, data is stored in part_<root_file_number>/data
+**Note:** For each branch, data is stored in `part_<root_file_number>/data`
