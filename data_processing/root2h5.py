@@ -138,16 +138,15 @@ def error_handling(do_quit):
         raise
 
 def listener(result_q, do_quit, n_workers):
-    
-    with error_handling(do_quit):
+    file_path = os.path.join(h5_prefix, h5_name)
+    with error_handling(do_quit), h5.File(file_path, 'a') as hf:
         while n_workers > 0:
             res = result_q.get()
             if res is None:
                 n_workers -= 1
-                logging.debug(f"Worker finished. Remaining workers: {n_workers}")
+                logging.info(f"Worker finished. Remaining workers: {n_workers}")
             elif res[0]:
-                write_data(res[1], res[2])
-                logging.debug(f"Data written for {res[2]}")
+                write_data(hf, res[1], res[2])
     
     logging.info("All workers finished. Listener exiting.")
     do_quit.set()
@@ -160,18 +159,17 @@ def get_dtype(key, value):
     else:
         return np.int32
 
-def write_data(res, file_num):
-    file_path = os.path.join(h5_prefix, h5_name)
-    with h5.File(file_path, 'a') as hf:
-        for key, value in res.items():
-            dataset_path = f"{particle}/{key}/part_{file_num}/data"
-            
-            kwarg = {
-                'dtype': get_dtype(key, value),
-                'compression': 'gzip' if any(substring in key for substring in ['raw', 'reco', 'muons']) and 'starts' not in key else None
-            }
-            
-            hf.create_dataset(dataset_path, data=value.astype(kwarg['dtype']), **kwarg)
+def write_data(hf, res, file_num):
+    
+    for key, value in res.items():
+        dataset_path = f"{particle}/{key}/part_{file_num}/data"
+        
+        kwarg = {
+            'dtype': get_dtype(key, value),
+            'compression': 'gzip' if any(substring in key for substring in ['raw', 'reco', 'muons']) and 'starts' not in key else None
+        }
+        
+        hf.create_dataset(dataset_path, data=value.astype(kwarg['dtype']), **kwarg)
 
 # Main processing routine; takes 1 file for processing
 def process_file(args_q, result_q, do_quit):
