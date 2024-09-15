@@ -1,0 +1,53 @@
+# Configuration for root2h5.py
+
+general:
+  take_single_cluster: true
+  take_clust_num: null
+  split_multi: true
+  shift_coords_to_cl_center: true
+  center_times: true
+  exclude_big_ts: true
+  t_threshold: 1e5
+  coords_are_same: true
+
+multiprocessing:
+  MAX_QUEUE_SIZE: 3
+  NUM_WORKERS: 8
+
+output:
+  h5_name: "baikal_mc2020_0924.h5"
+  h5_prefix: "/home3/ivkhar/Baikal/data/h5s/"
+
+input:
+  particle: "muatm"
+  MC_dir_path: "/home3/ivkhar/Baikal/data/initial_data/MC_2020/muatm/root/all"
+
+root_paths:
+  data:
+    - "Events/BEvent./BEvent.fPulses/BEvent.fPulses.fAmplitude"
+    - "Events/BEvent./BEvent.fPulses/BEvent.fPulses.fTime"
+    - "Events/MCEventMask./MCEventMask.BEventMask/MCEventMask.BEventMask.fOrigins/MCEventMask.BEventMask.fOrigins.fFlag"
+    - "Events/BEvent./BEvent.fPulses/BEvent.fPulses.fChannelID"
+
+  primary:
+    - "Events/BMCEvent./BMCEvent.fPrimaryParticleTheta"
+    - "Events/BMCEvent./BMCEvent.fPrimaryParticlePhi"
+    - "Events/BMCEvent./BMCEvent.fPrimaryParticleEnergy"
+    - "Events/BMCEvent./BMCEvent.fNucleonN"
+    - "Events/BMCEvent./BMCEvent.fResponseMuonsN"
+    - "Events/BMCEvent./BMCEvent.fEventWeight"
+
+  resp_muons:
+    - "Events/BMCEvent./BMCEvent.fTracks/BMCEvent.fTracks.fTheta"
+    - "Events/BMCEvent./BMCEvent.fTracks/BMCEvent.fTracks.fPhi"
+    - "Events/BMCEvent.fTracks.fX"
+    - "Events/BMCEvent.fTracks.fY"
+    - "Events/BMCEvent.fTracks.fZ"
+    - "Events/BMCEvent./BMCEvent.fTracks/BMCEvent.fTracks.fDelay"
+    - "Events/BMCEvent./BMCEvent.fTracks/BMCEvent.fTracks.fMuonEnergy"
+
+  mu_scalar:
+    - "Events/BMCEvent./BMCEvent.fFirstMuonTime"
+    - "Events/BMCEvent./BMCEvent.fSumEnergyBundleReg"
+
+  geometry: "ArrayConfig/BGeomTel./BGeomTel.BGeomTel/BGeomTel.BGeomTel.fOMs/BGeomTel.BGeomTel.fOMs.fPosition"
