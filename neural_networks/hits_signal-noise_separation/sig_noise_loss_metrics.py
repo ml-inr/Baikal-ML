@@ -133,7 +133,7 @@ class TResExtr(tf.keras.metrics.Metric):
         sig_tres = tf.where(signal_mask == 1., tf.math.abs(y_true[:, :, 2]), 0.)
         num_sigs = tf.reduce_sum(signal_mask)
         int_tres = tf.reduce_sum(sig_tres)
-        self.tres.assign_add(int_tres / num_sigs)
+        self.tres.assign_add(int_tres / (num_sigs+1e-9) )
         self.steps.assign_add(1)
     
     def result(self):

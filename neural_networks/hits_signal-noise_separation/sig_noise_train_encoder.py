@@ -13,7 +13,7 @@ from sig_noise_loss import EntropyLoss, TResidualPenalty, FocalLoss, TResidualPe
 # Configuration dictionary
 config = {
     # Model hyperparameters
-    'num_layers': 5,
+    'num_layers': 4,
     'num_heads': 4,
     'd_model': 128,
     'd_ff': 512,  # 4 * d_model as per best practices
@@ -56,7 +56,7 @@ loss = EntropyLoss()
 # loss = FocalLoss(config['gamma'], True)
 # loss = TResidualPenalty(config['t_res_pen_coeff'], config['time_limit'], config['relabel_big_tres'], config['loss_norm_coeff'])
 # loss = TResidualPenaltyFocal(config['t_res_pen_coeff'], config['time_limit'], config['relabel_big_tres'], config['loss_norm_coeff'], config['gamma'])
-config['loss'] = loss.name
+config['loss'] = loss.loss_name
 
 def compile_model(model, lr, loss):
     optimizer = tf.keras.optimizers.Adam(learning_rate=lr, beta_1=0.9, beta_2=0.999, epsilon=1e-07, amsgrad=True)
