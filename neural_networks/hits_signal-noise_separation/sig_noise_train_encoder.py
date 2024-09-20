@@ -8,12 +8,12 @@ for gpu in gpus:
 
 from sig_noise_nn_arch_encoder import Encoder
 from sig_noise_generators import make_train_datasets, make_val_dataset
-from sig_noise_loss import EntropyLoss, TResidualPenalty, FocalLoss, TResidualPenaltyFocal, AccuracyExtr, TResExtr
+from sig_noise_loss_metrics import EntropyLoss, TResidualPenalty, FocalLoss, TResidualPenaltyFocal, AccuracyExtr, PrecisionExtr, RecallExtr, TResExtr
 
 # Configuration dictionary
 config = {
     # Model hyperparameters
-    'num_layers': 4,
+    'num_layers': 5,
     'num_heads': 4,
     'd_model': 128,
     'd_ff': 512,  # 4 * d_model as per best practices
@@ -60,7 +60,7 @@ config['loss'] = loss.loss_name
 
 def compile_model(model, lr, loss):
     optimizer = tf.keras.optimizers.Adam(learning_rate=lr, beta_1=0.9, beta_2=0.999, epsilon=1e-07, amsgrad=True)
-    model.compile(optimizer=optimizer, loss=loss, metrics=[AccuracyExtr(),TResExtr(20., 0.7)])
+    model.compile(optimizer=optimizer, loss=loss, metrics=[AccuracyExtr(),TResExtr(20., 0.7),PrecisionExtr(),RecallExtr()])
     return model
 
 def main():

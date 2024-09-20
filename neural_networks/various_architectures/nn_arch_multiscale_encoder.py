@@ -120,7 +120,7 @@ class MultiScaleEncoder(tf.keras.Model):
             for _ in range(num_scales)
         ]
         self.pooling_layers = [
-            tf.keras.layers.AveragePooling1D(pool_size)
+            tf.keras.layers.AveragePooling1D(pool_size=2, padding='same')
             for _ in range(num_scales - 1)
         ]
         self.mask_pooling = tf.keras.layers.MaxPool1D(pool_size=2, padding='same')

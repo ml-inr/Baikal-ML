@@ -119,6 +119,46 @@ class AccuracyExtr(tf.keras.metrics.Metric):
     def result(self):
         return self.correct / self.total
 
+class PrecisionExtr(tf.keras.metrics.Metric):
+
+    def __init__(self, threshold=0.5, name='precision', **kwargs):
+        super().__init__(name=name, **kwargs)
+        self.reco_true_signal = self.add_weight(name='true_signal', initializer='zeros')
+        self.reco_total_signal = self.add_weight(name='recognized_signal', initializer='zeros')
+        self.threshold = threshold
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        mask = tf.cast(y_true[:, :, 2] < 9e4, tf.bool)
+        labels_signal = y_true[:, :, 0][mask]
+        reco_signal = tf.where(y_pred[:,:,0][mask]>self.threshold, 1., 0.)
+        reco_signal_num = tf.math.reduce_sum( reco_signal )
+        reco_true_signal_num = tf.math.reduce_sum( labels_signal*reco_signal )
+        self.reco_true_signal.assign_add(reco_true_signal_num)
+        self.reco_total_signal.assign_add(reco_signal_num)
+    
+    def result(self):
+        return self.reco_true_signal / self.reco_total_signal
+
+class RecallExtr(tf.keras.metrics.Metric):
+
+    def __init__(self, threshold=0.5, name='recall', **kwargs):
+        super().__init__(name=name, **kwargs)
+        self.reco_true_signal = self.add_weight(name='true_signal', initializer='zeros')
+        self.total_true_signal = self.add_weight(name='total_signal', initializer='zeros')
+        self.threshold = threshold
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        mask = tf.cast(y_true[:, :, 2] < 9e4, tf.bool)
+        labels_signal = y_true[:, :, 0][mask]
+        reco_signal = tf.where(y_pred[:,:,0][mask]>self.threshold, 1., 0.)
+        reco_true_signal_num = tf.math.reduce_sum( labels_signal*reco_signal )
+        total_true_signal_num = tf.math.reduce_sum( labels_signal )
+        self.reco_true_signal.assign_add(reco_true_signal_num)
+        self.total_true_signal.assign_add(total_true_signal_num)
+    
+    def result(self):
+        return self.reco_true_signal / self.total_true_signal
+
 class TResExtr(tf.keras.metrics.Metric):
 
     def __init__(self, t_lim, th, name='tres', **kwargs):
