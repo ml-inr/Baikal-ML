@@ -12,16 +12,15 @@ for gpu in gpus:
 from sig_noise_generators import make_val_dataset
 
 # Config
-h5f = '/home3/ivkhar/Baikal/data/normed/baikal_2020_sig-noise_mid-eq_normed.h5'
+h5f = ''
 particles = ['muatm','nuatm','nue2']
-save_prefix = ''
+base_save_prefix = ''
 num_hit_cut = 0
 num_string_cut = 0
 
-nns = ['unet_revised_focal','unet_revised_add','encoder_check_standard','encoder_check_focal','unet_62re_focal_allms',
-        'unet_62re_entr_allms','encoder_63re3_entr_allms','unet_62_w25_entr_allms','encoder_62_w25_focal', 'encoder_63_focal3']
-nns = ['/home/ivkhar/Baikal/models/MC2020/'+nn for nn in nns]
-path_save = '/home/ivkhar/Baikal/sig_noise_plots/'
+nns = ['']
+nns = [''+nn for nn in nns]
+path_save = ''
 
 val_batch_size = 1024
 set_up_Q_lim = True
@@ -262,7 +261,7 @@ def plot_tres_hist(tres, preds, cut):
 
 particle_evt_idxs, particle_hit_idxs, particle_nums = get_particle_slices(h5f, particles)
 for nn in nns:
-    save_prefix += f"{nn.split('/')[-1]}_{mean_mode}_h{num_hit_cut}s{num_string_cut}"
+    save_prefix = base_save_prefix + f"{nn.split('/')[-1]}_{mean_mode}_h{num_hit_cut}s{num_string_cut}"
     # make dataset and get predictions
     val_dataset = make_val_dataset(h5f, val_batch_size, np.array([1.,1.]), set_up_Q_lim, up_Q_lim, set_low_Q_lim, low_Q_lim, False, 20.)
     flat_preds, flat_y_true, flat_tres, event_starts = make_preds(nn, h5f, val_dataset, val_batch_size, None)
