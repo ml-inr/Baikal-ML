@@ -10,6 +10,9 @@ OM coordinates should be given with respect to the cluster they are located on (
 More precisely, clusters centers are evaluated on MC 2020 data and are subtracted from OM coordinates.
 The evaluated clusters centers (x, y, z) can be found in file data_for_preprocessing.txt. The unimeration follows rule `OM ID // 288`.
 
+## OM registered charges
+To account for saturated detectors, all registered charges exceeding 100 should be set to 100. 
+
 ## Required data
 For each event, the input for the neural network is a one dimensional array `(num_hits, 6)`, where `num_hits` is the number of hits in an event.
 Hits must be ordered according to their activation time in an increasing order.
