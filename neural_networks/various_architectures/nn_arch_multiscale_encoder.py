@@ -49,11 +49,12 @@ class MultiheadAttentionNLP(tf.keras.layers.Layer):
 
     def call(self, inputs):
         x, mask = inputs
+        mask_att = mask*tf.transpose(mask, perm=[0,2,1])
         qs, ks, vs = self.proj_layer(x)
         qs = tf.stack(tf.split(qs, self.num_heads, axis=-1), axis=0)
         ks = tf.stack(tf.split(ks, self.num_heads, axis=-1), axis=0)
         vs = tf.stack(tf.split(vs, self.num_heads, axis=-1), axis=0)
-        msgs = self.att_layer((qs, ks, vs, mask))
+        msgs = self.att_layer((qs, ks, vs, mask_att))
         msgs = tf.concat(tf.unstack(msgs, axis=0), axis=-1)
         return tf.matmul(msgs, self.matrix_out) + self.bias
 

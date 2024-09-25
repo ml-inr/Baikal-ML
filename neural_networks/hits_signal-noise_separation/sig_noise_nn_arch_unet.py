@@ -111,13 +111,13 @@ class UNetModel(tf.keras.Model):
 
     def call(self, inputs, training=False):
         mask = inputs[:, :, -1:]
-        x = self.pre_lstm(inputs)
+        x = self.pre_lstm(inputs, mask=tf.cast(mask[:,:,0], tf.bool))
         x = x * mask
         
         encodings, masks = self.encoder((x, mask), training=training)
         x = self.decoder([list(reversed(encodings)), list(reversed(masks))], training=training)
         
-        x = self.post_lstm(x)
+        x = self.post_lstm(x, mask=tf.cast(mask[:,:,0], tf.bool))
         x = x * mask
         x = self.final_conv(x)
         
