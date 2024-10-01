@@ -35,13 +35,13 @@ class TrackCascadePreprocessor(BasePreprocessor):
 
 
 class TresPreprocessor(BasePreprocessor):
-    def __init__(self, data_file):
-        logging.info(f"counting stats for dataset...")
-        hfile = h5.File(data_file, "r")
-        tres_data = np.array(hfile[self.split_type + "/t_res/data"])
-        self.tres_mean = tres_data.mean()
-        self.tres_std = tres_data.std()
-        logging.info("finished")
+    def __init__(self):
+        self.tres_mean = None
+        self.tres_std = None
+
+    def set_stats(self, tres_mean: float, tres_std: float):
+        self.tres_mean = tres_mean
+        self.tres_std = tres_std
 
     def __call__(
         self, x: torch.Tensor, tres: torch.Tensor
@@ -50,20 +50,24 @@ class TresPreprocessor(BasePreprocessor):
         return x, tres
 
 
-def TrackCascadeAndTresPreprocessor(TresPreprocessor):
-    def __init__(self, data_file, tres_cut):
-        super().__init__(data_file)
-        self.tres_cut = (tres_cut - self.tres_mean) / (self.tres_std + EPS)
+def TresAndTrackCascadePreprocessor(TresPreprocessor):
+    def __init__(self, tres_cut):
+        super().__init__()
+        self.tres_cut = tres_cut
 
-        def __call__(
-            self, x: torch.Tensor, y: torch.Tensor, tres: torch.Tensor, tres_cut: float
-        ) -> tuple[torch.Tensor, torch.Tensor]:
-            y[y > 0] = 1
-            y[y < 0] = 0
-            y[torch.abs(tres) > tres_cut] = 0
-            tres = (tres - self.tres_mean) / (self.tres_std + EPS)
-            labels_and_tres = torch.stack((y, tres), -1)
-            return x, labels_and_tres
+    def set_stats(self, tres_mean: float, tres_std: float):
+        self.tres_mean = tres_mean
+        self.tres_std = tres_std
+
+    def __call__(
+        self, x: torch.Tensor, y: torch.Tensor, tres: torch.Tensor, tres_cut: float
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        y[y > 0] = 1
+        y[y < 0] = 0
+        y[torch.abs(tres) > tres_cut] = 0
+        tres = (tres - self.tres_mean) / (self.tres_std + EPS)
+        labels_and_tres = torch.stack((y, tres), -1)
+        return x, labels_and_tres
 
 
 class BaseGraphPreprocessor(ABC):
@@ -84,47 +88,53 @@ class NoiseSigGraphPreprocessor(BaseGraphPreprocessor):
 
 
 class TrackCascadeGraphPreprocessor(BaseGraphPreprocessor):
-    def __init__(self, n_neighbours: int):
+    def __init__(self, n_neighbours: int, tres_cut: float):
         super().__init__()
         self.n_neighbours = n_neighbours
+        self.tres_cut = tres_cut
 
-    def __call__(
-        self, x: torch.Tensor, y: torch.Tensor, tres: torch.Tensor, tres_cut: float
-    ) -> GData:
+    def __call__(self, x: torch.Tensor, y: torch.Tensor, tres: torch.Tensor) -> GData:
         y[y > 0] = 1
         y[y < 0] = 0
-        y[torch.abs(tres) > tres_cut] = 0
+        y[torch.abs(tres) > self.tres_cut] = 0
         edge_index = gnn.knn_graph(x[:, 1], k=self.n_neighbours)
         graph = GData(x=x, edge_index=edge_index, y=y)
         return graph
 
 
 class TresGraphPreprocessor(BaseGraphPreprocessor):
-    def __init__(self, n_neighbours: int, tres_cut: float):
+    def __init__(self, n_neighbours: int):
         self.n_neighbours = n_neighbours
-        self.tres_cut = tres_cut
+        self.tres_mean = None
+        self.tres_std = None
+
+    def set_stats(self, tres_mean: float, tres_std: float):
+        self.tres_mean = tres_mean
+        self.tres_std = tres_std
 
     def __call__(self, x: torch.Tensor, tres: torch.Tensor) -> GData:
+        assert (
+            self.tres_mean is not None and self.tres_std is not None
+        ), "stats for preproccesor weren't not set"
         tres = (tres - self.tres_mean) / (self.tres_std + EPS)
-        edge_index = gnn.knn_graph(x[:, 1], k=self.neighbours)
+        edge_index = gnn.knn_graph(x[:, 1], k=self.n_neighbours)
         graph = GData(x=x, edge_index=edge_index, y=tres)
         return graph
 
 
-class TresAndTrackCascadeGraphPreprocessor(BaseGraphPreprocessor):
+class TresAndTrackCascadeGraphPreprocessor(TresGraphPreprocessor):
     def __init__(self, n_neighbours: int, tres_cut: float):
-        self.n_neighbours = n_neighbours
+        super().__init__(n_neighbours)
         self.tres_cut = tres_cut
 
     def __call__(
-        self, x: torch.Tensor, y: torch.Tensor, tres: torch.Tensor, tres_cut: float
+        self, x: torch.Tensor, y: torch.Tensor, tres: torch.Tensor
     ) -> GData:
         y[y > 0] = 1
         y[y < 0] = 0
-        y[torch.abs(tres) > tres_cut] = 0
+        y[torch.abs(tres) > self.tres_cut] = 0
         tres = (tres - self.tres_mean) / (self.tres_std + EPS)
-        labels_and_tres = torch.stack((y, tres), -1)
-        edge_index = gnn.knn_graph(x[:, 1], k=self.neighbours)
+        labels_and_tres = torch.stack((y, tres), dim=-1)
+        edge_index = gnn.knn_graph(x[:, 1], k=self.n_neighbours)
         graph = GData(x=x, edge_index=edge_index, y=labels_and_tres)
         return graph
-    

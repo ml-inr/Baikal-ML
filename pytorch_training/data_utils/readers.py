@@ -12,6 +12,7 @@ class BaikalDataset(Dataset):
         data_file: str,
         split_type: str,
         preprocessor: BasePreprocessor | BaseGraphPreprocessor,
+        set_tres_stats: bool = False,
         *args,
         **kwargs,
     ) -> None:
@@ -27,6 +28,15 @@ class BaikalDataset(Dataset):
             self.hfile[self.split_type + "/ev_starts/data"].shape[0] - 1
         )
         self.preprocessor = preprocessor
+
+        # used in inherited classes
+        if set_tres_stats:
+            logging.info(f"counting tres mean and std for {self.split_type}...")
+            self.tres_data = np.array(self.hfile[self.split_type + "/t_res/data"])
+            tres_mean = self.tres_data.mean()
+            tres_std = self.tres_data.std()
+            self.preprocessor.set_stats(tres_mean, tres_std)
+            logging.info("finished")
 
     def __len__(self):
         return self.events_amount
@@ -45,20 +55,10 @@ class BaikalDataset(Dataset):
 
 
 class BaikalDatasetTres(BaikalDataset):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        logging.info(f"counting tres std and var for {self.split_type}...")
-        self.tres_data = np.array(self.hfile[self.split_type + "/t_res/data"])
-        self.tres_mean = self.tres_data.mean()
-        self.tres_std = self.tres_data.std()
-        logging.info("finished")
-
     def __getitem__(self, idx):
         start, end = self.hfile[self.split_type + "/ev_starts/data"][idx : idx + 2]
         data = np.array(self.hfile[self.split_type + "/data/data"][start:end])
         tres = self.tres_data[start:end]
-
-        tres = (tres - self.tres_mean) / (self.tres_std + 1e-8)
 
         data_x = torch.tensor(data, dtype=torch.float32)
         data_y = torch.tensor(tres, dtype=torch.float32)
@@ -69,10 +69,6 @@ class BaikalDatasetTres(BaikalDataset):
 
 
 class BaikalDatasetTrackCascade(BaikalDataset):
-    def __init__(self, *args, tres_cut: float = 10.0, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.tres_cut = tres_cut
-
     def __getitem__(self, idx):
         start, end = self.hfile[self.split_type + "/ev_starts/data"][idx : idx + 2]
         data = np.array(self.hfile[self.split_type + "/data/data"][start:end])
@@ -83,28 +79,13 @@ class BaikalDatasetTrackCascade(BaikalDataset):
         data_y = torch.tensor(labels, dtype=torch.long)
         tres = torch.tensor(tres, dtype=torch.float32)
 
-        data_x, data_y = self.preprocessor(data_x, data_y, tres, self.tres_cut)
+        data_x, data_y = self.preprocessor(data_x, data_y, tres)
 
         return data_x, data_y
 
 
 class BaikalDatasetGraph(BaikalDataset):
-    def __init__(
-        self,
-        data_file: str,
-        split_type: str,
-        preprocessor: BaseGraphPreprocessor,
-    ) -> None:
-        """
-        Args:
-            data_file (str): path to .h5 file
-            split_type (str): train/val/test
-            neighbours (int): amount of nearest neigbours used in graph adj matrix construction
-        """
-        super().__init__(data_file, split_type, preprocessor)
-
-    def __getitem__(self, idx):
-        # data_x, data_y = super().__getitem__(idx)
+    def __getitem__(self, idx):        
         start, end = self.hfile[self.split_type + "/ev_starts/data"][idx : idx + 2]
         data = np.array(self.hfile[self.split_type + "/data/data"][start:end])
         labels = self.hfile[self.split_type + "/labels/data"][start:end]
@@ -118,12 +99,6 @@ class BaikalDatasetGraph(BaikalDataset):
 
 
 class BaikalDatasetTrackCascadeGraph(BaikalDatasetGraph):
-    def __init__(self, *args, tres_cut: float = 10.0, **kwargs):
-        print(kwargs)
-        super().__init__(*args, **kwargs)
-        self.tres_cut = tres_cut
-        assert self.preprocessor is not None
-
     def __getitem__(self, idx):
         start, end = self.hfile[self.split_type + "/ev_starts/data"][idx : idx + 2]
         data = np.array(self.hfile[self.split_type + "/data/data"][start:end])
@@ -134,10 +109,20 @@ class BaikalDatasetTrackCascadeGraph(BaikalDatasetGraph):
         data_y = torch.tensor(labels, dtype=torch.long)
         tres = torch.tensor(tres, dtype=torch.float32)
 
-        graph = self.preprocessor(data_x, data_y, tres, self.tres_cut)
+        graph = self.preprocessor(data_x, data_y, tres)
 
         return graph
 
 
 class BaikalDatasetTresGraph(BaikalDataset):
-    pass
+    def __getitem__(self, idx):
+        start, end = self.hfile[self.split_type + "/ev_starts/data"][idx : idx + 2]
+        data = np.array(self.hfile[self.split_type + "/data/data"][start:end])
+        tres = self.tres_data[start:end]
+
+        data_x = torch.tensor(data, dtype=torch.float32)
+        data_y = torch.tensor(tres, dtype=torch.float32)
+
+        graph = self.preprocessor(data_x, data_y)
+
+        return graph

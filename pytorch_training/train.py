@@ -11,6 +11,7 @@ import wandb
 
 DEVICE = "cuda"
 
+
 def fix_seed():
     seed = 42
     np.random.seed(seed)
@@ -21,7 +22,7 @@ def fix_seed():
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    
+
     parser.add_argument("-dw", "--disable-wandb", action="store_true")
     parser.add_argument("-c", "--config", help="path to config file", required=True)
     return parser.parse_args()
@@ -44,7 +45,7 @@ def main():
     args = parse_args()
     with open(args.config, "r") as f:
         train_params = yaml.safe_load(f)
-    
+
     train_type = train_params.get("train_type")
     is_graph = train_params.get("is_graph")
     is_classification = False
@@ -56,36 +57,59 @@ def main():
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, "min", factor=0.2, min_lr=1e-5, patience=1000
     )
-
+    set_tres_stats = False
     if train_type == "noise_sig":
         DatasetType = BaikalDatasetGraph if is_graph else BaikalDataset
-        preprocessor = NoiseSigGraphPreprocessor() if is_graph else NoiseSigPreprocessor()
+        preprocessor = (
+            NoiseSigGraphPreprocessor() if is_graph else NoiseSigPreprocessor()
+        )
         is_classification = True
         criterion = torch.nn.CrossEntropyLoss()
         metrics_calc_fun = binary_clf_metrics
     elif train_type == "track_cascade":
-        DatasetType = BaikalDatasetTrackCascadeGraph if is_graph else BaikalDatasetTrackCascade
-        print(is_graph)
-        preprocessor = TrackCascadeGraphPreprocessor(train_params["knn_neighbours"]) if is_graph else TrackCascadePreprocessor()
+        DatasetType = (
+            BaikalDatasetTrackCascadeGraph if is_graph else BaikalDatasetTrackCascade
+        )
+        preprocessor = (
+            TrackCascadeGraphPreprocessor(
+                train_params["knn_neighbours"], train_params["tres_cut"]
+            )
+            if is_graph
+            else TrackCascadePreprocessor(train_params["tres_cut"])
+        )
         metrics_calc_fun = binary_clf_metrics
         is_classification = True
         criterion = torch.nn.CrossEntropyLoss()
     elif train_type == "tres":
+        set_tres_stats = True
         DatasetType = BaikalDatasetTresGraph if is_graph else BaikalDatasetTres
-        preprocessor = TresGraphPreprocessor() if is_graph else TresPreprocessor()
-        is_classification = False
+        preprocessor = (
+            TresGraphPreprocessor(train_params["knn_neighbours"])
+            if is_graph
+            else TresPreprocessor()
+        )
         metrics_calc_fun = regression_metrics
         criterion = torch.nn.MSELoss()
     elif train_type == "tres_and_track_cascade":
-        DatasetType = BaikalDatasetTrackCascadeGraph
-        is_classification = False
+        set_tres_stats = True
+        DatasetType = (
+            BaikalDatasetTrackCascadeGraph if is_graph else BaikalDatasetTrackCascade
+        )
+        preprocessor = (
+            TresAndTrackCascadeGraphPreprocessor(
+                train_params["knn_neighbours"], train_params["tres_cut"]
+            )
+            if is_graph
+            else TresAndTrackCascadePreprocessor()
+        )
         metrics_calc_fun = regression_and_clf_metrics
 
         ce_ = torch.nn.CrossEntropyLoss()
         mse_ = torch.nn.MSELoss()
+
         def criterion(y_pred, y_true):
             ce_loss = ce_(y_pred[:, :-1], y_true[:, 0].long())
-            mse_loss = mse_(y_pred[:, -1],  y_true[:, -1])
+            mse_loss = mse_(y_pred[:, -1], y_true[:, -1])
             return ce_loss + train_params["tres_mse_coef"] * mse_loss
 
     dataloaders = create_dataloaders(
@@ -95,9 +119,8 @@ def main():
         DatasetType=DatasetType,
         is_classification=is_classification,
         preprocessor=preprocessor,
-        tres_cut=train_params["tres_cut"]
+        set_tres_stats=set_tres_stats,
     )
-
 
     train_fun_kwargs = dict(
         optimizer=optimizer,
@@ -108,7 +131,7 @@ def main():
         num_iters=train_params.get("num_train_steps_per_validation", 256),
         metrics_calc_fun=metrics_calc_fun,
         is_classification=is_classification,
-        is_track_cascade_tres_train=(train_type == "tres_and_track_cascade")
+        is_track_cascade_tres_train=(train_type == "tres_and_track_cascade"),
     )
 
     validate_fun_kwargs = dict(
@@ -117,7 +140,7 @@ def main():
         is_graph=is_graph,
         metrics_calc_fun=metrics_calc_fun,
         is_classification=is_classification,
-        is_track_cascade_tres_train=(train_type == "tres_and_track_cascade")
+        is_track_cascade_tres_train=(train_type == "tres_and_track_cascade"),
     )
 
     if not args.disable_wandb:

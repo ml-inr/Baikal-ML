@@ -1,4 +1,5 @@
 ---
+# 'acc': 0.9831503998694304, 'precision': 0.6802997858672377, 'recall': 0.3195212712461028,
 model_type: "encoder"
 train_type: "noise_sig"
 path_to_data: "/home2/ivkhar/Baikal/data/normed/baikal_2020_sig-noise_mid-eq_normed.h5"

@@ -31,11 +31,10 @@ def regression_metrics(y_pred, y_true):
 
 def regression_and_clf_metrics(y_pred, y_true):
     metrics = {}
-    print(y_pred.shape, y_true.shape)
     metrics.update(
         binary_clf_metrics(y_pred[:, 0].reshape(-1), y_true[:, 0].reshape(-1))
     )
     metrics.update(
-        binary_clf_metrics(y_pred[:, 1].reshape(-1), y_true[:, 1].reshape(-1))
+        regression_metrics(y_pred[:, 1].reshape(-1), y_true[:, 1].reshape(-1))
     )
     return metrics

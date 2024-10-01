@@ -1,6 +1,6 @@
 ---
 model_type: "graphnet"
-train_type: "track_cascade"
+train_type: "tres_and_track_cascade"
 path_to_data: "/home2/ivkhar/Baikal/data/normed/baikal_2020_sig-noise_mid-eq_normed.h5"
 is_graph: True
 knn_neighbours: 4
@@ -9,8 +9,10 @@ model_params:
   knn_neighbours: 4
   in_features: 5
   out_size: 2
+  second_head_out_size: 1
 lr: 1.0e-3
 batch_size: 128
 num_train_steps_per_validation: 50
-exp_name: "baseline_graphnet"
-exp_project: "track_cascade_new_mc_0924"
+exp_name: "graphnet_k=0.1"
+tres_mse_coef: 0.1
+exp_project: "tres_and_track_cascade_mc_0924" 

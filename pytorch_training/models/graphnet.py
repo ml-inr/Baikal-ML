@@ -36,7 +36,12 @@ class DynEdgeConv(gnn.EdgeConv):
 
 class GraphnetDynedge(nn.Module):
     def __init__(
-        self, in_features, knn_neighbours=4, dynedge_layer_sizes=None, out_size=2
+        self,
+        in_features,
+        knn_neighbours=4,
+        dynedge_layer_sizes=None,
+        out_size=2,
+        second_head_out_size=None,
     ):
         super().__init__()
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -88,17 +93,22 @@ class GraphnetDynedge(nn.Module):
 
         # nb_poolings = len(self._global_pooling_schemes)
         # nb_latent_features = nb_out * nb_pooling
-
         self.head = nn.Linear(1029, out_size)
+        self.second_head = (
+            nn.Linear(1029, second_head_out_size)
+            if second_head_out_size is not None
+            else None
+        )
 
     def forward(self, x, edge_index, batch):
-        # DynEdge-convolutions
         skip_connections = [x]
         for conv_layer in self._conv_layers:
             x, edge_index = conv_layer(x, edge_index, batch)
             skip_connections.append(x)
 
         x = torch.cat(skip_connections, dim=1)
-        x = self.head(x)
-
-        return x
+        y = self.head(x)
+        if self.second_head is not None:
+            z = self.second_head(x)
+            return torch.cat([y, z], dim=-1)
+        return y
