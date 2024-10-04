@@ -1,0 +1,1 @@
+Model architectue is: ResnetAndGlobalPool,             Number of params: (1036770, 3392)

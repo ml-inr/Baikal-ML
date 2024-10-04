@@ -1,0 +1,4 @@
+batch_size: 512
+ds_regime: val
+model_regime: best_by_test
+path_to_model_dir: /home/albert/Baikal/NeutrinoSelection/NNBlock/experiments/02_05_PreciseSelection_NewH8Data_ResNet_Gamma2

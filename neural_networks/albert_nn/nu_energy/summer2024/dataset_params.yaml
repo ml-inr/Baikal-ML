@@ -1,0 +1,18 @@
+apply_add_gauss: true
+apply_mult_gauss: true
+batch_size: 1024
+g_add_stds:
+- 0.1
+- 2.0
+- 2.0
+- 2.0
+- 1.0
+path_to_h5: /home/albert/Baikal/DataProc/h5_files/NE_08_06_24_baikal_multi_1223_filtered_splitted.h5
+q_noise_fraction: 0.1
+set_up_Q_lim: true
+shape: !!python/tuple
+- null
+- 6
+start: 0
+up_Q_lim: 100.0
+use_weights: false
