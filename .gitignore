@@ -1,4 +1,5 @@
 *.h5
 **/*markup*
 **/*OLD*
-**/*venv*
+**/venv*
+**/__pycache__*
