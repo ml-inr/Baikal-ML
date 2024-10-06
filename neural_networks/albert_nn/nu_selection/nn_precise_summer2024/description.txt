@@ -1,7 +1,0 @@
- DESCRITPION OF '02_05_PreciseSelection_NewH8Data_ResNet_Gamma2'
-Precise separation task.
-Since we have 5e5 muatm on test, we can measure val_Expos on Suppr=5e-5 with relative error ~10%.
-That is try to train model with the best EonS metric.
-Gamma=2 focal loss.
-Small noise in data. Disbalance classes in data. Big net.
-

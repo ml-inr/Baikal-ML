@@ -1,3 +1,0 @@
-Small RNN Encoder on new flat dataset with tails. WITH gauss noise. Big batch size. Softplus actvation for sigma and energy. 
-
-Labels are normed as [0,7]-->[0,1]. Add E output as unit at last layer for sigma. No lr decay.

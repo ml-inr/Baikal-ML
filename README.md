@@ -1,4 +1,4 @@
-# Code relevant for developing ML for Baikal-GVD
+# Albert's code for data processing and NN training.
 
 Includes:
 - Data processing routines
