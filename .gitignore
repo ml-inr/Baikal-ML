@@ -1,4 +1,6 @@
 *.h5
+*.db
+*.parquet
 **/*markup*
 **/*OLD*
 **/venv*
