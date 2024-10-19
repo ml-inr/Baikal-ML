@@ -5,10 +5,14 @@ import numpy as np
 from joblib import Parallel, delayed
 import uproot as ur
 
-from data.root_manager.reader.root_reader import RootReader
-from data.root_manager.constants import Constants as Cnst
-from data.settings import ProcessorConfig
-
+try:
+    from data.root_manager.reader.root_reader import RootReader
+    from data.root_manager.constants import Constants as Cnst
+    from data.settings import ProcessorConfig
+except:
+    from root_manager.reader.root_reader import RootReader
+    from root_manager.constants import Constants as Cnst
+    from settings import ProcessorConfig
 
 class Processor:
     def __init__(

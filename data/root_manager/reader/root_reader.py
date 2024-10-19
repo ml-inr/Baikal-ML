@@ -8,10 +8,14 @@ import uproot as ur
 import awkward as ak
 from functools import lru_cache
 
-from data.root_manager.reader.root_paths import RootPaths, BaseFeaturePaths
-from data.root_manager.reader.polars_schema import DataSchema
-from data.root_manager.constants import Constants as Cnst
-
+try:
+    from data.root_manager.reader.root_paths import RootPaths, BaseFeaturePaths
+    from data.root_manager.reader.polars_schema import DataSchema
+    from data.root_manager.constants import Constants as Cnst
+except:
+    from root_manager.reader.root_paths import RootPaths, BaseFeaturePaths
+    from root_manager.reader.polars_schema import DataSchema
+    from root_manager.constants import Constants as Cnst
 
 class BadFile(Exception):
     pass
