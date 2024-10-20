@@ -3,6 +3,7 @@ import logging
 from random import shuffle
 from typing import Optional, Generator, Tuple
 
+import numpy as np
 import polars as pl
 from torch import Tensor, tensor
 
@@ -133,6 +134,16 @@ class TrainGenerator:
             logging.debug("Processing chunk from index %d to %d.", start, stop)
             df = Processor(self.all_paths[start:stop], self.proc_params).process()
             df = df[self.cfg.features + self.cfg.labels]
+            
+            if self.cfg.do_norm:
+                for field_name, stats in self.norm_params.to_dict():
+                    mean, std = stats
+                    df = df.with_columns(((pl.col(field_name) - mean)/std).alias(field_name))
+            
+            if self.cfg.do_augment:
+                for field_name, std in self.aug_params.to_dict():
+                    df = df.with_columns(pl.col(field_name) + np.random.normal(0, std, pl.col(field_name).list.len())).alias(field_name)
+            
             if self.cfg.shuffle:
                 df = df.sample(n=df.shape[0], shuffle=True)
                 logging.debug("Shuffling data within chunk.")
@@ -148,7 +159,7 @@ class TrainGenerator:
 
         result = []
         for row in df.iter_rows():
-            row_result = [df_list + [0.0] * (max_length - len(df_list)) for df_list in row]
+            row_result = [df_list + [np.nan] * (max_length - len(df_list)) for df_list in row]
             result.append(row_result)
 
         logging.debug("Data flattened and padded. Returning as Tensor.")
@@ -158,6 +169,10 @@ class TrainGenerator:
         """
         Generate batches of data for training.
         """
+        
+        # TODO: for effective usage of numpy.random make norming and aug here.
+        # For clearity add self.featname_pytorchindex_map = dict(...)
+        
         if bs is None:
             bs = self.batch_size
         
