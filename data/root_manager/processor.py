@@ -8,11 +8,11 @@ import uproot as ur
 try:
     from data.root_manager.reader.root_reader import RootReader
     from data.root_manager.constants import Constants as Cnst
-    from data.settings import ProcessorConfig
+    from data.root_manager.settings import ProcessorConfig
 except:
     from root_manager.reader.root_reader import RootReader
     from root_manager.constants import Constants as Cnst
-    from settings import ProcessorConfig
+    from root_manager.settings import ProcessorConfig
 
 class Processor:
     def __init__(
