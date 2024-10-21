@@ -5,7 +5,8 @@ from typing import Optional, Generator, Tuple
 
 import numpy as np
 import polars as pl
-from torch import Tensor, tensor
+import torch
+from torch import Tensor
 
 try:
     from data.root_manager.processor import Processor
@@ -150,7 +151,7 @@ class TrainGenerator:
             yield df
 
     @staticmethod 
-    def _flatten_and_pad(df: pl.DataFrame) -> Tensor:
+    def _to_padded_batch(df: pl.DataFrame[pl.List, ..., pl.List]) -> Tuple[list[list], dict, dict]:
         """
         Flatten and pad input data to ensure consistent dimensions.
         """
@@ -159,11 +160,12 @@ class TrainGenerator:
 
         result = []
         for row in df.iter_rows():
-            row_result = [df_list + [np.nan] * (max_length - len(df_list)) for df_list in row]
+            row_result = [df_list + [torch.nan] * (max_length - len(df_list)) for df_list in row]
             result.append(row_result)
-
-        logging.debug("Data flattened and padded. Returning as Tensor.")
-        return tensor(result)
+        index2name = {i: name for i, name in enumerate(df.columns)}
+        name2index = {name: i for i, name in enumerate(df.columns)}
+        logging.debug("Data flattened and padded. Returning as list.")
+        return result, index2name, name2index
 
     def get_batches(self, bs: Optional[int] = None) -> Generator[Tuple[Tensor, Tensor], None, None]:
         """
@@ -185,7 +187,30 @@ class TrainGenerator:
                 if pre_batch.shape[0] == 0:
                     logging.warning("Empty batch encountered. Skipping.")
                     break
-                data = self._flatten_and_pad(pre_batch[self.cfg.features])
+                
+                data, index2name, name2index = self._to_padded_batch(pre_batch[self.cfg.features])
+                data = torch.tensor(data)
+                
+                if self.cfg.do_augment:
+                    stds = [0.] * data.shape[2]
+                    for name, std in self.aug_params.to_dict().items():
+                        stds[name2index[name]] = std
+                    stds = torch.tensor(stds).reshape(1,1,len(stds)).repeat(data.shape[0], data.shape[1], 1)
+                    data = data + torch.normal(torch.zeros(data.shape), stds)
+                    
+                    # Reorder by augmented time
+                    time_index = name2index["PulsesTime"]
+                    sort_idxs = data[:,:,time_index].argsort(dim=1).repeat(1,1,data.shape[2])
+                    data = data.gather(dim=1, index=sort_idxs)
+                    
+                if self.cfg.do_norm:
+                    means, stds = [None]*data.shape[2], [None]*data.shape[2]
+                    for i in range(data.shape[2]):
+                        mean, std = self.norm_params.to_dict()[index2name[i]]
+                        means.append(mean), stds.append(std)
+                    
+                    
+                
                 labels = pre_batch[self.cfg.labels].to_torch()
                 logging.debug("Batch %d generated. Data shape: %s, Labels shape: %s", batch_index, data.shape, labels.shape)
                 batch_index += 1

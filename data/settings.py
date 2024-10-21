@@ -46,13 +46,13 @@ class NormParams(BaseConfig):
     """Parameters to normilize input data
     """
     # times and Amplitudes: [mean, std]. Can differ much from dataset to dataset.
-    PulsesTime: List[float] = field(default_factory=lambda: [0., 238.5])
-    PulsesAmpl: List[float] = field(default_factory=lambda: [6.8, 118.7])
+    PulsesTime: tuple[float] = (0., 238.5)
+    PulsesAmpl: tuple[float] = (6.8, 118.7)
     
     # geometry: [mean, std]. Made it fixed.
-    Xrel: List[float] = field(default_factory=lambda: [0., 60.])
-    Yrel: List[float] = field(default_factory=lambda: [0., 60.])
-    Zrel: List[float] = field(default_factory=lambda: [0., 260.])
+    Xrel: tuple[float] = (0., 60.)
+    Yrel: tuple[float] = (0., 60.)
+    Zrel: tuple[float] = (0., 260.)
     
 @dataclass
 class AugmentParams(BaseConfig):
