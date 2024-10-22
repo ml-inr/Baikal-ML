@@ -14,10 +14,9 @@ except:
     from root_manager.constants import Constants as Cnst
     from root_manager.settings import ProcessorConfig
 
+
 class Processor:
-    def __init__(
-        self, paths_to_roots: List[str], config: ProcessorConfig = ProcessorConfig()
-    ):
+    def __init__(self, paths_to_roots: List[str], config: ProcessorConfig = ProcessorConfig()):
         """
         Initializes the Processor class, setting up paths and configuration for processing ROOT files.
 
@@ -29,7 +28,7 @@ class Processor:
         self.paths = paths_to_roots
         self.prefixes = self._extract_prefixes(paths_to_roots)
         self.OM_coords = self.read_OM_coords(paths_to_roots[0])
-        self.filter_koef = 'Not estimated untill processing'
+        self.filter_koef = "Not estimated untill processing"
 
     @staticmethod
     def _extract_prefixes(paths: List[str]) -> List[str]:
@@ -77,9 +76,7 @@ class Processor:
         return OM_coords
 
     @staticmethod
-    def read_file(
-        path: str, prefix: str
-    ) -> Tuple[pl.DataFrame, pl.DataFrame, pl.DataFrame, pl.DataFrame]:
+    def read_file(path: str, prefix: str) -> Tuple[pl.DataFrame, pl.DataFrame, pl.DataFrame, pl.DataFrame]:
         """
         Reads data from a ROOT file and returns DataFrames for events, pulses, muons, and OM coordinates.
 
@@ -100,9 +97,7 @@ class Processor:
             )
         return results
 
-    def _read_root2df(
-        self
-    ) -> Tuple[pl.DataFrame, pl.DataFrame, pl.DataFrame]:
+    def _read_root2df(self) -> Tuple[pl.DataFrame, pl.DataFrame, pl.DataFrame]:
         """
         Loads a chunk of root files and returns concatenated DataFrames for events, pulses, and muons.
 
@@ -111,11 +106,10 @@ class Processor:
         """
         read_paths = self.paths
         prefixes = self._extract_prefixes(self.paths)
-        
+
         # Parallel processing to read multiple files at once
         results = Parallel(n_jobs=-1)(
-            delayed(self.read_file)(path, prefix)
-            for path, prefix in zip(read_paths, prefixes)
+            delayed(self.read_file)(path, prefix) for path, prefix in zip(read_paths, prefixes)
         )
         events, pulses, muons, new_OM_coords = zip(*results)
 
@@ -128,9 +122,7 @@ class Processor:
         return events, pulses, muons
 
     @staticmethod
-    def get_mu_direction(
-        theta: pl.Expr, phi: pl.Expr
-    ) -> Tuple[pl.Expr, pl.Expr, pl.Expr, pl.Expr]:
+    def get_mu_direction(theta: pl.Expr, phi: pl.Expr) -> Tuple[pl.Expr, pl.Expr, pl.Expr, pl.Expr]:
         """
         Calculates the muon direction vector (dx, dy, dz) and its norm from spherical coordinates (theta, phi).
 
@@ -196,9 +188,7 @@ class Processor:
         dx_mu, dy_mu, dz_mu, dir_norm_mu = mu_dir
 
         # Calculate angles and corresponding distances
-        cosAlpha = (dx * dx_mu + dy * dy_mu + dz * dz_mu) / (
-            1e-9 + target_dist * dir_norm_mu
-        )
+        cosAlpha = (dx * dx_mu + dy * dy_mu + dz * dz_mu) / (1e-9 + target_dist * dir_norm_mu)
         sinAlpha = (1 - cosAlpha**2).sqrt()
 
         dMuon = target_dist * (cosAlpha - sinAlpha / Cnst.TAN_C)
@@ -210,21 +200,15 @@ class Processor:
         t_res_all = t_exp - t_detected
 
         return t_res_all
-    
+
     def calc_tres(self, muons_df: pl.DataFrame, df_pulses_flat: pl.DataFrame) -> pl.DataFrame:
-         # Prepare DataFrames for t_res calculation
-        muons_flat = muons_df.explode(
-            [c for c in muons_df.columns if c not in ["ev_id"]]
-        )
+        # Prepare DataFrames for t_res calculation
+        muons_flat = muons_df.explode([c for c in muons_df.columns if c not in ["ev_id"]])
         pulses_for_tres = df_pulses_flat.filter(pl.col("is_signal"))[
             ["ev_id", "mu_local_id", "PulsesChID", "PulsesTime", "X", "Y", "Z"]
         ]
-        muons_for_tres = muons_flat[
-            [c for c in muons_flat.columns if c not in ["RespMuEn"]]
-        ]
-        df_for_tres = pulses_for_tres.join(
-            muons_for_tres, on=["ev_id", "mu_local_id"], how="left"
-        )
+        muons_for_tres = muons_flat[[c for c in muons_flat.columns if c not in ["RespMuEn"]]]
+        df_for_tres = pulses_for_tres.join(muons_for_tres, on=["ev_id", "mu_local_id"], how="left")
         df_for_tres = df_for_tres.with_columns(
             t_res=self.get_t_res(
                 self.get_target_vec_direction(
@@ -241,9 +225,7 @@ class Processor:
             )
         )
         #  Минимальный tres среди мюонов, которые дали сигнал в данный хит
-        df_for_tres = df_for_tres.group_by(
-            ["ev_id", "PulsesChID", "PulsesTime"], maintain_order=True
-        ).agg(
+        df_for_tres = df_for_tres.group_by(["ev_id", "PulsesChID", "PulsesTime"], maintain_order=True).agg(
             pl.col("t_res")
             .filter(pl.col("t_res").abs() == pl.col("t_res").abs().min())
             .first()  # Select t_res with min absolute value
@@ -256,13 +238,10 @@ class Processor:
             how="left",
             suffix="for_mu",
         )
-        
-        return df_pulses_flat
-        
 
-    def process(
-        self
-    ) -> pl.DataFrame:
+        return df_pulses_flat
+
+    def process(self) -> pl.DataFrame:
         """
         Executes data pipeline: Extract, Transform, Filter.
         Enriches pulses with additional information and filters the data based on the filtering configuration.
@@ -270,20 +249,18 @@ class Processor:
         Returns:
             pl.DataFrame: filtered DataFrame.
         """
-        
+
         events_df, pulses_df, muons_df = self._read_root2df()
         # Enrich muons with local ids
         mu_local_ids = events_df["ev_id", "ResponseMuN"].with_columns(
             mu_local_id=pl.int_ranges(end=pl.col("ResponseMuN"), dtype=pl.Int16)
         )
         muons_df = muons_df.join(mu_local_ids[["ev_id", "mu_local_id"]], on="ev_id")
-        
+
         filt_cfg = self.cfg.filter_cfg
 
         # Flatten pulses DataFrame
-        df_pulses_flat = pulses_df.explode(
-            [c for c in pulses_df.columns if c not in ["ev_id"]]
-        )
+        df_pulses_flat = pulses_df.explode([c for c in pulses_df.columns if c not in ["ev_id"]])
 
         # Enrich pulses with new columns: signal flags, cluster and string IDs
         df_pulses_flat = df_pulses_flat.with_columns(
@@ -300,9 +277,7 @@ class Processor:
             df_pulses_flat = df_pulses_flat.filter(pl.col("PulsesAmpl") >= minQ)
 
         # Filter out pulses with bugged large times
-        df_pulses_flat = df_pulses_flat.filter(
-            pl.col("PulsesTime") <= filt_cfg.t_threshold
-        )
+        df_pulses_flat = df_pulses_flat.filter(pl.col("PulsesTime") <= filt_cfg.t_threshold)
 
         # Join OM coordinates to pulses DataFrame
         df_pulses_flat = df_pulses_flat.join(
@@ -310,56 +285,46 @@ class Processor:
             on="PulsesChID",
             how="left",
         )
-        
+
         # Calculate t_res if configured
         if self.cfg.calc_tres:
             df_pulses_flat = self.calc_tres(muons_df, df_pulses_flat)
-           
+
         # Sort pulses by event ID, cluster ID, and pulse time
         df_pulses_flat = df_pulses_flat.sort(["ev_id", "cluster_id", "PulsesTime"])
 
         # Group by event ID and cluster ID, performing calculations on grouped data
         query = [
-            pl.col(c_name)
-            for c_name in df_pulses_flat.columns
-            if c_name not in ["ev_id", "cluster_id", "string_id"]
+            pl.col(c_name) for c_name in df_pulses_flat.columns if c_name not in ["ev_id", "cluster_id", "string_id"]
         ] + [
-            pl.col("is_signal")
-            .alias("num_signal_hits")
-            .sum()
-            .cast(pl.Int16),  # Calculate number of signal hits
+            pl.col("is_signal").alias("num_signal_hits").sum().cast(pl.Int16),  # Calculate number of signal hits
             pl.col("string_id")
             .filter(pl.col("is_signal"))
             .n_unique()
             .cast(pl.Int8)
             .alias("num_signal_strings"),  # Calculate unique signal strings
         ]
-        grouped_pulses = df_pulses_flat.group_by(
-            ["ev_id", "cluster_id"], maintain_order=True
-        ).agg(query)
+        grouped_pulses = df_pulses_flat.group_by(["ev_id", "cluster_id"], maintain_order=True).agg(query)
 
         # Apply filtering based on hit and string counts
         grouped_pulses = grouped_pulses.filter(
-            (pl.col("num_signal_hits") >= filt_cfg.min_hits)
-            & (pl.col("num_signal_strings") >= filt_cfg.min_strings)
+            (pl.col("num_signal_hits") >= filt_cfg.min_hits) & (pl.col("num_signal_strings") >= filt_cfg.min_strings)
         )
 
         # Center times if configured
         if self.cfg.center_times:
             grouped_pulses = grouped_pulses.with_columns(
                 PulsesTime=pl.col("PulsesTime")
-                - pl.col("PulsesTime")
-                .list.mean()
-                .repeat_by(pl.col("PulsesTime").list.len())
+                - pl.col("PulsesTime").list.mean().repeat_by(pl.col("PulsesTime").list.len())
             )
 
         # Join filtered pulses and muons with events DataFrame
         final_df = events_df.join(grouped_pulses, on="ev_id", how="inner").join(
             muons_df, on="ev_id", how="inner", suffix="_for_mu"
         )
-        
-        final_df = final_df.with_columns(nu_induced=pl.col('ev_id').str.starts_with('nu'))
-        
-        self.filter_koef = final_df.shape[0]/events_df.shape[0]
+
+        final_df = final_df.with_columns(nu_induced=pl.col("ev_id").str.starts_with("nu"))
+
+        self.filter_koef = final_df.shape[0] / events_df.shape[0]
 
         return final_df
