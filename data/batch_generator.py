@@ -1,9 +1,7 @@
 import os
 import logging
-from random import shuffle
-from typing import Optional, Generator
+from typing import Generator
 
-import numpy as np
 import polars as pl
 import torch
 from torch import Tensor
@@ -22,15 +20,16 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 
 class BatchGenerator:
 
-    def __init__(self, cfg: BatchGeneratorConfig, collect_stats=False):
+    def __init__(self, root_paths, cfg: BatchGeneratorConfig):
         self.cfg = cfg
-        self.norm_params = cfg.norm_params
-        self.aug_params = cfg.augment_parmas
+        self.norm_params = self.cfg.norm_params
+        self.aug_params = self.cfg.augment_parmas
 
         # Get chunks generator
-        self.chunks = ChunkGenerator(cfg.chunk_generator_cfg).get_chunks()
+        self.chunks_cfg = self.cfg.chunk_generator_cfg
+        self.chunks = ChunkGenerator(root_paths, self.chunks_cfg).get_chunks()
 
-        self.batch_size = cfg.batch_size
+        self.batch_size = self.cfg.batch_size
 
         self.name2index = None
         self.aug_stds = None
@@ -89,21 +88,21 @@ class BatchGenerator:
         logging.debug(f"Normilized data: {data.shape=}")
         return data
 
-    def get_batches(self, bs: Optional[int] = None) -> Generator[tuple[Tensor, Tensor], None, None]:
+    def get_batches(self) -> Generator[tuple[Tensor, Tensor], None, None]:
         """
         Generate batches of data for training.
         """
 
-        if bs is None:
-            bs = self.batch_size
-
+        chunk_index = 0
         batch_index = 0
         for chunk in self.chunks:
+            logging.info(f"#{chunk_index} chunk loaded.")
+            chunk_index += 1
             if self.cfg.shuffle:
                 chunk = chunk.sample(n=chunk.shape[0], shuffle=True)
                 logging.debug("Shuffling data within chunk.")
-            for start in range(0, chunk.shape[0], bs):
-                stop = start + bs
+            for start in range(0, chunk.shape[0], self.batch_size):
+                stop = start + self.batch_size
                 pre_batch = chunk[start:stop]
                 if pre_batch.shape[0] == 0:
                     logging.warning("Empty batch encountered. Skipping.")
@@ -151,12 +150,12 @@ if __name__ == "__main__":
     mu_paths = explore_paths(path_mu, 0, 2)
     nuatm_paths = explore_paths(path_nuatm, 0, 1)
     nu2_paths = explore_paths(path_nu2, 0, 1)
+    all_paths = mu_paths + nuatm_paths + nu2_paths
 
-    chunks_cfg = ChunkGeneratorConfig(mu_paths, nuatm_paths, nu2_paths)
-    cfg = BatchGeneratorConfig(chunk_generator=ChunkGenerator(chunks_cfg))
-
-    train_data = BatchGenerator(cfg)
-    batches = train_data.get_batches(256)
+    # Default settings. To learn more possibilities, examine `data.root_manager.settings` and `root_manager.settings`
+    cfg = BatchGeneratorConfig()
+    train_data = BatchGenerator(root_paths=all_paths, cfg=cfg)
+    batches = train_data.get_batches()
 
     for i, (data, labels) in enumerate(batches):
         logging.info(f"Processed batch #{i}")

@@ -55,7 +55,7 @@ class AugmentParams(BaseConfig):
 class BatchGeneratorConfig(BaseConfig):
     """Configuration of data generator"""
 
-    chunk_generator_cfg: ChunkGeneratorConfig
+    chunk_generator_cfg: ChunkGeneratorConfig = ChunkGeneratorConfig()
 
     batch_size: int = 256
     features_name: List[str] = field(default_factory=lambda: ["PulsesAmpl", "PulsesTime", "Xrel", "Yrel", "Zrel"])
@@ -68,24 +68,3 @@ class BatchGeneratorConfig(BaseConfig):
     augment_parmas: AugmentParams = AugmentParams()
 
     shuffle: bool = True  # if shuffle data inside chunk
-
-
-if __name__ == "__main__":
-    # example of some standard paths for training
-    # should be set individually for each experiment
-    import os
-
-    path_mu = f"/net/62/home3/ivkhar/Baikal/data/initial_data/MC_2020/muatm/root/all/"
-    path_nuatm = f"/net/62/home3/ivkhar/Baikal/data/initial_data/MC_2020/nuatm/root/all/"
-    path_nu2 = f"/net/62/home3/ivkhar/Baikal/data/initial_data/MC_2020/nue2_100pev/root/all/"
-
-    def explore_paths(p: str, start: int, stop: int):
-        files = os.listdir(f"{p}")[start:stop]
-        return sorted([f"{p}{file}" for file in files])
-
-    # best trainig dataset for standard settings
-    mu_paths = explore_paths(path_mu, 0, 800)
-    nuatm_paths = explore_paths(path_nuatm, 0, 1000)
-    nu2_paths = explore_paths(path_nu2, 0, 60)
-
-    batches_cfg = BatchGeneratorConfig(chunk_generator=ChunkGeneratorConfig(mu_paths, nuatm_paths, nu2_paths))
