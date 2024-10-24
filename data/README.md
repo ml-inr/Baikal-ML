@@ -68,7 +68,7 @@ This module provides a pipeline for processing data from `.root` files, converti
         nu2_paths = explore_paths(path_nu2, 0, 60)
         all_paths = mu_paths + nuatm_paths + nu2_paths
 
-        # Default settings. To learn more possibilities, examine `data.root_manager.settings` and `root_manager.settings`
+        # Default settings. To learn more possibilities, examine `data.settings` and `data.root_manager.settings`
         cfg = BatchGeneratorConfig()
         train_data = BatchGenerator(root_paths=all_paths, cfg=cfg)
         batches = train_data.get_batches()
