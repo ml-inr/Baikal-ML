@@ -9,7 +9,7 @@ try:
     from data.root_manager.reader.root_reader import RootReader
     from data.root_manager.constants import Constants as Cnst
     from data.root_manager.settings import ProcessorConfig
-except:
+except ImportError:
     from root_manager.reader.root_reader import RootReader
     from root_manager.constants import Constants as Cnst
     from root_manager.settings import ProcessorConfig
@@ -108,7 +108,7 @@ class Processor:
         prefixes = self._extract_prefixes(self.paths)
 
         # Parallel processing to read multiple files at once
-        results = Parallel(n_jobs=-1)(
+        results = Parallel(n_jobs=-2)(
             delayed(self.read_file)(path, prefix) for path, prefix in zip(read_paths, prefixes)
         )
         events, pulses, muons, new_OM_coords = zip(*results)

@@ -1,9 +1,14 @@
 import logging
+from dataclasses import dataclass
 
 import polars as pl
 
-from data.root_manager.processor import Processor
-from data.root_manager.settings import ProcessorConfig
+try:
+    from data.root_manager.processor import Processor
+    from data.root_manager.settings import ProcessorConfig
+except ImportError:
+    from root_manager.processor import Processor
+    from root_manager.settings import ProcessorConfig
 
 
 class StatsCollector:
@@ -72,15 +77,20 @@ class StatsCollector:
         logging.info("Field '%s': Estimated Mean = %.4f, Std = %.4f", field_name, mean, std)
         return mean, std
 
-    def _get_stats(self, start: int = 0, stop: int = 50) -> None:
+    def get_stats(self, start: int = 0, stop: int = 50) -> None:
         """
         Collect statistics for datasets, including mean and standard deviation estimates.
+        Estimation is made on a slice of root files from start to stop. If length of path-list less then stop - start, reads all files.
+        
+        Arguments:
+            start: where to start slice from paths
+            stop: where to stop slice from paths
         """
         assert stop > start, "Stop index must be greater than start index."
-        if stop - start > min(len(self.mu_paths), len(self.nuatm_paths), len(self.nu2_paths)):
-            logging.warning("Range is too large for the available files. Adjusting to smaller range.")
-            start = 0
-            stop = min(len(self.mu_paths), len(self.nuatm_paths), len(self.nu2_paths))
+        # if stop - start > min(len(self.mu_paths), len(self.nuatm_paths), len(self.nu2_paths)):
+        #     logging.warning("Range is too large for the available files. Adjusting to smaller range.")
+        #     start = 0
+        #     stop = min(len(self.mu_paths), len(self.nuatm_paths), len(self.nu2_paths))
 
         # Load processed data
         logging.info("Processing datasets from indices %d to %d.", start, stop)
@@ -89,9 +99,9 @@ class StatsCollector:
         df_nu2 = (nu2_proc := Processor(self.nu2_paths[start:stop], self.proc_cfg)).process()
 
         # Estimate statistics
-        self.mu_num_estimated = df_mu.shape[0] / (stop - start) * len(self.mu_paths)
-        self.nuatm_num_estimated = df_nuatm.shape[0] / (stop - start) * len(self.nuatm_paths)
-        self.nu2_num_estimated = df_nu2.shape[0] / (stop - start) * len(self.nu2_paths)
+        self.mu_num_estimated = df_mu.shape[0] / min((stop - start),len(self.mu_paths)-start) * len(self.mu_paths)
+        self.nuatm_num_estimated = df_nuatm.shape[0] / min((stop - start),len(self.nuatm_paths)-start) * len(self.nuatm_paths)
+        self.nu2_num_estimated = df_nu2.shape[0] / min((stop - start),len(self.nu2_paths)-start) * len(self.nu2_paths)
 
         self.mu_filter_koef = mu_proc.filter_koef
         self.nuatm_filter_koef = nuatm_proc.filter_koef
@@ -111,3 +121,12 @@ class StatsCollector:
         )
 
         # TODO: make saver to save it into a file. Should contains as input proc_cfg + paths as calculated stats
+
+    def return_stats(self):
+        return {k: v for k,v in vars(self).items() if not k.endswith('paths')}
+    
+    def print_stats(self):
+        print(f"Particles numbers\n\tMu: {self.mu_num_estimated},\n\tNuatm: {self.nuatm_num_estimated},\n\tNue2: {self.nu2_num_estimated}\n")
+        print(f"Ratios:\n\tMu to Nu: {self.mu_nu_ratio},\n\tNuatm to Nue2: {self.nuatm_nu2_ratio}\n")
+        print(f"Ratios:\n\tMu to Nu: {self.mu_nu_ratio},\n\tNuatm to Nue2: {self.nuatm_nu2_ratio}\n")
+        print(f"Normilization params:\n\tQ: mean={self.Q_mean}, std={self.Q_std},\n\tt: mean={self.t_mean}, std={self.t_std},\n")

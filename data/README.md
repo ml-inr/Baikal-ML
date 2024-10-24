@@ -84,6 +84,29 @@ This module provides a pipeline for processing data from `.root` files, converti
 
 The behavior of the pipeline can be customized using configuration classes found in `data/settings.py` and `data/root_manager/settings.py`. Users can define settings for normalization, augmentation, and processing as per their requirements.
 
+Common configurations and paths to root files are stored in `data/configurations/<name_of_config>/cfg.yaml` and `data/configurations/<name_of_config>/<regime>_paths.csv`correspondingly. To create your own configuration use `data/create_config.ipynb` jupyter notebook.
+
+To load stored config and create BatchGenerator, use:
+```Python
+import config_manager as cfgm
+from batch_generator import BatchGenerator
+
+name_of_dataset = "numusep_signal_small"
+
+path_to_train_paths = f"./configurations/{name_of_dataset}/train_paths.csv"
+train_paths = cfgm.read_paths(path_to_train_paths)
+
+path_to_cfg = f"./configurations/{name_of_dataset}/cfg.yaml"
+cfg = cfgm.load_cfg(path_to_cfg)
+
+gen = BatchGenerator(train_paths, cfg)
+batches = gen.get_batches()
+for batch in batches:
+    inputs, targets = batch
+    print(inputs.shape, targets.shape)
+    break
+```
+
 ## Installation
 Ensure you have the required dependencies installed. You can use the provided scripts:
 ```bash

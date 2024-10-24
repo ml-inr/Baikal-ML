@@ -23,7 +23,7 @@ class BatchGenerator:
     def __init__(self, root_paths, cfg: BatchGeneratorConfig):
         self.cfg = cfg
         self.norm_params = self.cfg.norm_params
-        self.aug_params = self.cfg.augment_parmas
+        self.aug_params = self.cfg.augment_params
 
         # Get chunks generator
         self.chunks_cfg = self.cfg.chunk_generator_cfg

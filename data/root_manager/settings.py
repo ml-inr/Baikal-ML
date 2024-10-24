@@ -1,17 +1,13 @@
-from dataclasses import dataclass, field, fields, asdict
+from dataclasses import dataclass, field
 from typing import List
 
-
-@dataclass
-class BaseConfig:
-    def __init__(self):
-        pass
-
-    def get_fileds(self):
-        return list(fields(self))
-
-    def to_dict(self):
-        return asdict(self)
+try:
+    from data.configurations.base import BaseConfig
+except ImportError:
+    try:
+        from configurations.base import BaseConfig
+    except ImportError:
+        from ..configurations.base import BaseConfig
 
 
 # Parameters for filtering the data, allowing flexible configurations

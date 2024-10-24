@@ -1,24 +1,14 @@
-from dataclasses import dataclass, field, fields, asdict
+from dataclasses import dataclass, field
 from typing import List
 
 try:
     from data.root_manager.chunk_generator import ChunkGenerator
     from data.root_manager.settings import ChunkGeneratorConfig
-except:
+    from data.configurations.base import BaseConfig
+except ImportError:
     from root_manager.chunk_generator import ChunkGenerator
     from root_manager.settings import ChunkGeneratorConfig
-
-
-@dataclass
-class BaseConfig:
-    def __init__(self):
-        pass
-
-    def get_fileds(self):
-        return list(fields(self))
-
-    def to_dict(self):
-        return asdict(self)
+    from configurations.base import BaseConfig
 
 
 @dataclass
@@ -26,13 +16,13 @@ class NormParams(BaseConfig):
     """Parameters to normilize input data"""
 
     # times and Amplitudes: [mean, std]. Can differ much from dataset to dataset.
-    PulsesTime: tuple[float] = (0.0, 238.5)
-    PulsesAmpl: tuple[float] = (6.8, 118.7)
+    PulsesTime: list[float] = field(default_factory=lambda: [0.0, 238.5])
+    PulsesAmpl: list[float] = field(default_factory=lambda: [6.8, 118.7])
 
     # geometry: [mean, std]. Made it fixed.
-    Xrel: tuple[float] = (0.0, 60.0)
-    Yrel: tuple[float] = (0.0, 60.0)
-    Zrel: tuple[float] = (0.0, 260.0)
+    Xrel: tuple[float] = field(default_factory=lambda: [0.0, 60.0])
+    Yrel: tuple[float] = field(default_factory=lambda: [0.0, 60.0])
+    Zrel: tuple[float] = field(default_factory=lambda: [0.0, 260.0])
 
 
 @dataclass
@@ -65,6 +55,6 @@ class BatchGeneratorConfig(BaseConfig):
     norm_params: NormParams = NormParams()
 
     do_augment: bool = True
-    augment_parmas: AugmentParams = AugmentParams()
+    augment_params: AugmentParams = AugmentParams()
 
     shuffle: bool = True  # if shuffle data inside chunk
