@@ -1,20 +1,21 @@
 ---
 model_type: "encoder"
-train_type: "track_cascade"
+train_type: "tres_and_track_cascade"
 path_to_data: "/home/plotnikovgp/baikal/data/baikal_mc2020_multi_split_0924_MChits-8-2_normed.h5"
 is_graph: False
 model_params:
   in_features: 5
-  hidden_size: 2048
-  num_layers: 4
-  dim_feedforward_size: 2048
-  n_heads: 2
+  hidden_size: 512
+  num_layers: 5
+  dim_feedforward_size: 512
+  n_heads: 1
   out_size: 2
+  second_head_out_size: 1
   dropout_p: 0.0
 tres_mse_coef: 0.0
 lr: 1.0e-4
 tres_cut: 10.0
 batch_size: 128
 num_train_steps_per_validation: 50
-exp_name: "encoder_nl8_hs2048_nh2_bs128_tres=10.0_new"
-exp_project: "track_cascade_enc_hyps_mc_0924"
+exp_name: "encoder_hs512_nh1_bs128_tres=10_k=0.0"
+exp_project: "tres_and_track_cascade_hyps_v2_mc_0924"

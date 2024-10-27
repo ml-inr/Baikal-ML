@@ -19,58 +19,36 @@ def _run_model(
         data.edge_index = torch_geometric.utils.sort_edge_index(data.edge_index)
         y_true = data.y
         output = model(data.x, data.edge_index, data.batch).squeeze()
-        if is_angle_reconstruction:
-            y_true = y_true.reshape(output.shape)
-            y_pred = output
-        # print(data.x.shape, data.y.shape, output.shape, y_true.shape)
-        # # print(data.batch_size)
-        # print(data.batch.shape)
-        # a = input()
     else:
-        x, y_true, mask = data
-        x, y_true, mask = (
+        x, y_true, angles_true, mask = data
+        # print(x.shape, y_true.shape, angles.shape, mask.shape)
+        # a = input()
+        x, y_true, angles_true, mask = (
             x.to(model.device),
             y_true.to(model.device),
+            angles_true.to(model.device),
             mask.to(model.device),
         )
         output = model(x, mask)
 
-        if is_track_cascade_tres_train:
-            y_true = y_true.reshape(-1, y_true.shape[-1])
-            output = output.reshape(-1, output.shape[-1]).squeeze()
-        elif is_angle_reconstruction:
-            # thetha = output[:, 0]
-            # phi = output[:, 1]
-            # output_ = torch.zeros_like(y_true)
-            # output_[:, 0] = torch.cos(thetha) * torch.cos(phi)
-            # output_[:, 1] = torch.cos(thetha) * torch.sin(phi)
-            # output_[:, 2] = torch.sin(thetha)
-            output = output / output.norm(dim=1, keepdim=True)
-            # pass
-        else:
-            y_true = y_true.reshape(-1)
-            output = output.reshape(-1, output.shape[-1]).squeeze()
+        angles_pred = output[:, 0]
+        angles_pred[:, 0] *= torch.pi
+        angles_pred[:, 1] *= 2 * torch.pi # tanh(angles_pred[:, 1])
+        vec = (
+            torch.cos(angles_pred[:, 0]) * torch.cos(angles_pred[:, 1]),
+            torch.sin(angles_pred[:, 0]) * torch.cos(angles_pred[:, 1]),
+            torch.sin(angles_pred[:, 1])
+        )
+        
+        # 3
+        output = output[:, 1:]
+        y_true = y_true[mask != 0]
+        output = output[mask != 0] 
 
-        if not is_angle_reconstruction:
-            mask = mask.reshape(-1)
-            y_true = y_true[mask != 0]
-            output = output[mask != 0]
-
-    if is_classification:
         y_pred = torch.sigmoid(output[:, 1])
-    elif is_track_cascade_tres_train:
-        y_pred = torch.zeros_like(y_true)
-        y_pred[:, 0] = torch.sigmoid(output[:, 1])
-        y_pred[:, 1] = output[:, -1]
-    elif is_angle_and_track_cascade:
-        y_pred = torch.zeros_like(y_true)
-        y_pred[:, 1] = output[:, -2]
-        y_pred[:, 2] = output[:, -1]
-        y_pred[:, 0] = torch.sigmoid(output[:, 1])
-    else:
-        y_pred = output
-
-    return output, y_pred, y_true
+    # print(output.shape, y_pred.shape, y_true.shape, angles_pred.shape, angles.shape)
+    # a = input()
+    return output, y_pred, y_true, angles_pred, angles_true
 
 
 def train_iters(
@@ -90,12 +68,14 @@ def train_iters(
     model.train()
     y_pred_hist = None
     y_true_hist = None
+    angles_pred_hist = None
+    angles_true_hist = None
     loss_hist = []
 
     for iter in range(num_iters):
         data = next(train_loader)
         optimizer.zero_grad()
-        output, y_pred, y_true = _run_model(
+        output, y_pred, y_true, angles_pred, angles_true = _run_model(
             model,
             data,
             is_graph,
@@ -104,7 +84,7 @@ def train_iters(
             is_angle_reconstruction,
             is_angle_and_track_cascade
         )
-        loss = criterion(output, y_true)
+        loss = criterion(output, y_true, angles_pred, angles_true)
         loss.backward()
         if grad_clip_value is not None:
             torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip_value)
@@ -122,8 +102,21 @@ def train_iters(
             if y_true_hist is not None
             else y_true
         )
+
+        angles_pred_hist = (
+            torch.cat((angles_pred_hist, angles_pred), dim=0)
+            if angles_pred_hist is not None
+            else angles_pred
+        )
+
+        angles_true_hist = (
+            torch.cat((angles_true_hist, angles_true), dim=0)
+            if angles_true_hist is not None
+            else angles_true
+        )
     train_metrics = metrics_calc_fun(
-        y_pred_hist.detach().cpu(), y_true_hist.detach().cpu()
+        y_pred_hist.detach().cpu(), y_true_hist.detach().cpu(),
+        angles_pred_hist.detach().cpu(), angles_true_hist.detach().cpu()
     )
     train_metrics["loss"] = sum(loss_hist) / len(loss_hist) if loss_hist else None
     train_metrics["lr"] = optimizer.param_groups[0]["lr"]
@@ -145,12 +138,14 @@ def validate(
 ) -> dict[str, float]:
     y_pred_hist = None
     y_true_hist = None
+    angles_pred_hist = None
+    angles_true_hist = None
     loss_hist = []
 
     model.eval()
     with torch.no_grad():
         for data in val_loader:
-            output, y_pred, y_true = _run_model(
+            output, y_pred, y_true, angles_pred, angles_true = _run_model(
                 model,
                 data,
                 is_graph,
@@ -159,7 +154,7 @@ def validate(
                 is_angle_reconstruction,
                 is_angle_and_track_cascade
             )
-            loss = criterion(output, y_true)
+            loss = criterion(output, y_true, angles_pred, angles_true)
             loss_hist.append(loss.item())
 
             y_pred_hist = (
@@ -172,10 +167,21 @@ def validate(
                 if y_true_hist is not None
                 else y_true.detach().cpu()
             )
+
+            angles_pred_hist = (
+                torch.cat((angles_pred_hist, angles_pred.detach().cpu()), dim=0)
+                if angles_pred_hist is not None
+                else angles_pred.detach().cpu()
+            )
+            angles_true_hist = (
+                torch.cat((angles_true_hist, angles_true.detach().cpu()), dim=0)
+                if angles_true_hist is not None
+                else angles_true.detach().cpu()
+            )
     if return_preds:
         return y_pred_hist, y_true_hist
     
-    val_mertics = metrics_calc_fun(y_pred_hist, y_true_hist)
+    val_mertics = metrics_calc_fun(y_pred_hist, y_true_hist, angles_pred_hist, angles_true_hist)
     val_mertics["loss"] = sum(loss_hist) / len(loss_hist) if loss_hist else None
     if val_mertics["loss"]:
         scheduler.step(val_mertics["loss"])

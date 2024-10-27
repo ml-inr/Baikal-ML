@@ -42,6 +42,7 @@ class GraphnetDynedge(nn.Module):
         dynedge_layer_sizes=None,
         out_size=2,
         second_head_out_size=None,
+        aggregate_output=False,
     ):
         super().__init__()
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -57,6 +58,7 @@ class GraphnetDynedge(nn.Module):
         self._post_processing_layer_sizes = [336, 256]
         self._global_pooling_schemes = ["min", "max", "mean"]
         self.readout_layers_sizes = [128]
+        self.aggregate_output = aggregate_output
 
         nb_input_features = in_features
         nb_latent_features = nb_input_features
@@ -81,7 +83,7 @@ class GraphnetDynedge(nn.Module):
         nb_latent_features = (
             sum(sizes[-1] for sizes in self._dynedge_layer_sizes) + nb_input_features
         )
-
+        # print()
         post_processing_layers = []
         layer_sizes = [nb_latent_features] + list(self._post_processing_layer_sizes)
 
@@ -93,12 +95,7 @@ class GraphnetDynedge(nn.Module):
 
         # nb_poolings = len(self._global_pooling_schemes)
         # nb_latent_features = nb_out * nb_pooling
-        self.head = nn.Linear(1029, out_size)
-        self.second_head = (
-            nn.Linear(1029, second_head_out_size)
-            if second_head_out_size is not None
-            else None
-        )
+        self.head = nn.Linear(256, out_size)
 
     def forward(self, x, edge_index, batch):
         skip_connections = [x]
@@ -107,8 +104,61 @@ class GraphnetDynedge(nn.Module):
             skip_connections.append(x)
 
         x = torch.cat(skip_connections, dim=1)
+        y = self._post_processing(x)
+        z = self.head(y)
+        if self.aggregate_output:
+            return gnn.global_mean_pool(z, batch)
+
+        return z
+
+
+class Encoder(nn.Module):
+    def __init__(
+        self,
+        in_features,
+        hidden_size,
+        num_layers,
+        dim_feedforward_size,
+        n_heads,
+        out_size,
+        dropout_p,
+        aggregator=None,
+        second_head_out_size=None,
+        **kwargs,
+    ):
+        super().__init__()
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.first_layer = nn.Linear(in_features, hidden_size)
+        enc_layer = nn.TransformerEncoderLayer(
+            hidden_size, n_heads, dim_feedforward_size, dropout_p, batch_first=True
+        )
+        self.enc = nn.TransformerEncoder(enc_layer, num_layers)
+        self.head = nn.Linear(hidden_size, out_size)
+        self.second_head = (
+            nn.Linear(hidden_size, second_head_out_size)
+            if second_head_out_size is not None
+            else None
+        )
+        self.aggregator = aggregator
+
+    def forward(self, x, mask):
+        x = self.first_layer(x)
+        x = self.enc(x, src_key_padding_mask=~mask)
         y = self.head(x)
+        if self.aggregator is not None:
+            return self.aggregator(x)
         if self.second_head is not None:
             z = self.second_head(x)
             return torch.cat([y, z], dim=-1)
         return y
+
+
+class GraphnetAndEncoderStack(nn.Module):
+    def __init__(self, **kwargs):
+        super().__init__()
+        self.encoder = Encoder(**kwargs["encoder_params"])
+        self.graphnet = GraphnetDynedge(**kwargs["graphnet_params"])
+
+    def forward(self, x, mask):
+        x = self.graphnet(x, mask)
+        return self.encoder(x, mask)

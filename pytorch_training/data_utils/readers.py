@@ -4,6 +4,7 @@ import torch
 from torch.utils.data import Dataset
 import logging
 from .preprocessors import BasePreprocessor, BaseGraphPreprocessor
+import math
 
 
 class BaikalDataset(Dataset):
@@ -84,8 +85,46 @@ class BaikalDatasetTrackCascade(BaikalDataset):
         return data_x, data_y
 
 
+class BaikalDatasetAngles(BaikalDataset):
+    def __getitem__(self, idx):
+        start, end = self.hfile[self.split_type + "/ev_starts/data"][idx : idx + 2]
+        data = np.array(self.hfile[self.split_type + "/data/data"][start:end])
+        thetha, phi = self.hfile[self.split_type + "/prime_prty/data"][idx][:2]
+        thetha = float(thetha) * (torch.pi / 180)
+        phi = float(phi) * (torch.pi / 180)
+        vec = [math.cos(thetha) * math.cos(phi), math.cos(thetha) * math.sin(phi), math.sin(thetha)]
+        data_x = torch.tensor(data, dtype=torch.float32)
+        data_y = torch.tensor(vec, dtype=torch.float32)
+        data_y /= data_y.norm()
+        return self.preprocessor(data_x, data_y)
+
+
+class BaikalDatasetAnglesAndTrackCascade(BaikalDataset):
+    def __getitem__(self, idx):
+        start, end = self.hfile[self.split_type + "/ev_starts/data"][idx : idx + 2]
+        data = np.array(self.hfile[self.split_type + "/data/data"][start:end])
+        thetha, phi = self.hfile[self.split_type + "/prime_prty/data"][idx][:2]
+        tres = self.hfile[self.split_type + "/t_res/data"][start:end]
+
+        a1 = math.sin(float(thetha) * (torch.pi / 180))
+        a2 = math.cos(float(phi) * (torch.pi / 180))
+
+        labels = self.hfile[self.split_type + "/labels/data"][start:end]
+        track_cascade_labels = torch.tensor(labels, dtype=torch.long)
+
+        tres = torch.tensor(tres, dtype=torch.float32)
+
+        data_x = torch.tensor(data, dtype=torch.float32)
+        angles = torch.tensor([a1, a2], dtype=torch.float32)
+
+        data_x, data_y = self.preprocessor(data_x, track_cascade_labels, angles, tres)
+
+        return data_x, data_y
+
+
+
 class BaikalDatasetGraph(BaikalDataset):
-    def __getitem__(self, idx):        
+    def __getitem__(self, idx):
         start, end = self.hfile[self.split_type + "/ev_starts/data"][idx : idx + 2]
         data = np.array(self.hfile[self.split_type + "/data/data"][start:end])
         labels = self.hfile[self.split_type + "/labels/data"][start:end]

@@ -1,5 +1,5 @@
 from .encoder import Encoder
-from .graphnet import GraphnetDynedge
+from .graphnet import GraphnetDynedge, GraphnetAndEncoderStack
 from .lstm import LSTM
 from .gat import GAT
 from .gincn import GINCN
@@ -12,6 +12,8 @@ def load_model(model_type: str, model_kwargs: dict[str, tp.Any]) -> nn.Module:
         return Encoder(**model_kwargs)
     elif model_type == "graphnet":
         return GraphnetDynedge(**model_kwargs)
+    elif model_type == "graphnet_and_encoder_stack":
+        return GraphnetAndEncoderStack(**model_kwargs)
     elif model_type == "lstm":
         return LSTM(**model_kwargs)
     elif model_type == "gat":

@@ -1,6 +1,6 @@
 from data_utils import *
 from models import load_model
-from training import train, train_iters, validate
+from training_a import train, train_iters, validate
 from metrics import *
 import typing as tp
 import torch
@@ -49,14 +49,13 @@ def main():
     train_type = train_params.get("train_type")
     is_graph = train_params.get("is_graph")
     is_classification = False
-    model = load_model(train_params["model_type"], train_params["model_params"]) #.to(DEVICE)
-
-    n_params = np.sum(p.numel() for p in model.parameters())
-    print("n_params M", n_params / 1e6)
+    model = load_model(train_params["model_type"], train_params["model_params"]).to(
+        DEVICE
+    )
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=train_params["lr"])
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, "min", factor=0.2, min_lr=1e-5, patience=2
+        optimizer, "min", factor=0.2, min_lr=1e-5, patience=1000
     )
 
     set_tres_stats = False
@@ -117,20 +116,18 @@ def main():
             return ce_loss + train_params["tres_mse_coef"] * mse_loss
     elif train_type == "angle_reconstruction":
         DatasetType = BaikalDatasetAngles
-        preprocessor = AngleGraphPreprocessor(train_params["knn_neighbours"]) if is_graph else AnglePreprocessor()
+        preprocessor = AnglePreprocessor()
         metrics_calc_fun = angle_reconstruction_metrics
-        def criterion(y_pred, y_true):
-            # maximize average magnitude of cosine similarity
-            return 1 - torch.nn.functional.cosine_similarity(y_pred, y_true).mean()
+        criterion = torch.nn.MSELoss()
     elif train_type == "angle_and_track_cascade":
         DatasetType = BaikalDatasetAnglesAndTrackCascade
         preprocessor = AngleAndTrackCascadePreprocessor(train_params["tres_cut"])
         ce_ = torch.nn.CrossEntropyLoss()
         mse_ = torch.nn.MSELoss()
         metrics_calc_fun = angle_and_track_cascade_metrics
-        def criterion(output, y_true):
-            ce_loss = ce_(output[:, :2], y_true[:, 0].long())
-            mse_loss = mse_(output[:, 0, 2:].reshape(-1, 2), y_true[:, :2])
+        def criterion(output, y_true, angles_pred, angles_true):
+            ce_loss = ce_(output, y_true.long())
+            mse_loss = mse_(angles_pred, angles_true)
             return ce_loss + train_params["mse_coef"] * mse_loss
     else:
         raise ValueError("unknown train_type")
@@ -141,6 +138,7 @@ def main():
         batch_size=train_params["batch_size"],
         DatasetType=DatasetType,
         is_classification=is_classification,
+        is_angle_and_track_cascade=(train_type == "angle_and_track_cascade"),
         preprocessor=preprocessor,
         set_tres_stats=set_tres_stats,
     )

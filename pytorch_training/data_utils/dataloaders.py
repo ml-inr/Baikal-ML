@@ -43,6 +43,7 @@ def create_dataloaders(
     num_workers: int = 1,
     DatasetType: tp.Type[Dataset] = BaikalDataset,
     is_classification: bool = False,
+    is_angle_and_track_cascade: bool = False,
     **kwargs
 ):
     datasets = create_datasets(path_to_data, use_val_subset, DatasetType, **kwargs)
@@ -58,6 +59,16 @@ def create_dataloaders(
             padding_mask[padding_mask != 0] = 1
             return x_batch, y_batch.squeeze(-1), padding_mask.bool()
 
+        def collate_fn_angle_track_cascade(batch):
+            x_batch = pad_sequence([x[0] for x in batch], batch_first=True)
+            y_batch = pad_sequence([x[1][0].mT for x in batch],batch_first=True,
+            )
+            angles_batch = pad_sequence([x[1][1] for x in batch], batch_first=True)
+            padding_mask = (x_batch > 0).sum(-1)
+            padding_mask[padding_mask != 0] = 1
+            return x_batch, y_batch.squeeze(-1), angles_batch, padding_mask.bool()
+
+        collate_fn = collate_fn if not is_angle_and_track_cascade else collate_fn_angle_track_cascade
         train_loader = create_infnite_loader_generator(
             DataLoader(
                 datasets["train"],
