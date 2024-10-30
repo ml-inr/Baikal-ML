@@ -9,6 +9,7 @@ class MaskedConv1DConfig:
     strides: int = 1
     activation: Dict[str, Any] = field(default_factory = lambda: {'LeakyReLU': None})  # Allow detailed configuration
     dropout: float = 0.2
+    do_norm: bool = True
 
 @dataclass
 class RnnInput:
@@ -25,7 +26,6 @@ class ResBlockConfig:
     id: MaskedConv1DConfig = MaskedConv1DConfig()
     cd: MaskedConv1DConfig = MaskedConv1DConfig()
     skip: MaskedConv1DConfig = MaskedConv1DConfig()
-    do_norm: bool = True
 
 @dataclass
 class DenseInput:

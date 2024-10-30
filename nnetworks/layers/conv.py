@@ -22,6 +22,8 @@ class MaskedConv1D(nn.Module):
         )
         self.dropout = nn.Dropout(self.input_hp.dropout)
         self.activation = get_activation(self.input_hp.activation)
+        if self.input_hp.do_norm:
+            self.norm1d = MaskedBatchNorm1D(self.input_hp.out_channels)
 
     def forward(self, x: Tensor, mask: Tensor) -> Tensor:
         x_local = x * mask.float()
@@ -46,6 +48,8 @@ class MaskedConv1D(nn.Module):
         # Create new mask using broadcasting
         new_mask = torch.arange(max_len, device=mask.device).unsqueeze(0).unsqueeze(0) < new_sizes.unsqueeze(-1)
         x_new = x_new[:,:,:max_len] * new_mask
+        if self.input_hp.do_norm:
+            x_new = self.norm1d(x_new, new_mask)
         return x_new, new_mask
 
 
@@ -56,10 +60,6 @@ class ResBlock(nn.Module):
         self.conv_id = MaskedConv1D(self.input_hp.id)
         self.conv_cd = MaskedConv1D(self.input_hp.cd)
         self.conv_skip = MaskedConv1D(self.input_hp.skip)
-        if self.input_hp.do_norm:
-            self.norm_id = MaskedBatchNorm1D(self.input_hp.id.out_channels)
-            self.norm_cd = MaskedBatchNorm1D(self.input_hp.cd.out_channels)
-            self.norm_skip = MaskedBatchNorm1D(self.input_hp.skip.out_channels)
 
     def forward(self, x: Tensor, mask: Optional[Tensor] = None):
         # Skip connection
@@ -69,16 +69,10 @@ class ResBlock(nn.Module):
         mask_skip = mask.clone()
         # Identical dimensions
         x, mask = self.conv_id(x, mask)
-        if self.input_hp.do_norm:
-            x = self.norm_id(x, mask)
         # Change dimensions
         x, mask = self.conv_cd(x, mask)
-        if self.input_hp.do_norm:
-            x = self.norm_cd(x, mask)
         # Skip convolution
         x_skip, mask_skip = self.conv_skip(x_skip, mask_skip)
-        if self.input_hp.do_norm:
-            x_skip = self.norm_skip(x_skip, mask_skip)
         # Concatenate
         # assuming correct convolution, we will always have number_of_signal_hits <= min(x_skip.shape[2], x.shape[2])
         length = min(x_skip.shape[2], x.shape[2])

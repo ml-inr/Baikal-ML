@@ -1,29 +1,29 @@
 res_block:
-  id:  # Configuration for the "identical dimensions" convolution
-    filters: 32
-    kernel_size: 3
+  #1
+  id:
+    in_channels: 5
+    out_channels: 256
+    kernel_size: 8
     strides: 1
-    padding: "same"
-    activation:
-      ReLU: {}  # Use ReLU activation with default arguments
-    dropout: 0.2
-
-  cd:  # Configuration for the "change dimensions" convolution
-    filters: 64
-    kernel_size: 3
-    strides: 2
-    padding: "valid"
-    activation:
-      LeakyReLU:
-        negative_slope: 0.1  # Customize the negative slope for LeakyReLU
-    dropout: 0.3
-
-  skip:  # Configuration for the "skip connection" convolution
-    filters: 64
-    kernel_size: 1
-    strides: 1
-    padding: "same"
-    activation:
-      ELU:
-        alpha: 1.0  # Use ELU activation with a specified alpha
+    activation: 
+      LeakyReLU: {"negative_slope": 0.1}
     dropout: 0.1
+    do_norm: True
+  cd:
+    in_channels: 256
+    out_channels: 256
+    kernel_size: 8
+    strides: 2
+    activation: 
+      LeakyReLU: {"negative_slope": 0.1}
+    dropout: 0.1
+    do_norm: True
+  skip:
+    in_channels: 5
+    out_channels: 128
+    kernel_size: 16
+    strides: 2
+    activation: 
+      LeakyReLU: {"negative_slope": 0.1}
+    dropout: 0.1
+    do_norm: True
