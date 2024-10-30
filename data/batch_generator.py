@@ -20,7 +20,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 
 class BatchGenerator:
 
-    def __init__(self, root_paths, cfg: BatchGeneratorConfig):
+    def __init__(self, root_paths, cfg: BatchGeneratorConfig = BatchGeneratorConfig()):
         self.cfg = cfg
         self.norm_params = self.cfg.norm_params
         self.aug_params = self.cfg.augment_params

@@ -1,0 +1,76 @@
+MuNuSepResNetConfig:
+  res_blocks:
+    #1
+    - id:
+        in_channels: 5
+        out_channels: 256
+        kernel_size: 8
+        strides: 1
+        activation: 
+          LeakyReLU: {"negative_slope": 0.1}
+        dropout: 0.1
+      cd:
+        in_channels: 256
+        out_channels: 256
+        kernel_size: 8
+        strides: 2
+        activation: 
+          LeakyReLU: {"negative_slope": 0.1}
+        dropout: 0.1
+      skip:
+        in_channels: 5
+        out_channels: 128
+        kernel_size: 16
+        strides: 2
+        activation: 
+          LeakyReLU: {"negative_slope": 0.1}
+        dropout: 0.1
+      do_norm: True
+    #2
+    - id:
+        in_channels: 384
+        out_channels: 128
+        kernel_size: 4
+        strides: 1
+        activation: 
+          LeakyReLU: {"negative_slope": 0.1}
+        dropout: 0.1
+      cd:
+        in_channels: 128
+        out_channels: 128
+        kernel_size: 4
+        strides: 2
+        activation: 
+          LeakyReLU: {"negative_slope": 0.1}
+        dropout: 0.1
+      skip:
+        in_channels: 384
+        out_channels: 64
+        kernel_size: 8
+        strides: 2
+        activation: 
+          LeakyReLU: {"negative_slope": 0.1}
+        dropout: 0.1
+      do_norm: True
+
+  pooling_type: "Average"
+
+  dense_layers:
+    - in_features: 192
+      units: 128
+      activation:
+        ReLU: null
+      dropout: 0.2
+      do_norm: True
+    - in_features: 128
+      units: 32
+      activation:
+        ReLU: null
+      dropout: 0.2
+      do_norm: True
+    - in_features: 32
+      units: 2
+      activation:
+        Softmax: {"dim": 1}
+      dropout: 0.
+      do_norm: False

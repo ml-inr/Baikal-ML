@@ -2,11 +2,9 @@ from dataclasses import dataclass, field
 from typing import List
 
 try:
-    from data.root_manager.chunk_generator import ChunkGenerator
     from data.root_manager.settings import ChunkGeneratorConfig
     from data.configurations.base import BaseConfig
 except ImportError:
-    from root_manager.chunk_generator import ChunkGenerator
     from root_manager.settings import ChunkGeneratorConfig
     from configurations.base import BaseConfig
 
@@ -57,4 +55,4 @@ class BatchGeneratorConfig(BaseConfig):
     do_augment: bool = True
     augment_params: AugmentParams = AugmentParams()
 
-    shuffle: bool = True  # if shuffle data inside chunk
+    shuffle: bool = True  # if to shuffle data inside chunk
