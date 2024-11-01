@@ -1,4 +1,4 @@
-MuNuSepResNetConfig:
+MuNuSepResNetConfig: #The name of the config class is obligatory!
   res_blocks:
     #1
     - id:
