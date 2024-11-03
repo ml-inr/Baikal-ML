@@ -33,7 +33,7 @@ def save_cfg(cfg: BaseConfig, path: str = "./cfg.yaml", mode: str = 'w') -> None
         yaml.dump(cfg.to_dict(), f, MyDumper, indent=4, width=1000, sort_keys=False)
 
 
-def yaml2cfg(path_to_yaml: str) -> BaseConfig:
+def yaml2trainercfg(path_to_yaml: str) -> BaseConfig:
     """Handles loading nested model's configs from nested yaml dict.
 
     Args:
@@ -58,5 +58,5 @@ def trainer_from_yaml(trainer_class: Type[torch.nn.Module], path_to_yaml: str) -
     Returns:
         trainer with architecture, written in yaml file. Ready to train.
     """
-    cfg = yaml2cfg(path_to_yaml)
+    cfg = yaml2trainercfg(path_to_yaml)
     return trainer_class(cfg)

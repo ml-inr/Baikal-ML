@@ -26,7 +26,7 @@ class TrainerConfig(BaseConfig):
     steps_per_epoch: Optional[int] = 500 # num of batches per epoch
     
     checkpoint_interval: int = 1 # save model every ... epochs
-    checkpoint_path: str = "/home/albert/Baikal-ML/experiments/testing"
+    experiment_path: str = "/home/albert/Baikal-ML/experiments/testing"
     log_interval: int = 100 # make logs of metrics every ... steps
     
     optimizer: OptimizerConfig = OptimizerConfig()
