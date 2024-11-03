@@ -64,8 +64,6 @@ class ResBlock(nn.Module):
     def forward(self, x: Tensor, mask: Optional[Tensor] = None):
         # Skip connection
         x_skip = x.clone()
-        if mask is None:
-            mask = ~x.isnan()[:,0:1,:]
         mask_skip = mask.clone()
         # Identical dimensions
         x, mask = self.conv_id(x, mask)

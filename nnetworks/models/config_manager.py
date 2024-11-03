@@ -4,10 +4,35 @@ import yaml
 from dacite import from_dict
 import torch
 
-from ..configurations.base import BaseConfig
-from ..models import config
+from ..base_config import BaseConfig
+from . import config
 
-def yaml2modelcfg(path_to_yaml: str) -> BaseConfig:
+def save_cfg(cfg: BaseConfig, path: str = "./cfg.yaml", mode: str = 'w') -> None:
+    """Saves configuration to path as yaml file.
+
+    Args:
+        cfg (BaseConfig): _description_
+        path (str): _description_
+        mode (str, optional): _description_. Defaults to 'w'.
+    """
+    
+    # Dumper for saving files in easy-to-read format
+    class MyDumper(yaml.Dumper):
+        def write_line_break(self, data=None):
+            super().write_line_break(data)
+
+            if len(self.indents) == 1:
+                super().write_line_break()
+    
+    # Custom representer for lists to force them into flow style
+    def represent_list_as_inline(dumper, data):
+        return dumper.represent_sequence('tag:yaml.org,2002:seq', data, flow_style=True)
+    yaml.add_representer(list, represent_list_as_inline)
+    
+    with open(path, mode) as f:
+        yaml.dump(cfg.to_dict(), f, MyDumper, indent=4, width=1000, sort_keys=False)
+
+def yaml2cfg(path_to_yaml: str) -> BaseConfig:
     """Handles loading nested model's configs from nested yaml dict.
 
     Args:
@@ -31,5 +56,5 @@ def model_from_yaml(model_class: Type[torch.nn.Module], path_to_yaml: str) -> to
     Returns:
         torch.nn.Module: model with architecture, written in yaml file. Ready to train.
     """
-    cfg = yaml2modelcfg(path_to_yaml)
+    cfg = yaml2cfg(path_to_yaml)
     return model_class(cfg)

@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Any, Dict
 
-from nnetworks.configurations.base import BaseConfig
+from ..base_config import BaseConfig
 
 @dataclass
 class MaskedConv1DConfig(BaseConfig):

@@ -21,6 +21,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 class BatchGenerator:
 
     def __init__(self, root_paths, cfg: BatchGeneratorConfig = BatchGeneratorConfig()):
+        self.root_paths = root_paths
         self.cfg = cfg
         self.norm_params = self.cfg.norm_params
         self.aug_params = self.cfg.augment_params
@@ -54,43 +55,45 @@ class BatchGenerator:
 
     def _augment_data(self, data: torch.Tensor):
         if self.aug_stds is None:
-            self.aug_stds = [0.0] * data.shape[2]
+            self.aug_stds = [0.0] * data.shape[1]
             for name, std in self.aug_params.to_dict().items():
                 self.aug_stds[self.name2index[name]] = std
         aug_stds_as_tensor = (
-            torch.tensor(self.aug_stds).reshape(1, 1, len(self.aug_stds)).repeat(data.shape[0], data.shape[1], 1)
+            torch.tensor(self.aug_stds).reshape(1, len(self.aug_stds), 1).repeat(data.shape[0], 1, data.shape[2])
         )
         data = data + torch.normal(torch.zeros(data.shape), aug_stds_as_tensor)
         logging.debug(f"Added gauss noise to data: {data.shape=}")
 
         # Reorder by augmented time
         time_index = self.name2index["PulsesTime"]
-        sort_idxs = data[:, :, time_index : time_index + 1].argsort(dim=1).repeat(1, 1, data.shape[2])
-        data = data.gather(dim=1, index=sort_idxs)
-        assert (data[:, :, time_index].diff(n=1, dim=1).nan_to_num(1.0) > 0).all(), logging.warning(
-            f"Wrong time reordering"
+        sort_idxs = data[:, time_index : time_index + 1, :].argsort(dim=2).repeat(1, data.shape[1], 1)
+        data = data.gather(dim=2, index=sort_idxs)
+        assert (data[:, time_index, :].diff(n=1, dim=1).nan_to_num(1.0) >= 0).all(), logging.warning(
+            f"Wrong time reordering,\n{data[:, time_index, :]=}"
         )
         logging.debug(f"Reordered times in data: {data.shape=}")
         return data
 
     def _norm_data(self, data: torch.Tensor):
         if self.means is None or self.stds is None:
-            self.means, self.stds = [0.0] * data.shape[2], [1.0] * data.shape[2]
+            self.means, self.stds = [0.0] * data.shape[1], [1.0] * data.shape[1]
             for name, (mean, std) in self.norm_params.to_dict().items():
                 self.means[self.name2index[name]] = mean
                 self.stds[self.name2index[name]] = std
         logging.debug(f"Using norming params: {self.means=}, {self.stds=}")
         means_as_tensor = (
-            torch.tensor(self.means).reshape(1, 1, len(self.means)).repeat(data.shape[0], data.shape[1], 1)
+            torch.tensor(self.means).reshape(1, len(self.means), 1).repeat(data.shape[0], 1, data.shape[2])
         )
-        stds_as_tensor = torch.tensor(self.stds).reshape(1, 1, len(self.stds)).repeat(data.shape[0], data.shape[1], 1)
+        stds_as_tensor = torch.tensor(self.stds).reshape(1, len(self.stds), 1).repeat(data.shape[0], 1, data.shape[2])
         data = (data - means_as_tensor) / stds_as_tensor
         logging.debug(f"Normilized data: {data.shape=}")
         return data
 
-    def get_batches(self) -> Generator[tuple[Tensor, Tensor], None, None]:
+    def get_batches(self) -> Generator[tuple[Tensor, Tensor, Tensor], None, None]:
         """
-        Generate batches of data for training.
+        Generate batches of data, mask and targets for training. 
+        The data shape is (batch_size, num_of_features, max_length). Auxillary hits are preplaced with 0.
+        The target shape is (batch_size, 2)
         """
 
         chunk_index = 0
@@ -108,7 +111,7 @@ class BatchGenerator:
                     logging.warning("Empty batch encountered. Skipping.")
                     break
                 features_batch = self._to_padded_batch(pre_batch[self.cfg.features_name])
-                features_batch = torch.tensor(features_batch).transpose(1, 2)
+                features_batch = torch.tensor(features_batch)
                 logging.debug(f"Coverting features_batch to tensor of shape: {features_batch.shape}")
 
                 if self.cfg.do_augment:
@@ -124,7 +127,12 @@ class BatchGenerator:
                     labels_batch.shape,
                 )
                 batch_index += 1
-                yield features_batch, labels_batch
+                mask = ~features_batch.isnan()[:,0:1,:] # extract mask
+                labels_batch = torch.concat((~labels_batch, labels_batch), dim=1) # to one-hot
+                yield features_batch.nan_to_num(0.), mask, labels_batch.float()
+        
+    def reinit(self):
+        self.chunks = ChunkGenerator(self.root_paths, self.chunks_cfg).get_chunks()
 
 
 if __name__ == "__main__":

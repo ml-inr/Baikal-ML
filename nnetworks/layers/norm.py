@@ -52,15 +52,15 @@ class MaskedBatchNorm1D(nn.Module):
         if self.track_running_stats:
             # Update running statistics
             exponential_avg_factor = 1.0 - self.momentum
-            self.running_mean = exponential_avg_factor * mean + (1 - exponential_avg_factor) * self.running_mean
-            self.running_var = exponential_avg_factor * variance + (1 - exponential_avg_factor) * self.running_var
+            self.running_mean = exponential_avg_factor * mean[0,:,0] + (1 - exponential_avg_factor) * self.running_mean
+            self.running_var = exponential_avg_factor * variance[0,:,0] + (1 - exponential_avg_factor) * self.running_var
             self.num_batches_tracked += 1
 
         # Normalize the input
         if self.training or not self.track_running_stats:
             x_normalized = (x - mean) / torch.sqrt(variance + self.eps)
         else:
-            x_normalized = (x - self.running_mean) / torch.sqrt(self.running_var + self.eps)
+            x_normalized = (x - self.running_mean.view(1, -1, 1)) / torch.sqrt(self.running_var.view(1, -1, 1) + self.eps)
 
         # Apply scale (weight) and shift (bias) if affine
         if self.affine:

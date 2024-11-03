@@ -1,0 +1,23 @@
+num_of_epochs: 100
+
+steps_per_epoch: null
+
+checkpoint_interval: 5
+
+checkpoint_path: /home/albert/Baikal-ML/experiments/testing
+
+log_interval: 100
+
+optimizer:
+    name: Adam
+    kwargs:
+        lr: 0.001
+        weight_decay: 1.0e-05
+
+scheduler: null
+
+loss:
+    name: FocalLoss
+    kwargs:
+        alpha: 0.25
+        gamma: 2
