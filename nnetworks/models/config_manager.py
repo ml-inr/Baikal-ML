@@ -7,7 +7,7 @@ import torch
 from ..base_config import BaseConfig
 from . import config
 
-def save_cfg(cfg: BaseConfig, path: str = "./cfg.yaml", mode: str = 'w') -> None:
+def save_model_cfg(cfg: BaseConfig, path: str = "./cfg.yaml", mode: str = 'w') -> None:
     """Saves configuration to path as yaml file.
 
     Args:
@@ -23,11 +23,6 @@ def save_cfg(cfg: BaseConfig, path: str = "./cfg.yaml", mode: str = 'w') -> None
 
             if len(self.indents) == 1:
                 super().write_line_break()
-    
-    # Custom representer for lists to force them into flow style
-    def represent_list_as_inline(dumper, data):
-        return dumper.represent_sequence('tag:yaml.org,2002:seq', data, flow_style=True)
-    yaml.add_representer(list, represent_list_as_inline)
     
     with open(path, mode) as f:
         yaml.dump(cfg.to_dict(), f, MyDumper, indent=4, width=1000, sort_keys=False)

@@ -1,6 +1,7 @@
 from typing import Optional
 from pathlib import Path
 import logging
+import csv
 
 import numpy as np
 import torch
@@ -9,10 +10,13 @@ from torch.optim import Adam, SGD, lr_scheduler
 from clearml import Task, Logger
 
 from data.batch_generator import BatchGenerator
+from data.config_manager import save_paths, save_data_cfg
+from nnetworks.models.config_manager import save_model_cfg
 from nnetworks.learning.config import TrainerConfig
+from nnetworks.learning.config_manager import save_trainer_cfg
 from nnetworks.learning.losses import FocalLoss
 
-from sklearn.metrics import accuracy_score, precision_score, recall_score, confusion_matrix, roc_auc_score
+from sklearn.metrics import accuracy_score, precision_score, confusion_matrix, roc_auc_score
 
 # Map optimizer and scheduler names to PyTorch classes
 OPTIMIZERS = {
@@ -54,6 +58,7 @@ class MuNuSepTrainer:
         self.experiment_folder = Path(self.train_config.experiment_path)
         self.experiment_folder.mkdir(parents=True, exist_ok=True)
         self.common_logs_path = self.experiment_folder / "logs.log"
+        
         # Configure logging
         logging.basicConfig(filename=self.common_logs_path, 
                             filemode='a', 
@@ -67,22 +72,38 @@ class MuNuSepTrainer:
         self.metrics_logs_path = self.experiment_folder / "metrics_logs"
         self.metrics_logs_path.mkdir(parents=True, exist_ok=True)
 
+        # Log configs
+        save_model_cfg(model.config, self.experiment_folder / "model_cfg.yaml")
+        save_trainer_cfg(train_config, self.experiment_folder / "learning_cfg.yaml")
+        save_data_cfg(train_gen.cfg, self.experiment_folder / "train_dataset_cfg.yaml")
+        save_paths(train_gen.root_paths, self.experiment_folder / "train_root_files.csv")
+        save_data_cfg(test_gen.cfg, self.experiment_folder / "test_dataset_cfg.yaml")
+        save_paths(test_gen.root_paths, self.experiment_folder / "test_root_files.csv")
+        
         # Initialize ClearML task if provided
         self.use_clearml = clearml_task is not None
         if self.use_clearml:
             self.task = clearml_task
-            self.task.connect(train_gen.cfg, name="Model's architecture")
-            self.task.connect(train_config, name="Learning config")  # Log training hyperparameters
-            self.task.connect(train_gen.cfg, name="Train data generator's config")
-            if test_gen is not None: self.task.connect(test_gen.cfg, name="Test data generator's config")
+            self.task.connect(model.config.to_dict(), name="Model's architecture")
+            self.task.connect(train_config.to_dict(), name="Learning config")  # Log training hyperparameters
+            self.task.connect(train_gen.cfg.to_dict(), name="Train data generator's config")
+            if test_gen is not None: self.task.connect(test_gen.cfg.to_dict(), name="Test data generator's config")
         
         # Initialize components
         self.optimizer = self._initialize_optimizer()
         self.scheduler = self._initialize_scheduler() if self.train_config.scheduler else None
         self.loss_function = self._initialize_loss()
         
+        # Stats
         self.total_steps: int = 0
         self.current_epoch: int = 0
+        
+        # Early stopping variables
+        self.best_auc = 0
+        self.epochs_after_best = 0
+        
+        # Dictionary to track if headers are written for each metric type file
+        self.logged_headers = {}
         
         logging.info("Initialized MuNuSepTrainer")
 
@@ -111,19 +132,44 @@ class MuNuSepTrainer:
         logging.info("computed metrics")
         return accuracy, precision, tpr, fpr, auc
 
-    def _log_metric(self, metric_name: str, value: float,  epoch: int, step: int, metric_type: str):
-        log_message = f"{metric_type} {metric_name}: {value} (Epoch {epoch}, Total steps {step})"
-        # Log metric locally to a file
-        with open(self.metrics_logs_path / f"{metric_type}.txt", "a") as log_file:
-            log_file.write(log_message + "\n")
+    
+    def _log_metrics(self, metrics: dict, epoch: int, step: int, metric_type: str):
+        """
+        Log multiple metrics to a CSV file for a given metric type.
+
+        Parameters:
+        - metrics: dict of metric names and their values, e.g., {"Accuracy": 0.85, "Precision": 0.90, ...}
+        - epoch: Current epoch number
+        - step: Current training step
+        - metric_type: The type/category of metrics (e.g., 'Train Metrics', 'Test Metrics')
+        """
+        # Define the path for the CSV file for this metric type
+        csv_file_path = self.metrics_logs_path / f"{metric_type}.csv"
+        
+        # Check if headers have been written for this metric type
+        if metric_type not in self.logged_headers:
+            # Write headers
+            with open(csv_file_path, mode="w", newline="") as csv_file:
+                writer = csv.writer(csv_file)
+                headers = ["epoch", "step"] + list(metrics.keys())
+                writer.writerow(headers)
+            self.logged_headers[metric_type] = True  # Mark headers as written for this metric type
+
+        # Append the metric values
+        with open(csv_file_path, mode="a", newline="") as csv_file:
+            writer = csv.writer(csv_file)
+            row = [epoch, step] + list(metrics.values())
+            writer.writerow(row)
         
         # Log to ClearML if enabled
         if self.use_clearml:
-            Logger.current_logger().report_scalar(metric_type, metric_name, value, epoch)
-            Logger.current_logger().report_scalar(metric_type, metric_name+"ByStep", value, step)
+            for metric_name, value in metrics.items():
+                Logger.current_logger().report_scalar(metric_type, metric_name, value, epoch)
+                Logger.current_logger().report_scalar(metric_type, f"{metric_name}ByStep", value, step)
         
-        logging.info(f"logged {metric_type} {metric_name}")
-
+        logging.info(f"Logged {metric_type} metrics to CSV")
+        
+        
     def _save_checkpoint(self, epoch: int):
         checkpoint_file = self.checkpoint_path / f"epoch_{epoch+1}.pt"
         torch.save(self.model.state_dict(), checkpoint_file)
@@ -141,8 +187,6 @@ class MuNuSepTrainer:
             self.current_epoch=epoch
             self.model.train()
             self._train_one_epoch()
-            if self.test_gen is not None:
-                self._evaluate()
 
             # Save checkpoint model
             if epoch % self.train_config.checkpoint_interval==0:
@@ -151,6 +195,19 @@ class MuNuSepTrainer:
             # Scheduler step
             if self.scheduler:
                 self.scheduler.step()
+                
+            # Evaluating on test dataset
+            if self.test_gen is not None:
+                self._evaluate()
+                if self.train_config.early_stopping_patience <= self.epochs_after_best:
+                    message = f"Training stopped early after {epoch+1} epochs due to no improvement in AUC for {self.train_config.early_stopping_patience} epochs. Best AUC: {self.best_auc}"
+                    logging.info(message)  # Log locally
+
+                    # Log to ClearML
+                    if self.use_clearml:
+                        Logger.current_logger().report_text(message)
+                        self.task.close()  # Ensure ClearML task is closed
+                    break
 
         logging.info("Training completed.")
         if self.use_clearml:
@@ -192,17 +249,24 @@ class MuNuSepTrainer:
             if current_step % self.train_config.log_interval == 0:
                 avg_loss = running_loss / ((self.train_config.log_interval+1) if current_step>0 else 1)
                 logging.info(f"#Batch {current_step}")
-                self._log_metric(self.train_config.loss.name, avg_loss, self.current_epoch, self.total_steps, "Train Loss")
                 running_loss = 0.0
                 
                 accuracy, precision, tpr, fpr, auc = self._compute_metrics(
                     np.array(y_true_all, dtype=np.float32), np.array(y_pred_all, dtype=np.float32)
                 )
-                self._log_metric("Accuracy", accuracy, self.current_epoch, self.total_steps, "Train Metrics")
-                self._log_metric("Precision", precision, self.current_epoch, self.total_steps, "Train Metrics")
-                self._log_metric("TPR", tpr, self.current_epoch, self.total_steps, "Train Metrics")
-                self._log_metric("FPR", fpr, self.current_epoch, self.total_steps, "Train Metrics")
-                self._log_metric("AUC", auc, self.current_epoch, self.total_steps, "Train Metrics")
+                self._log_metrics(
+                    metrics={
+                        f"{self.train_config.loss.name}": avg_loss,
+                        "Accuracy": accuracy,
+                        "Precision": precision,
+                        "TPR": tpr,
+                        "FPR": fpr,
+                        "AUC": auc
+                    },
+                    epoch=self.current_epoch,
+                    step=self.total_steps,
+                    metric_type="TrainMetrics"
+                )
             
             current_step += 1
             self.total_steps += 1
@@ -213,11 +277,19 @@ class MuNuSepTrainer:
         accuracy, precision, tpr, fpr, auc = self._compute_metrics(
             np.array(y_true_all, dtype=np.float32), np.array(y_pred_all, dtype=np.float32)
         )
-        self._log_metric("Accuracy", accuracy, self.current_epoch, self.total_steps, "Train Metrics")
-        self._log_metric("Precision", precision, self.current_epoch, self.total_steps, "Train Metrics")
-        self._log_metric("TPR", tpr, self.current_epoch, self.total_steps, "Train Metrics")
-        self._log_metric("FPR", fpr, self.current_epoch, self.total_steps, "Train Metrics")
-        self._log_metric("AUC", auc, self.current_epoch, self.total_steps, "Train Metrics")
+        self._log_metrics(
+            metrics={
+                f"{self.train_config.loss.name}": running_loss / ((self.train_config.log_interval+1) if current_step>0 else 1),
+                "Accuracy": accuracy,
+                "Precision": precision,
+                "TPR": tpr,
+                "FPR": fpr,
+                "AUC": auc
+            },
+            epoch=self.current_epoch,
+            step=self.total_steps,
+            metric_type="TrainMetrics"
+        )
 
     def _evaluate(self):
         
@@ -225,24 +297,52 @@ class MuNuSepTrainer:
         
         self.model.eval()
         y_true_all, y_pred_all = [], []
-
+        sum_test_loss = 0.0
+        test_steps = 0 
         with torch.no_grad():
             for inputs, mask, targets in self.test_dataset:
                 inputs, mask, targets = inputs.to(self.device), mask.to(self.device), targets.to(self.device)
                 # assuming model accepts shape (bs, max_length, num_features) and mask
                 outputs = self.model(inputs, mask)
+                loss = self.loss_function(outputs, targets)
+                sum_test_loss += loss.item()
                 y_true_all.extend(targets[:,1].cpu().numpy())
                 y_pred_all.extend(outputs[:,1].detach().cpu().numpy())
+                test_steps+=1
         
-        self.test_gen.reinit()
-        self.test_dataset = self.test_gen.get_batches()
-
         # Compute evaluation metrics
         accuracy, precision, tpr, fpr, auc = self._compute_metrics(
             np.array(y_true_all, dtype=np.float32), np.array(y_pred_all, dtype=np.float32)
         )
-        self._log_metric("Accuracy", accuracy, self.current_epoch, self.total_steps, "Test Metrics")
-        self._log_metric("Precision", precision, self.current_epoch, self.total_steps, "Test Metrics")
-        self._log_metric("TPR", tpr, self.current_epoch, self.total_steps, "Test Metrics")
-        self._log_metric("FPR", fpr, self.current_epoch, self.total_steps, "Test Metrics")
-        self._log_metric("AUC", auc, self.current_epoch, self.total_steps, "Test Metrics")
+        self._log_metrics(
+            metrics={
+                f"{self.train_config.loss.name}": sum_test_loss/test_steps,
+                "Accuracy": accuracy,
+                "Precision": precision,
+                "TPR": tpr,
+                "FPR": fpr,
+                "AUC": auc
+            },
+            epoch=self.current_epoch,
+            step=self.total_steps,
+            metric_type="TestMetrics"  # or "Test Metrics" depending on context
+        )
+        
+        # Re Init test data generator
+        self.test_gen.reinit()
+        self.test_dataset = self.test_gen.get_batches()
+        
+        # Early stopper
+        if self.best_auc<auc:
+            self.best_auc = auc
+            self.best_model = self.model
+            checkpoint_file = self.checkpoint_path / f"epoch_{self.current_epoch+1}_best_by_test.pt"
+            torch.save(self.model.state_dict(), checkpoint_file)
+            # Upload to ClearML if enabled
+            if self.use_clearml:
+                self.task.upload_artifact(f"epoch_{self.current_epoch+1}_best_by_test", checkpoint_file)
+            
+            self.epochs_after_best = 0
+            logging.info(f"Saved best model at Epoch {self.current_epoch+1}: {checkpoint_file}")
+        else:
+            self.epochs_after_best += 1

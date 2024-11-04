@@ -28,6 +28,7 @@ class TrainerConfig(BaseConfig):
     checkpoint_interval: int = 1 # save model every ... epochs
     experiment_path: str = "/home/albert/Baikal-ML/experiments/testing"
     log_interval: int = 100 # make logs of metrics every ... steps
+    early_stopping_patience: int = 5 # num of epochs
     
     optimizer: OptimizerConfig = OptimizerConfig()
     scheduler: Optional[SchedulerConfig] = None #SchedulerConfig()

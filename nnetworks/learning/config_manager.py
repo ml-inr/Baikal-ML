@@ -7,7 +7,7 @@ import torch
 from ..base_config import BaseConfig
 from . import config
 
-def save_cfg(cfg: BaseConfig, path: str = "./cfg.yaml", mode: str = 'w') -> None:
+def save_trainer_cfg(cfg: BaseConfig, path: str = "./cfg.yaml", mode: str = 'w') -> None:
     """Saves configuration to path as yaml file.
 
     Args:

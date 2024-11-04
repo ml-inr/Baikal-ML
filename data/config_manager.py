@@ -11,7 +11,7 @@ except ImportError:
     from configurations.base import BaseConfig
 
 
-def save_cfg(cfg: BaseConfig, path: str = "./cfg.yaml", mode: str = 'w') -> None:
+def save_data_cfg(cfg: BaseConfig, path: str = "./cfg.yaml", mode: str = 'w') -> None:
     """Saves configuration to path as yaml file.
 
     Args:
