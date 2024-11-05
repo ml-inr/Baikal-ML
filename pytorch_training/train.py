@@ -49,19 +49,19 @@ def main():
     train_type = train_params.get("train_type")
     is_graph = train_params.get("is_graph")
     is_classification = False
-    model = load_model(train_params["model_type"], train_params["model_params"]) #.to(DEVICE)
+    model = load_model(train_params["model_type"], train_params["model_params"]).to(DEVICE)
 
     n_params = np.sum(p.numel() for p in model.parameters())
     print("n_params M", n_params / 1e6)
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=train_params["lr"])
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, "min", factor=0.2, min_lr=1e-5, patience=2
+        optimizer, "min", factor=0.2, min_lr=1e-3, patience=10
     )
 
     set_tres_stats = False
     if train_type == "noise_sig":
-        DatasetType = BaikalDatasetGraph if is_graph else BaikalDataset
+        DatasetType = BaikalDataset
         preprocessor = (
             NoiseSigGraphPreprocessor(train_params["knn_neighbours"])
             if is_graph
@@ -71,9 +71,7 @@ def main():
         criterion = torch.nn.CrossEntropyLoss()
         metrics_calc_fun = binary_clf_metrics
     elif train_type == "track_cascade":
-        DatasetType = (
-            BaikalDatasetTrackCascadeGraph if is_graph else BaikalDatasetTrackCascade
-        )
+        DatasetType = BaikalDatasetTrackCascade
         preprocessor = (
             TrackCascadeGraphPreprocessor(
                 train_params["knn_neighbours"], train_params["tres_cut"]
@@ -86,7 +84,7 @@ def main():
         criterion = torch.nn.CrossEntropyLoss()
     elif train_type == "tres":
         set_tres_stats = True
-        DatasetType = BaikalDatasetTresGraph if is_graph else BaikalDatasetTres
+        DatasetType = BaikalDatasetTres
         preprocessor = (
             TresGraphPreprocessor(train_params["knn_neighbours"])
             if is_graph
@@ -96,9 +94,7 @@ def main():
         criterion = torch.nn.MSELoss()
     elif train_type == "tres_and_track_cascade":
         set_tres_stats = True
-        DatasetType = (
-            BaikalDatasetTrackCascadeGraph if is_graph else BaikalDatasetTrackCascade
-        )
+        DatasetType = BaikalDatasetTrackCascade
         preprocessor = (
             TresAndTrackCascadeGraphPreprocessor(
                 train_params["knn_neighbours"], train_params["tres_cut"]

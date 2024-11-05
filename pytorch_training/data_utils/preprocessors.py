@@ -8,18 +8,6 @@ import torch_geometric.nn as gnn
 import typing as tp
 
 EPS = 1e-8
-# TODO: add noise
-
-# class FilterData:
-#     def __init__(
-#             self,
-#             data_file,
-#             split_type,
-#             Q_lower_bound: float | None = None,
-#             Q_upper_bound: float | None = None,
-#             additive_gauss_noise_std: tp.Sequence[float] | None = None = None,
-#             mult_gauss_noise_fraction: float | None = None,
-#             ),
 
 
 class BasePreprocessor(ABC):
@@ -181,3 +169,50 @@ class TresAndTrackCascadeGraphPreprocessor(TresGraphPreprocessor):
         edge_index = gnn.knn_graph(x[:, 1], k=self.n_neighbours)
         graph = GData(x=x, edge_index=edge_index, y=labels_and_tres)
         return graph
+
+
+class PrepareData:
+    def __init__(
+            self,
+            data_file,
+            split_type,
+            Q_lower_bound: float | None = None,
+            Q_upper_bound: float | None = None,
+            additive_gauss_noise_std: tp.Sequence[float] | None = None,
+            mult_gauss_noise_fraction: float | None = None,
+        ):
+            self.split_type = split_type
+            self.additive_gauss_noise_std = additive_gauss_noise_std
+            self.mult_gauss_noise_fraction = mult_gauss_noise_fraction
+            self.Q_lower_bound = None
+            self.Q_upper_bound = None
+
+            self.hfile = h5.File(data_file, 'r')
+            means = np.array(self.hfile['norm_param/mean'])
+            stds = np.array(self.hfile['norm_param/std'])
+            if Q_lower_bound is not None:
+                self.Q_lower_bound = (Q_lower_bound - means[0]) / stds[0]
+            if Q_upper_bound is not None:
+                self.Q_upper_bound = (Q_upper_bound - means[0]) / stds[0]
+ 
+
+
+    def __call__(self, data_x):
+        """add noise and clamp Q
+
+        Args:
+            data_x (torch.Tensor): shape - [batch_size, 5]
+
+        Returns:
+            _type_: _description_
+        """
+        data_x[0] = data_x[0].clamp(min=self.Q_lower_bound, max=self.Q_upper_bound)
+        if self.additive_gauss_noise_std is not None:
+            data_x[0] = data_x[0] + np.random.normal(
+                0, self.additive_gauss_noise_std, data_x[0].shape
+            )
+        if self.mult_gauss_noise_fraction is not None:
+            data_x[0] = data_x[0] * (
+                1 + np.random.normal(0, self.mult_gauss_noise_fraction, data_x[0].shape)
+            )
+        return data_x

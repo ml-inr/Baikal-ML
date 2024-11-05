@@ -80,9 +80,7 @@ class BaikalDatasetTrackCascade(BaikalDataset):
         data_y = torch.tensor(labels, dtype=torch.long)
         tres = torch.tensor(tres, dtype=torch.float32)
 
-        data_x, data_y = self.preprocessor(data_x, data_y, tres)
-
-        return data_x, data_y
+        return self.preprocessor(data_x, data_y, tres)
 
 
 class BaikalDatasetAngles(BaikalDataset):
@@ -90,8 +88,12 @@ class BaikalDatasetAngles(BaikalDataset):
         start, end = self.hfile[self.split_type + "/ev_starts/data"][idx : idx + 2]
         data = np.array(self.hfile[self.split_type + "/data/data"][start:end])
         thetha, phi = self.hfile[self.split_type + "/prime_prty/data"][idx][:2]
+        # print(thetha, phi)
         thetha = float(thetha) * (torch.pi / 180)
+        if thetha > 90:
+            thetha = 180 - thetha
         phi = float(phi) * (torch.pi / 180)
+        # print(thetha, phi)
         vec = [math.cos(thetha) * math.cos(phi), math.cos(thetha) * math.sin(phi), math.sin(thetha)]
         data_x = torch.tensor(data, dtype=torch.float32)
         data_y = torch.tensor(vec, dtype=torch.float32)
@@ -106,8 +108,8 @@ class BaikalDatasetAnglesAndTrackCascade(BaikalDataset):
         thetha, phi = self.hfile[self.split_type + "/prime_prty/data"][idx][:2]
         tres = self.hfile[self.split_type + "/t_res/data"][start:end]
 
-        a1 = math.sin(float(thetha) * (torch.pi / 180))
-        a2 = math.cos(float(phi) * (torch.pi / 180))
+        thetha = math.sin(float(thetha) * (torch.pi / 180))
+        phi = math.cos(float(phi) * (torch.pi / 180))
 
         labels = self.hfile[self.split_type + "/labels/data"][start:end]
         track_cascade_labels = torch.tensor(labels, dtype=torch.long)
@@ -115,53 +117,8 @@ class BaikalDatasetAnglesAndTrackCascade(BaikalDataset):
         tres = torch.tensor(tres, dtype=torch.float32)
 
         data_x = torch.tensor(data, dtype=torch.float32)
-        angles = torch.tensor([a1, a2], dtype=torch.float32)
+        angles = torch.tensor([thetha, phi], dtype=torch.float32)
 
         data_x, data_y = self.preprocessor(data_x, track_cascade_labels, angles, tres)
 
         return data_x, data_y
-
-
-
-class BaikalDatasetGraph(BaikalDataset):
-    def __getitem__(self, idx):
-        start, end = self.hfile[self.split_type + "/ev_starts/data"][idx : idx + 2]
-        data = np.array(self.hfile[self.split_type + "/data/data"][start:end])
-        labels = self.hfile[self.split_type + "/labels/data"][start:end]
-
-        data_x = torch.tensor(data, dtype=torch.float32)
-        data_y = torch.tensor(labels, dtype=torch.long)
-
-        graph = self.preprocessor(data_x, data_y)
-
-        return graph
-
-
-class BaikalDatasetTrackCascadeGraph(BaikalDatasetGraph):
-    def __getitem__(self, idx):
-        start, end = self.hfile[self.split_type + "/ev_starts/data"][idx : idx + 2]
-        data = np.array(self.hfile[self.split_type + "/data/data"][start:end])
-        labels = self.hfile[self.split_type + "/labels/data"][start:end]
-        tres = self.hfile[self.split_type + "/t_res/data"][start:end]
-
-        data_x = torch.tensor(data, dtype=torch.float32)
-        data_y = torch.tensor(labels, dtype=torch.long)
-        tres = torch.tensor(tres, dtype=torch.float32)
-
-        graph = self.preprocessor(data_x, data_y, tres)
-
-        return graph
-
-
-class BaikalDatasetTresGraph(BaikalDataset):
-    def __getitem__(self, idx):
-        start, end = self.hfile[self.split_type + "/ev_starts/data"][idx : idx + 2]
-        data = np.array(self.hfile[self.split_type + "/data/data"][start:end])
-        tres = self.tres_data[start:end]
-
-        data_x = torch.tensor(data, dtype=torch.float32)
-        data_y = torch.tensor(tres, dtype=torch.float32)
-
-        graph = self.preprocessor(data_x, data_y)
-
-        return graph

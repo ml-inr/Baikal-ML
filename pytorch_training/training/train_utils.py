@@ -22,10 +22,6 @@ def _run_model(
         if is_angle_reconstruction:
             y_true = y_true.reshape(output.shape)
             y_pred = output
-        # print(data.x.shape, data.y.shape, output.shape, y_true.shape)
-        # # print(data.batch_size)
-        # print(data.batch.shape)
-        # a = input()
     else:
         x, y_true, mask = data
         x, y_true, mask = (
@@ -39,14 +35,14 @@ def _run_model(
             y_true = y_true.reshape(-1, y_true.shape[-1])
             output = output.reshape(-1, output.shape[-1]).squeeze()
         elif is_angle_reconstruction:
-            # thetha = output[:, 0]
-            # phi = output[:, 1]
-            # output_ = torch.zeros_like(y_true)
-            # output_[:, 0] = torch.cos(thetha) * torch.cos(phi)
-            # output_[:, 1] = torch.cos(thetha) * torch.sin(phi)
-            # output_[:, 2] = torch.sin(thetha)
-            output = output / output.norm(dim=1, keepdim=True)
-            # pass
+            thetha = torch.pi * output[:, 0]
+            phi = 2 * torch.pi * output[:, 1]
+            output_ = torch.zeros_like(y_true)
+            output_[:, 0] = torch.cos(thetha) * torch.cos(phi)
+            output_[:, 1] = torch.cos(thetha) * torch.sin(phi)
+            output_[:, 2] = torch.sin(thetha)
+            output = output_
+            # output = output / output.norm(dim=1, keepdim=True)
         else:
             y_true = y_true.reshape(-1)
             output = output.reshape(-1, output.shape[-1]).squeeze()

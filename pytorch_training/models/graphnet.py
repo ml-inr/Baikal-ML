@@ -47,15 +47,15 @@ class GraphnetDynedge(nn.Module):
         super().__init__()
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self._dynedge_layer_sizes = dynedge_layer_sizes or [
-            (128, 256),
-            (336, 256),
-            (336, 256),
-            (336, 256),
+            (128, 512),
+            (768, 512),
+            (768, 512),
+            (768, 512),
         ]
         self._conv_layers = nn.ModuleList()
         self._activation = nn.ReLU()
         self._nb_neigbours = knn_neighbours
-        self._post_processing_layer_sizes = [336, 256]
+        self._post_processing_layer_sizes = [512, 256]
         self._global_pooling_schemes = ["min", "max", "mean"]
         self.readout_layers_sizes = [128]
         self.aggregate_output = aggregate_output

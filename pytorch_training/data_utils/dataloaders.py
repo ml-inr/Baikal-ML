@@ -1,5 +1,5 @@
 from torch.nn.utils.rnn import pad_sequence
-from .readers import BaikalDatasetGraph, BaikalDataset, Dataset
+from .readers import BaikalDataset, Dataset
 from torch.utils.data import Dataset, Subset, DataLoader
 from torch_geometric.loader import DataLoader as GraphDataLoader
 import typing as tp
