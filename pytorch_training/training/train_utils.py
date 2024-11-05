@@ -38,9 +38,9 @@ def _run_model(
             thetha = torch.pi * output[:, 0]
             phi = 2 * torch.pi * output[:, 1]
             output_ = torch.zeros_like(y_true)
-            output_[:, 0] = torch.cos(thetha) * torch.cos(phi)
-            output_[:, 1] = torch.cos(thetha) * torch.sin(phi)
-            output_[:, 2] = torch.sin(thetha)
+            output_[:, 0] = torch.sin(thetha) * torch.cos(phi)
+            output_[:, 1] = torch.sin(thetha) * torch.sin(phi)
+            output_[:, 2] = torch.cos(thetha)
             output = output_
             # output = output / output.norm(dim=1, keepdim=True)
         else:

@@ -83,7 +83,6 @@ class GraphnetDynedge(nn.Module):
         nb_latent_features = (
             sum(sizes[-1] for sizes in self._dynedge_layer_sizes) + nb_input_features
         )
-        # print()
         post_processing_layers = []
         layer_sizes = [nb_latent_features] + list(self._post_processing_layer_sizes)
 

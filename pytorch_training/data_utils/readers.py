@@ -88,13 +88,11 @@ class BaikalDatasetAngles(BaikalDataset):
         start, end = self.hfile[self.split_type + "/ev_starts/data"][idx : idx + 2]
         data = np.array(self.hfile[self.split_type + "/data/data"][start:end])
         thetha, phi = self.hfile[self.split_type + "/prime_prty/data"][idx][:2]
-        # print(thetha, phi)
-        thetha = float(thetha) * (torch.pi / 180)
-        if thetha > 90:
-            thetha = 180 - thetha
-        phi = float(phi) * (torch.pi / 180)
-        # print(thetha, phi)
-        vec = [math.cos(thetha) * math.cos(phi), math.cos(thetha) * math.sin(phi), math.sin(thetha)]
+
+        thetha = float(thetha) * math.pi / 180
+        phi = float(phi) * math.pi / 180
+        vec = [math.sin(thetha) * math.cos(phi), math.sin(thetha) * math.sin(phi), math.cos(thetha)]
+
         data_x = torch.tensor(data, dtype=torch.float32)
         data_y = torch.tensor(vec, dtype=torch.float32)
         data_y /= data_y.norm()

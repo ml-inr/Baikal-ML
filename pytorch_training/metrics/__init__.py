@@ -81,7 +81,6 @@ def regression_and_clf_metrics(y_pred, y_true):
 
 def angle_and_track_cascade_metrics(y_pred, y_true, angles_pred, angles_true):
     metrics = {}
-    # print(y_pred.min(), y_true.min(), angles_pred.min(), angles_true.min())
     metrics.update(
         binary_clf_metrics(y_pred.reshape(-1), y_true.reshape(-1))
     )
