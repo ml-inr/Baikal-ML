@@ -324,6 +324,7 @@ class Processor:
         )
 
         final_df = final_df.with_columns(nu_induced=pl.col("ev_id").str.starts_with("nu"))
+        final_df = final_df.with_columns(enough_info=(pl.col("num_signal_hits")>=5) & (pl.col("num_signal_strings")>=2))
 
         self.filter_koef = final_df.shape[0] / events_df.shape[0]
 

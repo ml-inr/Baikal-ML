@@ -2,16 +2,18 @@ import os
 import logging
 from typing import Generator
 
+import numpy as np
 import polars as pl
 import torch
 from torch import Tensor
+from torch.nn.utils.rnn import pad_sequence
 
 try:
     from data.root_manager.chunk_generator import ChunkGenerator
-    from data.settings import BatchGeneratorConfig
+    from data.config import BatchGeneratorConfig
 except ImportError:
     from root_manager.chunk_generator import ChunkGenerator
-    from settings import BatchGeneratorConfig
+    from data.config import BatchGeneratorConfig
 
 
 # Configure logging
@@ -36,63 +38,80 @@ class BatchGenerator:
         self.aug_stds = None
         self.means, self.stds = None, None
 
-    def _to_padded_batch(self, df: pl.DataFrame) -> tuple[list[list[list]]]:
+    def _df_to_tensors_list(self, df: pl.DataFrame) -> list[Tensor]:
         """
-        Flatten and pad input data to ensure consistent dimensions.
+        Converts polars dataframe chunk into list of tensors of shape (L, num_features)
         """
-        max_length = df["PulsesTime"].list.len().max()
-        logging.debug("Max length determined for padding: %d", max_length)
+        torch_tensors = list(map(torch.from_numpy, map(lambda x: np.stack(x, axis=-1), list(df.to_numpy()))))
+        return torch_tensors
 
-        result = []
-        for row in df.iter_rows():
-            row_result = [df_list + [torch.nan] * (max_length - len(df_list)) for df_list in row]
-            result.append(row_result)
-        # Name-index correspondance
-        if self.name2index is None:
-            self.name2index = {name: i for i, name in enumerate(df.columns)}
-        logging.debug("Data flattened and padded. Returning as list.")
-        return result
-
-    def _augment_data(self, data: torch.Tensor):
+    def _augment_data(self, data: Tensor):
         if self.aug_stds is None:
-            self.aug_stds = [0.0] * data.shape[1]
+            self.aug_stds = [0.0] * data.shape[2]
             for name, std in self.aug_params.to_dict().items():
                 self.aug_stds[self.name2index[name]] = std
-        aug_stds_as_tensor = (
-            torch.tensor(self.aug_stds).reshape(1, len(self.aug_stds), 1).repeat(data.shape[0], 1, data.shape[2])
-        )
-        data = data + torch.normal(torch.zeros(data.shape), aug_stds_as_tensor)
+        B, L, num_fetures = data.shape
+        aug_stds_as_tensor = torch.tensor(self.aug_stds, device=data.device).reshape(1, 1, num_fetures).repeat(B, L, 1)
+        data = data + torch.normal(torch.zeros(data.shape, device=data.device), aug_stds_as_tensor)
         logging.debug(f"Added gauss noise to data: {data.shape=}")
 
         # Reorder by augmented time
         time_index = self.name2index["PulsesTime"]
-        sort_idxs = data[:, time_index : time_index + 1, :].argsort(dim=2).repeat(1, data.shape[1], 1)
-        data = data.gather(dim=2, index=sort_idxs)
-        assert (data[:, time_index, :].diff(n=1, dim=1).nan_to_num(1.0) >= 0).all(), logging.warning(
-            f"Wrong time reordering,\n{data[:, time_index, :]=}"
+        sort_idxs = data[:, :, time_index : time_index + 1].argsort(dim=1).repeat(1, 1, num_fetures)
+        data = data.gather(dim=1, index=sort_idxs)
+        assert (data[:, :, time_index].diff(n=1, dim=1).nan_to_num(1.0) >= 0).all(), logging.warning(
+            f"Wrong time reordering,\n{data[:, :, time_index]=}"
         )
         logging.debug(f"Reordered times in data: {data.shape=}")
         return data
 
-    def _norm_data(self, data: torch.Tensor):
+    def _norm_data(self, data: Tensor):
         if self.means is None or self.stds is None:
-            self.means, self.stds = [0.0] * data.shape[1], [1.0] * data.shape[1]
+            self.means, self.stds = [0.0] * data.shape[2], [1.0] * data.shape[2]
             for name, (mean, std) in self.norm_params.to_dict().items():
                 self.means[self.name2index[name]] = mean
                 self.stds[self.name2index[name]] = std
         logging.debug(f"Using norming params: {self.means=}, {self.stds=}")
-        means_as_tensor = (
-            torch.tensor(self.means).reshape(1, len(self.means), 1).repeat(data.shape[0], 1, data.shape[2])
-        )
-        stds_as_tensor = torch.tensor(self.stds).reshape(1, len(self.stds), 1).repeat(data.shape[0], 1, data.shape[2])
+        B, L, num_fetures = data.shape
+        means_as_tensor = torch.tensor(self.means, device=data.device).reshape(1, 1, num_fetures).repeat(B, L, 1)
+        stds_as_tensor = torch.tensor(self.stds, device=data.device).reshape(1, 1, num_fetures).repeat(B, L, 1)
         data = (data - means_as_tensor) / stds_as_tensor
         logging.debug(f"Normilized data: {data.shape=}")
         return data
+    
+    def _process_data_in_batch(self, batch_list_of_tensors: list[Tensor], device: torch.device) -> Tensor:
+        features_batch = pad_sequence(batch_list_of_tensors, batch_first=True, padding_value=float('nan')).to(device)
+        if features_batch.shape[0] == 0:
+            logging.warning("Empty batch encountered.")
+        logging.debug(f"Coverting features_batch to tensor of shape: {features_batch.shape}")
+        if self.cfg.do_augment:
+            features_batch = self._augment_data(features_batch)
+        if self.cfg.do_norm:
+            features_batch = self._norm_data(features_batch)
+        return features_batch.float()
+    
+    def _process_labels_in_batch(self, batch_from_chunk: pl.DataFrame, device: torch.device) -> Tensor:
+        regime = self.cfg.target_regime.lower()
+        if regime == "munusep_2":
+            labels_batch = batch_from_chunk['nu_induced'].to_torch().to(device)[:,None]
+            labels_batch = torch.concat((~labels_batch, labels_batch), dim=1) # to one-hot
+        elif regime == "munusep_3":
+            batch_from_chunk = batch_from_chunk.with_columns(
+                onehot_encoding=pl.when(~pl.col("enough_info")).then([1., 0., 0.])
+                .when(pl.col("enough_info") & ~pl.col("nu_induced")).then([0., 1., 0.])
+                .when(pl.col("enough_info") & pl.col("nu_induced")).then([0., 0., 1.])
+                .otherwise([0., 0., 0.]) # Fallback in case none of the conditions are met
+                )
+            labels_batch = torch.tensor(batch_from_chunk["onehot_encoding"].to_list()).to(device)
+            ...
+        else:
+            raise ValueError
+        return labels_batch.float()
 
-    def get_batches(self) -> Generator[tuple[Tensor, Tensor, Tensor], None, None]:
+    def get_batches(self, device = torch.device("cuda" if torch.cuda.is_available() else "cpu")) -> Generator[tuple[Tensor, Tensor, Tensor], None, None]:
         """
         Generate batches of data, mask and targets for training. 
-        The data shape is (batch_size, num_of_features, max_length). Auxillary hits are preplaced with 0.
+        The data shape is (batch_size, max_length, num_of_feature). Auxillary hits are preplaced with 0.
         The target shape is (batch_size, 2)
         """
 
@@ -104,22 +123,19 @@ class BatchGenerator:
             if self.cfg.shuffle:
                 chunk = chunk.sample(n=chunk.shape[0], shuffle=True)
                 logging.debug("Shuffling data within chunk.")
+            
+            data_in_chunk = chunk[self.cfg.features_name]
+            if self.name2index is None:
+                self.name2index = {c: i for i, c in enumerate(data_in_chunk.columns)}
+            list_of_data_as_tensors = self._df_to_tensors_list(data_in_chunk) # compute once here for better usage of GPU after.
+            
+            # Iterate to get batches
             for start in range(0, chunk.shape[0], self.batch_size):
                 stop = start + self.batch_size
-                pre_batch = chunk[start:stop]
-                if pre_batch.shape[0] == 0:
-                    logging.warning("Empty batch encountered. Skipping.")
-                    break
-                features_batch = self._to_padded_batch(pre_batch[self.cfg.features_name])
-                features_batch = torch.tensor(features_batch)
-                logging.debug(f"Coverting features_batch to tensor of shape: {features_batch.shape}")
-
-                if self.cfg.do_augment:
-                    features_batch = self._augment_data(features_batch)
-                if self.cfg.do_norm:
-                    features_batch = self._norm_data(features_batch)
-
-                labels_batch = pre_batch[self.cfg.labels_name].to_torch()
+                # pad data in batch with nans
+                features_batch = self._process_data_in_batch(list_of_data_as_tensors[start:stop], device)
+                # get batch of labels
+                labels_batch = self._process_labels_in_batch(chunk[start:stop], device)
                 logging.debug(
                     "Batch %d generated. features_batch shape: %s, labels_batch shape: %s",
                     batch_index,
@@ -127,9 +143,8 @@ class BatchGenerator:
                     labels_batch.shape,
                 )
                 batch_index += 1
-                mask = ~features_batch.isnan()[:,0:1,:] # extract mask
-                labels_batch = torch.concat((~labels_batch, labels_batch), dim=1) # to one-hot
-                yield features_batch.nan_to_num(0.), mask, labels_batch.float()
+                mask = ~features_batch.isnan()[:,:, 0:1] # extract mask
+                yield features_batch.nan_to_num(0.), mask, labels_batch
         
     def reinit(self):
         self.chunks = ChunkGenerator(self.root_paths, self.chunks_cfg).get_chunks()

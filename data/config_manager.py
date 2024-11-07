@@ -3,11 +3,11 @@ import csv
 
 try:
     from data.root_manager.settings import ProcessorConfig, ChunkGeneratorConfig, FilterParams
-    from data.settings import BatchGeneratorConfig, NormParams, AugmentParams
+    from data.config import BatchGeneratorConfig, NormParams, AugmentParams
     from data.configurations.base import BaseConfig
 except ImportError:
     from root_manager.settings import ProcessorConfig, ChunkGeneratorConfig, FilterParams
-    from settings import BatchGeneratorConfig, NormParams, AugmentParams
+    from data.config import BatchGeneratorConfig, NormParams, AugmentParams
     from configurations.base import BaseConfig
 
 

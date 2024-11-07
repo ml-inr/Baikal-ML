@@ -9,20 +9,20 @@ chunk_generator_cfg:
             min_strings: 0
             min_Q: 0
             t_threshold: 100000
-    fields: [PulsesAmpl, PulsesTime, Xrel, Yrel, Zrel, nu_induced]
+    fields: [PulsesAmpl, PulsesTime, Xrel, Yrel, Zrel, num_signal_hits, num_signal_strings, nu_induced, enough_info]
     shuffle_paths: true
 
-batch_size: 256
+batch_size: 512
 
 features_name: [PulsesAmpl, PulsesTime, Xrel, Yrel, Zrel]
 
-labels_name: [nu_induced]
+target_regime: 'munusep_3'
 
 do_norm: true
 
 norm_params:
-    PulsesTime: [0, 1372.0]
-    PulsesAmpl: [1.6, 41.2]
+    PulsesTime: [0, 1374.0]
+    PulsesAmpl: [1.4, 23.1]
     Xrel: [0, 60]
     Yrel: [0, 60]
     Zrel: [0, 260]

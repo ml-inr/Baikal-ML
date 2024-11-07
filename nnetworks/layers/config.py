@@ -1,7 +1,10 @@
 from dataclasses import dataclass, field
 from typing import Any, Dict
 
-from ..base_config import BaseConfig
+try:
+    from ..base_config import BaseConfig
+except ImportError:
+    from nnetworks.base_config import BaseConfig
 
 @dataclass
 class MaskedConv1DConfig(BaseConfig):
@@ -11,17 +14,18 @@ class MaskedConv1DConfig(BaseConfig):
     strides: int = 1
     activation: Dict[str, Any] = field(default_factory = lambda: {'LeakyReLU': None})  # Allow detailed configuration
     dropout: float = 0.2
-    do_norm: bool = True
+    do_batch_norm: bool = True
 
 @dataclass
-class RnnInput(BaseConfig):
-    units: int = 32
+class LstmConfig(BaseConfig):
+    input_size: int = 5
+    hidden_size: int = 32
+    num_layers: int = 1
     return_sequences: bool = False
-    activation: str = 'tanh'
-    recurrent_activation: str = 'sigmoid'
     dropout: float = 0.1
-    recurrent_dropout: float = 0
-    merge_mode: str = 'mul'
+    bidirectional: bool = True
+    return_sequences: bool = True
+    do_layer_norm: bool = True
 
 @dataclass
 class ResBlockConfig(BaseConfig):

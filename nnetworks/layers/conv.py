@@ -22,7 +22,7 @@ class MaskedConv1D(nn.Module):
         )
         self.dropout = nn.Dropout(self.input_hp.dropout)
         self.activation = get_activation(self.input_hp.activation)
-        if self.input_hp.do_norm:
+        if self.input_hp.do_batch_norm:
             self.norm1d = MaskedBatchNorm1D(self.input_hp.out_channels)
 
     def forward(self, x: Tensor, mask: Tensor) -> Tensor:
@@ -48,7 +48,7 @@ class MaskedConv1D(nn.Module):
         # Create new mask using broadcasting
         new_mask = torch.arange(max_len, device=mask.device).unsqueeze(0).unsqueeze(0) < new_sizes.unsqueeze(-1)
         x_new = x_new[:,:,:max_len] * new_mask
-        if self.input_hp.do_norm:
+        if self.input_hp.do_batch_norm:
             x_new = self.norm1d(x_new, new_mask)
         return x_new, new_mask
 

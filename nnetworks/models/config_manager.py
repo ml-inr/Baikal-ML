@@ -25,7 +25,7 @@ def save_model_cfg(cfg: BaseConfig, path: str = "./cfg.yaml", mode: str = 'w') -
                 super().write_line_break()
     
     with open(path, mode) as f:
-        yaml.dump(cfg.to_dict(), f, MyDumper, indent=4, width=1000, sort_keys=False)
+        yaml.dump({type(cfg).__name__: cfg.to_dict()}, f, MyDumper, indent=4, width=1000, sort_keys=False)
 
 def yaml2cfg(path_to_yaml: str) -> BaseConfig:
     """Handles loading nested model's configs from nested yaml dict.

@@ -1,6 +1,6 @@
 TrainerConfig:
 
-    num_of_epochs: 20
+    num_of_epochs: 10
 
     steps_per_epoch: null
 
@@ -8,24 +8,24 @@ TrainerConfig:
 
     experiment_path: /home/albert/Baikal-ML/experiments/test # to be changed after loading
 
-    log_interval: 500 # num of batches
+    log_interval: 100 # num of batches
 
-    early_stopping_patience: 5 # num of epochs
+    early_stopping_patience: 3 # num of epochs
 
     optimizer:
         name: Adam
         kwargs:
-            lr: 0.001
-            weight_decay: 1.0e-06
+            lr: 0.0001
+            weight_decay: 1.0e-05
 
     scheduler:
         name: step_lr
         kwargs:
             step_size: 1
-            gamma: 0.85
+            gamma: 0.8
 
     loss:
         name: FocalLoss
         kwargs:
-            alpha: 0.25
+            alpha: 1
             gamma: 2
