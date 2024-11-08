@@ -1,0 +1,21 @@
+---
+model_type: "encoder"
+train_type: "angle_and_track_cascade"
+path_to_data: "/home/plotnikovgp/baikal/data/baikal_mc2020_multi_split_0924_MChits-8-2_normed.h5"
+is_graph: False
+model_params:
+  in_features: 5
+  hidden_size: 256
+  num_layers: 5
+  dim_feedforward_size: 256
+  n_heads: 1
+  out_size: 2
+  use_cls_token: True
+  dropout_p: 0.0
+lr: 1.0e-6
+tres_cut: 10.0
+batch_size: 256
+num_train_steps_per_validation: 50
+exp_name: "encoder_bs256_a=0.0"
+mse_coef: 0.0
+exp_project: "angle_and_track_cascade_v3_mc_0924"
