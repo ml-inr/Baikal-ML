@@ -14,4 +14,4 @@ notes.md
 
 !data/create_config.ipynb
 !data/usage_example.ipynb
-!nnetworks/models/create_model.ipynb
+!nnetworks/models/create_model_cfg.ipynb
