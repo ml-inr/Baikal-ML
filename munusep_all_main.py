@@ -3,10 +3,11 @@ from clearml import Task
 import data.config_manager as cfgm
 from data.batch_generator import BatchGenerator
 from nnetworks.models.config_manager import model_from_yaml
-from nnetworks.learning.config_manager import yaml2trainercfg
+from learning.config_manager import yaml2trainercfg
+from learning.trainers import MuNuSepTrainer
 from nnetworks.models.munusep_resnet import MuNuSepResNet
 from nnetworks.models.munusep_lstm import MuNuSepLstm
-from nnetworks.learning.trainers import MuNuSepTrainer
+
 
 # data
 name_of_dataset = "munusep_all_small"
@@ -20,7 +21,7 @@ model = model_from_yaml(MuNuSepLstm, "/home/albert/Baikal-ML/nnetworks/models/co
 
 # ClearML
 project_name = "MuNuSepAll"
-task_name="TinyLSTM_SmallDS_lr0.0001"
+task_name="TinyLSTM_SmallDS_lr0.0001_binary"
 task = Task.init(project_name, task_name) 
 
 # trainer

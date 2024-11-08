@@ -3,10 +3,10 @@ from clearml import Task
 import data.config_manager as cfgm
 from data.batch_generator import BatchGenerator
 from nnetworks.models.config_manager import model_from_yaml
-from nnetworks.learning.config_manager import yaml2trainercfg
+from learning.config_manager import yaml2trainercfg
+from learning.trainers import MuNuSepTrainer
 from nnetworks.models.munusep_resnet import MuNuSepResNet
 from nnetworks.models.munusep_lstm import MuNuSepLstm
-from nnetworks.learning.trainers import MuNuSepTrainer
 
 # data
 name_of_dataset = "numusep_signal_small"
@@ -19,7 +19,7 @@ train_gen, test_gen = BatchGenerator(train_paths, cfg), BatchGenerator(test_path
 model = model_from_yaml(MuNuSepLstm, "/home/albert/Baikal-ML/nnetworks/models/configurations/munusep_all_rnn.yaml")
 
 project_name = "MuNuSepSignal"
-task_name="TinyLSTM_SmallDS_lr0.0001"
+task_name="TinyLSTM_SmallDS_lr0.0001_FixedFocalLoss"
 # ClearML
 task = Task.init(project_name, task_name) 
 # trainer
@@ -30,5 +30,4 @@ fitter = MuNuSepTrainer(model,
                         test_gen=test_gen, 
                         train_config=trainer_config,
                         clearml_task=task)
-
 fitter.train()

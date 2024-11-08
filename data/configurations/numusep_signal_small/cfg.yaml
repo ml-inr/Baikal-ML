@@ -16,7 +16,7 @@ batch_size: 512
 
 features_name: [PulsesAmpl, PulsesTime, Xrel, Yrel, Zrel]
 
-labels_name: [nu_induced]
+target_regime: 'munusep_2'
 
 do_norm: true
 

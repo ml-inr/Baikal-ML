@@ -7,6 +7,10 @@
 **/__pycache__*
 **/*MC*
 **/experiments*
+**/*ipynb*
 plans.md
 notes.md
 *Встреча*
+
+!*/usage_example.ipynb
+!*/*test*.ipynb
