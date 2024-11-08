@@ -11,3 +11,7 @@
 plans.md
 notes.md
 *Встреча*
+
+!data/create_config.ipynb
+!data/usage_example.ipynb
+!nnetworks/models/create_config.ipynb
