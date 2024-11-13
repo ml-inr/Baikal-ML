@@ -12,6 +12,7 @@ plans.md
 notes.md
 *Встреча*
 .vscode
+nohup.out
 
 !data/create_config.ipynb
 !data/usage_example.ipynb
