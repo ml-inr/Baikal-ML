@@ -2,8 +2,6 @@ TrainerConfig:
 
     num_of_epochs: 100
 
-    steps_per_epoch: null
-
     checkpoint_interval: 2 # num of epochs
 
     experiment_path: /home/albert/Baikal-ML/experiments/test # to be changed after loading
@@ -15,7 +13,7 @@ TrainerConfig:
     optimizer:
         name: Adam
         kwargs:
-            lr: 0.00005
+            lr: 0.0001
             weight_decay: 1.0e-05
 
     scheduler:

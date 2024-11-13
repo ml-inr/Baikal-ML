@@ -1,4 +1,7 @@
+from datetime import datetime
+
 from clearml import Task
+import torch
 
 import data.config_manager as cfgm
 from data.batch_generator import BatchGenerator
@@ -19,15 +22,19 @@ train_gen, test_gen = BatchGenerator(train_paths, cfg), BatchGenerator(test_path
 model = model_from_yaml(MuNuSepLstm, "/home/albert/Baikal-ML/nnetworks/models/configurations/munusep_all_rnn.yaml")
 
 project_name = "MuNuSepSignal"
-task_name="TinyLSTM_SmallDS_lr0.0001_FixedFocalLoss"
+task_name=f"TinyLSTM_SmallDS_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}"
 # ClearML
 task = Task.init(project_name, task_name) 
 # trainer
 trainer_config = yaml2trainercfg("/home/albert/Baikal-ML/nnetworks/learning/configurations/munusepall_short.yaml")
 trainer_config.experiment_path = f"/home/albert/Baikal-ML/experiments/{project_name}/{task_name}"
-fitter = MuNuSepTrainer(model, 
+device = torch.device("cuda:0")
+fitter = MuNuSepTrainer(
+                        model, 
                         train_gen=train_gen, 
                         test_gen=test_gen, 
                         train_config=trainer_config,
-                        clearml_task=task)
+                        clearml_task=task,
+                        device=device
+                        )
 fitter.train()

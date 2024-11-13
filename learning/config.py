@@ -23,7 +23,6 @@ class LossConfig(BaseConfig):
 @dataclass
 class TrainerConfig(BaseConfig):
     num_of_epochs: int = 3
-    steps_per_epoch: Optional[int] = 500 # num of batches per epoch
     
     checkpoint_interval: int = 1 # save model every ... epochs
     experiment_path: str = "/home/albert/Baikal-ML/experiments/testing"

@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 try:
     from ..base_config import BaseConfig
@@ -14,7 +14,7 @@ class MaskedConv1DConfig(BaseConfig):
     strides: int = 1
     activation: Dict[str, Any] = field(default_factory = lambda: {'LeakyReLU': None})  # Allow detailed configuration
     dropout: float = 0.2
-    do_batch_norm: bool = True
+    norm: Optional[Dict[str, Optional[Dict]]] = field(default_factory = lambda: {'MaskedBatchNorm1D': dict(eps=1e-5, momentum=0.1, affine=True, track_running_stats=True, unbiased=True)})
 
 @dataclass
 class LstmConfig(BaseConfig):
@@ -25,7 +25,7 @@ class LstmConfig(BaseConfig):
     dropout: float = 0.1
     bidirectional: bool = True
     return_sequences: bool = True
-    do_layer_norm: bool = True
+    norm: Optional[Dict[str, Optional[Dict]]] = field(default_factory = lambda: {'MaskedLayerNorm12': dict(eps=1e-5, affine=True, unbiased=True)})
 
 @dataclass
 class ResBlockConfig(BaseConfig):

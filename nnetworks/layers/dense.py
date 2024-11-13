@@ -2,8 +2,8 @@ from torch import Tensor
 import torch.nn as nn
 
 from .config import DenseInput
-from .norm import MaskedBatchNorm1D
-from ..utils.activation_factory import get_activation
+from .norm import MaskedBatchNorm1d
+from ..utils.cfg_fields_factory import get_activation
 
 
 class DenseBlock(nn.Module):

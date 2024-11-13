@@ -145,6 +145,8 @@ class BatchGenerator:
                 batch_index += 1
                 mask = ~features_batch.isnan()[:,:, 0:1] # extract mask
                 yield features_batch.nan_to_num(0.), mask, labels_batch
+            # free memory
+            chunk = 0
         
     def reinit(self):
         self.chunks = ChunkGenerator(self.root_paths, self.chunks_cfg).get_chunks()

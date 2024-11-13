@@ -3,10 +3,12 @@ MuNuSepLstmConfig:
     -   input_size: 5
         hidden_size: 64
         num_layers: 1
-        return_sequences: false
-        dropout: 0
+        return_sequences: true
+        dropout: 0.0
         bidirectional: true
-        do_layer_norm: true
+        norm:
+            MaskedLayerNorm12: null
+    pooling_type: Average
     dense_layers:
     -   in_features: 128
         units: 32
@@ -16,9 +18,9 @@ MuNuSepLstmConfig:
         dropout: 0.1
         do_norm: true
     -   in_features: 32
-        units: 3
+        units: 2
         activation:
             Softmax:
                 dim: 1
-        dropout: 0.
+        dropout: 0.0
         do_norm: false

@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from ..layers.config import MaskedConv1DConfig, LstmConfig, ResBlockConfig, DenseInput
 from ..base_config import BaseConfig
@@ -8,6 +8,7 @@ from ..base_config import BaseConfig
 @dataclass
 class MuNuSepLstmConfig(BaseConfig):
     lstm_layers: list[LstmConfig] = field(default_factory = lambda: [LstmConfig()])
+    pooling_type: Optional[str] = None # example: field(default_factory = lambda: {"Average"})
     dense_layers: list[DenseInput] = field(default_factory = lambda: [DenseInput()])
     
 

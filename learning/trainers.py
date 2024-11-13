@@ -47,18 +47,9 @@ class MuNuSepTrainer:
         self.model.to(self.device)
         
         self.train_gen = train_gen
-        self.train_dataset = self.train_gen.get_batches(device=self.device)
-        
         self.test_gen = test_gen
-        if self.test_gen is not None:
-            self.test_dataset = self.test_gen.get_batches(device=self.device)
         
         self.trainer_cfg = train_config
-        
-        self.steps_per_epoch = self.trainer_cfg.steps_per_epoch
-        if self.steps_per_epoch is None:
-            self.steps_per_epoch = np.inf
-        
         
         # Set up experiment folder for logs
         self.experiment_folder = Path(self.trainer_cfg.experiment_path)
@@ -173,8 +164,10 @@ class MuNuSepTrainer:
         
         # Log to ClearML if enabled
         if self.use_clearml:
+            print("start logging to clearml")
             for metric_name, value in metrics.items():
                 Logger.current_logger().report_scalar(metric_type, f"{metric_name}", value, step)
+                print("logged to clearml\n")
         
         logging.info(f"Logged {metric_type} metrics to CSV")
         
@@ -228,19 +221,10 @@ class MuNuSepTrainer:
         running_loss = 0.0
         y_true_all, y_pred_all = [], []
 
+        # Cycle through batches
         current_step = 0
-        while current_step<self.steps_per_epoch:
-            # Cycle through batches
-            try:
-                inputs, mask, targets = next(self.train_dataset)  
-            except StopIteration:
-                self.train_gen.reinit()
-                self.train_dataset = self.train_gen.get_batches(device=self.device)
-                # if steps_per_epoch not congigured, epoch ends
-                if self.steps_per_epoch == np.inf:
-                    break
-                inputs, mask, targets = next(self.train_dataset)
-                
+        self.train_dataset = self.train_gen.get_batches(device=self.device)
+        for inputs, mask, targets in self.train_dataset:
             self.optimizer.zero_grad()
 
             # Forward pass
@@ -251,8 +235,15 @@ class MuNuSepTrainer:
             loss.backward()
             self.optimizer.step()
 
-            y_true_all.extend(targets[:,1].cpu().numpy())
-            y_pred_all.extend(outputs[:,1].detach().cpu().numpy())
+            if targets.shape[-1] == 2:
+                y_true_all.extend(targets[:,-1].cpu().numpy())
+                y_pred_all.extend(outputs[:,-1].detach().cpu().numpy())
+            elif targets.shape[-1] == 3:
+                # get metrics on h5 s2 (good) events
+                y_true_all.extend(targets[:,-1].cpu().numpy()[targets[:,0].cpu().numpy()==0])
+                y_pred_all.extend(outputs[:,-1].detach().cpu().numpy()[targets[:,0].cpu().numpy()==0])
+            else:
+                raise ValueError(f"Wrong output shape. Expected (B,2) or (B,3), but got {targets.shape=}")
 
             if current_step % self.trainer_cfg.log_interval == 0:
                 avg_loss = running_loss / ((self.trainer_cfg.log_interval+1) if current_step>0 else 1)
@@ -262,6 +253,7 @@ class MuNuSepTrainer:
                 accuracy, precision, tpr, fpr, auc = self._compute_metrics(
                     np.array(y_true_all, dtype=np.float32), np.array(y_pred_all, dtype=np.float32)
                 )
+                y_true_all, y_pred_all = [], []
                 self._log_metrics(
                     metrics={
                         f"{self.trainer_cfg.loss.name}": avg_loss,
@@ -275,29 +267,9 @@ class MuNuSepTrainer:
                     step=self.total_steps,
                     metric_type="TrainMetrics"
                 )
-            
             current_step += 1
             self.total_steps += 1
-
-        # Epoch-level metrics
-        logging.info(f"#Batch {current_step}")
-        logging.info(f"End of Epoch {self.current_epoch}. Getting metrics.")
-        accuracy, precision, tpr, fpr, auc = self._compute_metrics(
-            np.array(y_true_all, dtype=np.float32), np.array(y_pred_all, dtype=np.float32)
-        )
-        self._log_metrics(
-            metrics={
-                f"{self.trainer_cfg.loss.name}": running_loss / ((current_step%self.trainer_cfg.log_interval+1) if current_step>0 else 1),
-                "Accuracy": accuracy,
-                "Precision": precision,
-                "TPR": tpr,
-                "FPR": fpr,
-                "AUC": auc
-            },
-            epoch=self.current_epoch,
-            step=self.total_steps,
-            metric_type="TrainMetrics"
-        )
+        self.train_gen.reinit()
 
     def _evaluate(self):
         
@@ -307,14 +279,22 @@ class MuNuSepTrainer:
         y_true_all, y_pred_all = [], []
         sum_test_loss = 0.0
         test_steps = 0 
+        self.test_dataset = self.test_gen.get_batches()
         with torch.no_grad():
             for inputs, mask, targets in self.test_dataset:
                 # assuming model accepts shape (bs, max_length, num_features) and mask
                 outputs = self.model(inputs, mask)
                 loss = self.loss_function(outputs, targets)
                 sum_test_loss += loss.item()
-                y_true_all.extend(targets[:,1].cpu().numpy())
-                y_pred_all.extend(outputs[:,1].detach().cpu().numpy())
+                if targets.shape[-1] == 2:
+                    y_true_all.extend(targets[:,-1].cpu().numpy())
+                    y_pred_all.extend(outputs[:,-1].detach().cpu().numpy())
+                elif targets.shape[-1] == 3:
+                    # get metrics on h5 s2 (good) events
+                    y_true_all.extend(targets[:,-1].cpu().numpy()[targets[:,0].cpu().numpy()==0])
+                    y_pred_all.extend(outputs[:,-1].detach().cpu().numpy()[targets[:,0].cpu().numpy()==0])
+                else:
+                    raise ValueError(f"Wrong output shape. Expected (B,2) or (B,3), but got {targets.shape=}")
                 test_steps+=1
         
         # Compute evaluation metrics
@@ -337,7 +317,6 @@ class MuNuSepTrainer:
         
         # Re Init test data generator
         self.test_gen.reinit()
-        self.test_dataset = self.test_gen.get_batches(device=self.device)
         
         # Early stopper
         if self.best_auc<auc:

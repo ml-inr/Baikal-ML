@@ -1,5 +1,5 @@
 chunk_generator_cfg:
-    chunk_size: 25
+    chunk_size: 10
     processor_params:
         center_times: true
         calc_tres: false
@@ -16,7 +16,7 @@ batch_size: 512
 
 features_name: [PulsesAmpl, PulsesTime, Xrel, Yrel, Zrel]
 
-target_regime: 'munusep_3'
+target_regime: 'munusep_2'
 
 do_norm: true
 
