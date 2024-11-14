@@ -17,3 +17,4 @@ nohup.out
 !data/create_config.ipynb
 !data/usage_example.ipynb
 !nnetworks/models/create_model_cfg.ipynb
+!munusep_all_inference.ipynb

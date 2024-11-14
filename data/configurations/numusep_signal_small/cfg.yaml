@@ -9,7 +9,7 @@ chunk_generator_cfg:
             min_strings: 2
             min_Q: 0
             t_threshold: 100000
-    fields: [PulsesAmpl, PulsesTime, Xrel, Yrel, Zrel, nu_induced]
+    fields: [PulsesAmpl, PulsesTime, Xrel, Yrel, Zrel, num_signal_hits, num_signal_strings, nu_induced, enough_info]
     shuffle_paths: true
 
 batch_size: 512

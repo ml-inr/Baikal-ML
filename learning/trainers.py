@@ -123,15 +123,18 @@ class MuNuSepTrainer:
             return getattr(torch.nn, self.trainer_cfg.loss.name)(**self.trainer_cfg.loss.kwargs)
 
     def _compute_metrics(self, y_true: np.ndarray, y_pred: np.ndarray, threshold: float = 0.5):
-        y_pred_bin = (y_pred > threshold).astype(float)
-        accuracy = accuracy_score(y_true, y_pred_bin)
-        precision = precision_score(y_true, y_pred_bin)
-        tn, fp, fn, tp = confusion_matrix(y_true, y_pred_bin).ravel()
-        tpr = tp / (tp + fn) if (tp + fn) > 0 else 0.0
-        fpr = fp / (fp + tn) if (fp + tn) > 0 else 0.0
-        auc = roc_auc_score(y_true, y_pred)
-        logging.info("computed metrics")
-        return accuracy, precision, tpr, fpr, auc
+        try:
+            y_pred_bin = (y_pred > threshold).astype(float)
+            accuracy = accuracy_score(y_true, y_pred_bin)
+            precision = precision_score(y_true, y_pred_bin)
+            tn, fp, fn, tp = confusion_matrix(y_true, y_pred_bin).ravel()
+            tpr = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+            fpr = fp / (fp + tn) if (fp + tn) > 0 else 0.0
+            auc = roc_auc_score(y_true, y_pred)
+            logging.info("computed metrics")
+            return accuracy, precision, tpr, fpr, auc
+        except Exception as e:
+            return 0, 0, 0, 0, 0
 
     
     def _log_metrics(self, metrics: dict, epoch: int, step: int, metric_type: str):
@@ -164,10 +167,8 @@ class MuNuSepTrainer:
         
         # Log to ClearML if enabled
         if self.use_clearml:
-            print("start logging to clearml")
             for metric_name, value in metrics.items():
                 Logger.current_logger().report_scalar(metric_type, f"{metric_name}", value, step)
-                print("logged to clearml\n")
         
         logging.info(f"Logged {metric_type} metrics to CSV")
         
@@ -279,7 +280,7 @@ class MuNuSepTrainer:
         y_true_all, y_pred_all = [], []
         sum_test_loss = 0.0
         test_steps = 0 
-        self.test_dataset = self.test_gen.get_batches()
+        self.test_dataset = self.test_gen.get_batches(device=self.device)
         with torch.no_grad():
             for inputs, mask, targets in self.test_dataset:
                 # assuming model accepts shape (bs, max_length, num_features) and mask

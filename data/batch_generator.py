@@ -108,7 +108,7 @@ class BatchGenerator:
             raise ValueError
         return labels_batch.float()
 
-    def get_batches(self, device = torch.device("cuda" if torch.cuda.is_available() else "cpu")) -> Generator[tuple[Tensor, Tensor, Tensor], None, None]:
+    def get_batches(self, device = torch.device("cuda" if torch.cuda.is_available() else "cpu"), yield_small_chunk: bool = False) -> Generator[tuple[Tensor, Tensor, Tensor], None, None]:
         """
         Generate batches of data, mask and targets for training. 
         The data shape is (batch_size, max_length, num_of_feature). Auxillary hits are preplaced with 0.
@@ -144,7 +144,10 @@ class BatchGenerator:
                 )
                 batch_index += 1
                 mask = ~features_batch.isnan()[:,:, 0:1] # extract mask
-                yield features_batch.nan_to_num(0.), mask, labels_batch
+                if yield_small_chunk:
+                    yield features_batch.nan_to_num(0.), mask, labels_batch, chunk[start:stop]
+                else:
+                    yield features_batch.nan_to_num(0.), mask, labels_batch
             # free memory
             chunk = 0
         

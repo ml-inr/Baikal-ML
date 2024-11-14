@@ -21,5 +21,7 @@ class DenseBlock(nn.Module):
         x = self.dense_layer(x)
         x = self.activation(x)
         if self.input_hp.do_norm:
-            x = self.norm1d(x)
+            # fixing bug that batchnorm doesn't work in train with batch of size 1
+            if x.shape[0]>1:
+                x = self.norm1d(x)
         return x
