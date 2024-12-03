@@ -8,7 +8,7 @@ TrainerConfig:
 
     log_interval: 100 # num of batches
 
-    early_stopping_patience: 3 # num of epochs
+    early_stopping_patience: 5 # num of epochs
 
     optimizer:
         name: Adam

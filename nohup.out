@@ -66570,3 +66570,201 @@ ClearML results page: https://app.clear.ml/projects/bb481593d7294044a256888f0dde
 /home/albert/Baikal-ML/venv/lib/python3.10/site-packages/_distutils_hack/__init__.py:31: UserWarning: Setuptools is replacing distutils. Support for replacing an already imported distutils is deprecated. In the future, this condition will fail. Register concerns at https://github.com/pypa/setuptools/issues/new?template=distutils-deprecation.yml
   warnings.warn(
 Training stopped early after 14 epochs due to no improvement in AUC for 3 epochs. Best AUC: 0.999506625266892
+2024-11-15 22:10:50,719 - INFO - Shuffled all file paths. Total paths: 106
+2024-11-15 22:10:50,720 - INFO - Shuffled all file paths. Total paths: 15
+ClearML Task: created new task id=b9608af87a0b444aa25a60df2a09ea22
+2024-11-15 22:10:56,454 - INFO - Shuffled all file paths. Total paths: 106
+2024-11-15 22:10:56,455 - INFO - Shuffled all file paths. Total paths: 15
+ClearML Task: created new task id=3253a22a55b44191bc95ecbef7dc583b
+ClearML results page: https://app.clear.ml/projects/d0853bc0fd254eeb9fc4e4c682d77002/experiments/b9608af87a0b444aa25a60df2a09ea22/output/log
+ClearML results page: https://app.clear.ml/projects/d0853bc0fd254eeb9fc4e4c682d77002/experiments/3253a22a55b44191bc95ecbef7dc583b/output/log
+/home/albert/Baikal-ML/venv/lib/python3.10/site-packages/_distutils_hack/__init__.py:31: UserWarning: Setuptools is replacing distutils. Support for replacing an already imported distutils is deprecated. In the future, this condition will fail. Register concerns at https://github.com/pypa/setuptools/issues/new?template=distutils-deprecation.yml
+  warnings.warn(
+/home/albert/Baikal-ML/venv/lib/python3.10/site-packages/_distutils_hack/__init__.py:31: UserWarning: Setuptools is replacing distutils. Support for replacing an already imported distutils is deprecated. In the future, this condition will fail. Register concerns at https://github.com/pypa/setuptools/issues/new?template=distutils-deprecation.yml
+  warnings.warn(
+Traceback (most recent call last):
+  File "/home/albert/Baikal-ML/munusep_all_main.py", line 50, in <module>
+    fitter.train()
+  File "/home/albert/Baikal-ML/learning/trainers.py", line 192, in train
+    self._train_one_epoch()
+  File "/home/albert/Baikal-ML/learning/trainers.py", line 233, in _train_one_epoch
+    outputs = self.model(inputs, mask) 
+  File "/home/albert/Baikal-ML/venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/albert/Baikal-ML/venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/albert/Baikal-ML/nnetworks/models/munusep_transformer.py", line 44, in forward
+    x, mask = self.encoder_block(x, mask)
+  File "/home/albert/Baikal-ML/venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/albert/Baikal-ML/venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/albert/Baikal-ML/nnetworks/layers/attention.py", line 87, in forward
+    mask = torch.cat([cls_mask, mask], dim=1)
+RuntimeError: Expected all tensors to be on the same device, but found at least two devices, cpu and cuda:0! (when checking argument for argument tensors in method wrapper_CUDA_cat)
+Traceback (most recent call last):
+  File "/home/albert/Baikal-ML/munusep_all_main.py", line 50, in <module>
+    fitter.train()
+  File "/home/albert/Baikal-ML/learning/trainers.py", line 192, in train
+    self._train_one_epoch()
+  File "/home/albert/Baikal-ML/learning/trainers.py", line 233, in _train_one_epoch
+    outputs = self.model(inputs, mask) 
+  File "/home/albert/Baikal-ML/venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/albert/Baikal-ML/venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/albert/Baikal-ML/nnetworks/models/munusep_transformer.py", line 44, in forward
+    x, mask = self.encoder_block(x, mask)
+  File "/home/albert/Baikal-ML/venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/albert/Baikal-ML/venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/albert/Baikal-ML/nnetworks/layers/attention.py", line 87, in forward
+    mask = torch.cat([cls_mask, mask], dim=1)
+RuntimeError: Expected all tensors to be on the same device, but found at least two devices, cpu and cuda:0! (when checking argument for argument tensors in method wrapper_CUDA_cat)
+2024-11-15 22:13:50,821 - INFO - Shuffled all file paths. Total paths: 106
+2024-11-15 22:13:50,821 - INFO - Shuffled all file paths. Total paths: 15
+ClearML Task: created new task id=1a1e60f2dd634b72a7a1154339c3d2a6
+ClearML results page: https://app.clear.ml/projects/d0853bc0fd254eeb9fc4e4c682d77002/experiments/1a1e60f2dd634b72a7a1154339c3d2a6/output/log
+/home/albert/Baikal-ML/venv/lib/python3.10/site-packages/_distutils_hack/__init__.py:31: UserWarning: Setuptools is replacing distutils. Support for replacing an already imported distutils is deprecated. In the future, this condition will fail. Register concerns at https://github.com/pypa/setuptools/issues/new?template=distutils-deprecation.yml
+  warnings.warn(
+Training stopped early after 23 epochs due to no improvement in AUC for 3 epochs. Best AUC: 0.8185954107485132
+2024-11-27 15:53:22,495 - INFO - Shuffled all file paths. Total paths: 106
+2024-11-27 15:53:22,544 - INFO - Shuffled all file paths. Total paths: 15
+ClearML Task: created new task id=492e033ee6a644a281552e0de4a08975
+ClearML results page: https://app.clear.ml/projects/d0853bc0fd254eeb9fc4e4c682d77002/experiments/492e033ee6a644a281552e0de4a08975/output/log
+/home/albert/Baikal-ML/venv/lib/python3.10/site-packages/_distutils_hack/__init__.py:31: UserWarning: Setuptools is replacing distutils. Support for replacing an already imported distutils is deprecated. In the future, this condition will fail. Register concerns at https://github.com/pypa/setuptools/issues/new?template=distutils-deprecation.yml
+  warnings.warn(
+2024-11-27 16:11:03,882 - INFO - Shuffled all file paths. Total paths: 106
+2024-11-27 16:11:03,921 - INFO - Shuffled all file paths. Total paths: 15
+ClearML Task: created new task id=08018e2ba4b14bc38067f948003b3eeb
+ClearML results page: https://app.clear.ml/projects/d0853bc0fd254eeb9fc4e4c682d77002/experiments/08018e2ba4b14bc38067f948003b3eeb/output/log
+/home/albert/Baikal-ML/venv/lib/python3.10/site-packages/_distutils_hack/__init__.py:31: UserWarning: Setuptools is replacing distutils. Support for replacing an already imported distutils is deprecated. In the future, this condition will fail. Register concerns at https://github.com/pypa/setuptools/issues/new?template=distutils-deprecation.yml
+  warnings.warn(
+ClearML results page: https://app.clear.ml/projects/d0853bc0fd254eeb9fc4e4c682d77002/experiments/08018e2ba4b14bc38067f948003b3eeb/output/log
+2024-11-27 16:26:54,597 - clearml.storage - INFO - Uploading: 5.00MB / 12.87MB @ 1.95MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-27_16-11-04_MiddleTransformer_4H_256DM_256DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_1.pt
+2024-11-27 16:26:56,514 - clearml.storage - INFO - Uploading: 10.00MB / 12.87MB @ 2.66MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-27_16-11-04_MiddleTransformer_4H_256DM_256DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_1.pt
+2024-11-27 16:26:57,591 - clearml.storage - INFO - Uploading: 12.86MB / 12.87MB @ 2.66MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-27_16-11-04_MiddleTransformer_4H_256DM_256DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_1.pt
+2024-11-27 16:26:57,593 - clearml.storage - INFO - Uploading: 12.87MB / 12.87MB @ 10.49MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-27_16-11-04_MiddleTransformer_4H_256DM_256DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_1.pt
+2024-11-27 16:26:57,595 - clearml.storage - INFO - Uploading: 12.87MB / 12.87MB @ 0.00MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-27_16-11-04_MiddleTransformer_4H_256DM_256DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_1.pt
+2024-11-27 16:28:20,374 - clearml.storage - INFO - Uploading: 5.00MB / 12.87MB @ 3.12MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-27_16-11-04_MiddleTransformer_4H_256DM_256DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_1_best_by_test.pt
+2024-11-27 16:28:22,044 - clearml.storage - INFO - Uploading: 10.00MB / 12.87MB @ 3.03MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-27_16-11-04_MiddleTransformer_4H_256DM_256DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_1_best_by_test.pt
+2024-11-27 16:28:22,994 - clearml.storage - INFO - Uploading: 12.86MB / 12.87MB @ 3.01MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-27_16-11-04_MiddleTransformer_4H_256DM_256DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_1_best_by_test.pt
+2024-11-27 16:28:22,995 - clearml.storage - INFO - Uploading: 12.87MB / 12.87MB @ 47.25MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-27_16-11-04_MiddleTransformer_4H_256DM_256DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_1_best_by_test.pt
+2024-11-27 16:28:22,996 - clearml.storage - INFO - Uploading: 12.87MB / 12.87MB @ 0.00MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-27_16-11-04_MiddleTransformer_4H_256DM_256DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_1_best_by_test.pt
+/home/albert/Baikal-ML/venv/lib/python3.10/site-packages/sklearn/metrics/_classification.py:1531: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 due to no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, f"{metric.capitalize()} is", len(result))
+/home/albert/Baikal-ML/venv/lib/python3.10/site-packages/sklearn/metrics/_classification.py:409: UserWarning: A single label was found in 'y_true' and 'y_pred'. For the confusion matrix to have the correct shape, use the 'labels' parameter to pass all known labels.
+  warnings.warn(
+/home/albert/Baikal-ML/venv/lib/python3.10/site-packages/sklearn/metrics/_classification.py:1531: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 due to no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, f"{metric.capitalize()} is", len(result))
+2024-11-27 16:44:15,241 - clearml.storage - INFO - Uploading: 5.00MB / 12.87MB @ 2.40MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-27_16-11-04_MiddleTransformer_4H_256DM_256DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_2_best_by_test.pt
+2024-11-27 16:44:16,910 - clearml.storage - INFO - Uploading: 10.00MB / 12.87MB @ 3.02MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-27_16-11-04_MiddleTransformer_4H_256DM_256DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_2_best_by_test.pt
+2024-11-27 16:44:17,753 - clearml.storage - INFO - Uploading: 12.86MB / 12.87MB @ 3.40MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-27_16-11-04_MiddleTransformer_4H_256DM_256DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_2_best_by_test.pt
+2024-11-27 16:44:17,754 - clearml.storage - INFO - Uploading: 12.87MB / 12.87MB @ 39.61MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-27_16-11-04_MiddleTransformer_4H_256DM_256DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_2_best_by_test.pt
+2024-11-27 16:44:17,755 - clearml.storage - INFO - Uploading: 12.87MB / 12.87MB @ 0.00MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-27_16-11-04_MiddleTransformer_4H_256DM_256DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_2_best_by_test.pt
+2024-11-27 16:58:35,219 - clearml.storage - INFO - Uploading: 5.00MB / 12.87MB @ 3.59MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-27_16-11-04_MiddleTransformer_4H_256DM_256DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_3.pt
+2024-11-27 16:58:36,288 - clearml.storage - INFO - Uploading: 10.00MB / 12.87MB @ 4.86MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-27_16-11-04_MiddleTransformer_4H_256DM_256DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_3.pt
+2024-11-27 16:58:36,890 - clearml.storage - INFO - Uploading: 12.86MB / 12.87MB @ 4.76MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-27_16-11-04_MiddleTransformer_4H_256DM_256DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_3.pt
+2024-11-27 16:58:36,896 - clearml.storage - INFO - Uploading: 12.87MB / 12.87MB @ 6.33MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-27_16-11-04_MiddleTransformer_4H_256DM_256DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_3.pt
+2024-11-27 16:58:36,899 - clearml.storage - INFO - Uploading: 12.87MB / 12.87MB @ 0.00MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-27_16-11-04_MiddleTransformer_4H_256DM_256DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_3.pt
+2024-11-27 17:30:17,020 - clearml.storage - INFO - Uploading: 5.00MB / 12.87MB @ 1.72MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-27_16-11-04_MiddleTransformer_4H_256DM_256DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_5.pt
+2024-11-27 17:30:19,797 - clearml.storage - INFO - Uploading: 10.00MB / 12.87MB @ 1.84MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-27_16-11-04_MiddleTransformer_4H_256DM_256DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_5.pt
+2024-11-27 17:30:21,352 - clearml.storage - INFO - Uploading: 12.86MB / 12.87MB @ 1.84MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-27_16-11-04_MiddleTransformer_4H_256DM_256DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_5.pt
+2024-11-27 17:30:21,355 - clearml.storage - INFO - Uploading: 12.87MB / 12.87MB @ 18.17MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-27_16-11-04_MiddleTransformer_4H_256DM_256DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_5.pt
+2024-11-27 17:30:21,357 - clearml.storage - INFO - Uploading: 12.87MB / 12.87MB @ 0.00MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-27_16-11-04_MiddleTransformer_4H_256DM_256DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_5.pt
+Training stopped early after 5 epochs due to no improvement in AUC for 3 epochs. Best AUC: 0.9595307138053932
+Training stopped early after 26 epochs due to no improvement in AUC for 3 epochs. Best AUC: 0.9339433867604199
+2024-11-28 09:08:53,834 - INFO - Shuffled all file paths. Total paths: 106
+2024-11-28 09:08:53,834 - INFO - Shuffled all file paths. Total paths: 15
+ClearML Task: created new task id=e8ebaec656914aaabbe50117ad6a7ea4
+ClearML results page: https://app.clear.ml/projects/d0853bc0fd254eeb9fc4e4c682d77002/experiments/e8ebaec656914aaabbe50117ad6a7ea4/output/log
+/home/albert/Baikal-ML/venv/lib/python3.10/site-packages/_distutils_hack/__init__.py:31: UserWarning: Setuptools is replacing distutils. Support for replacing an already imported distutils is deprecated. In the future, this condition will fail. Register concerns at https://github.com/pypa/setuptools/issues/new?template=distutils-deprecation.yml
+  warnings.warn(
+2024-11-28 09:18:37,738 - INFO - Shuffled all file paths. Total paths: 106
+2024-11-28 09:18:37,751 - INFO - Shuffled all file paths. Total paths: 15
+ClearML Task: created new task id=6f00fd2eeece481c83d5592e636ddce5
+ClearML results page: https://app.clear.ml/projects/d0853bc0fd254eeb9fc4e4c682d77002/experiments/6f00fd2eeece481c83d5592e636ddce5/output/log
+2024-11-28 09:19:08,844 - clearml.Task - WARNING - ### TASK STOPPED - USER ABORTED - STATUS CHANGED ###
+/home/albert/Baikal-ML/venv/lib/python3.10/site-packages/_distutils_hack/__init__.py:31: UserWarning: Setuptools is replacing distutils. Support for replacing an already imported distutils is deprecated. In the future, this condition will fail. Register concerns at https://github.com/pypa/setuptools/issues/new?template=distutils-deprecation.yml
+  warnings.warn(
+2024-11-28 09:20:46,797 - INFO - Shuffled all file paths. Total paths: 106
+2024-11-28 09:20:46,797 - INFO - Shuffled all file paths. Total paths: 15
+ClearML Task: created new task id=9f87e04c6d3849daa49feb0b4260496a
+ClearML results page: https://app.clear.ml/projects/d0853bc0fd254eeb9fc4e4c682d77002/experiments/9f87e04c6d3849daa49feb0b4260496a/output/log
+/home/albert/Baikal-ML/venv/lib/python3.10/site-packages/_distutils_hack/__init__.py:31: UserWarning: Setuptools is replacing distutils. Support for replacing an already imported distutils is deprecated. In the future, this condition will fail. Register concerns at https://github.com/pypa/setuptools/issues/new?template=distutils-deprecation.yml
+  warnings.warn(
+ClearML results page: https://app.clear.ml/projects/d0853bc0fd254eeb9fc4e4c682d77002/experiments/6f00fd2eeece481c83d5592e636ddce5/output/log
+2024-11-28 09:26:31,945 - clearml.storage - INFO - Uploading: 5.00MB / 5.31MB @ 2.13MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_1.pt
+2024-11-28 09:26:32,065 - clearml.storage - INFO - Uploading: 5.30MB / 5.31MB @ 2.89MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_1.pt
+2024-11-28 09:26:32,066 - clearml.storage - INFO - Uploading: 5.31MB / 5.31MB @ 50.14MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_1.pt
+2024-11-28 09:26:32,066 - clearml.storage - INFO - Uploading: 5.31MB / 5.31MB @ 0.00MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_1.pt
+2024-11-28 09:27:39,624 - clearml.storage - INFO - Uploading: 5.00MB / 5.31MB @ 3.34MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_1_best_by_test.pt
+2024-11-28 09:27:39,742 - clearml.storage - INFO - Uploading: 5.31MB / 5.31MB @ 3.03MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_1_best_by_test.pt
+2024-11-28 09:27:39,744 - clearml.storage - INFO - Uploading: 5.31MB / 5.31MB @ 0.00MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_1_best_by_test.pt
+2024-11-28 09:36:30,908 - clearml.storage - INFO - Uploading: 5.00MB / 5.31MB @ 2.87MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_2_best_by_test.pt
+2024-11-28 09:36:31,028 - clearml.storage - INFO - Uploading: 5.31MB / 5.31MB @ 2.60MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_2_best_by_test.pt
+2024-11-28 09:36:31,029 - clearml.storage - INFO - Uploading: 5.31MB / 5.31MB @ 0.00MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_2_best_by_test.pt
+2024-11-28 09:44:07,940 - clearml.storage - INFO - Uploading: 5.00MB / 5.31MB @ 2.13MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_3.pt
+2024-11-28 09:44:08,066 - clearml.storage - INFO - Uploading: 5.30MB / 5.31MB @ 2.37MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_3.pt
+2024-11-28 09:44:08,068 - clearml.storage - INFO - Uploading: 5.31MB / 5.31MB @ 45.72MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_3.pt
+2024-11-28 09:44:08,069 - clearml.storage - INFO - Uploading: 5.31MB / 5.31MB @ 0.00MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_3.pt
+2024-11-28 09:45:00,468 - clearml.storage - INFO - Uploading: 5.00MB / 5.31MB @ 3.74MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_3_best_by_test.pt
+2024-11-28 09:45:00,474 - clearml.storage - INFO - Uploading: 5.31MB / 5.31MB @ 67.04MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_3_best_by_test.pt
+2024-11-28 09:45:00,476 - clearml.storage - INFO - Uploading: 5.31MB / 5.31MB @ 0.00MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_3_best_by_test.pt
+2024-11-28 10:01:15,376 - clearml.storage - INFO - Uploading: 5.00MB / 5.31MB @ 2.55MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_5.pt
+2024-11-28 10:01:15,496 - clearml.storage - INFO - Uploading: 5.30MB / 5.31MB @ 2.49MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_5.pt
+2024-11-28 10:01:15,497 - clearml.storage - INFO - Uploading: 5.31MB / 5.31MB @ 25.11MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_5.pt
+2024-11-28 10:01:15,498 - clearml.storage - INFO - Uploading: 5.31MB / 5.31MB @ 0.00MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_5.pt
+2024-11-28 10:02:04,726 - clearml.storage - INFO - Uploading: 5.00MB / 5.31MB @ 1.48MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_5_best_by_test.pt
+2024-11-28 10:02:04,929 - clearml.storage - INFO - Uploading: 5.31MB / 5.31MB @ 1.53MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_5_best_by_test.pt
+2024-11-28 10:02:04,930 - clearml.storage - INFO - Uploading: 5.31MB / 5.31MB @ 0.00MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_5_best_by_test.pt
+2024-11-28 10:10:45,539 - clearml.storage - INFO - Uploading: 5.00MB / 5.31MB @ 3.43MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_6_best_by_test.pt
+2024-11-28 10:10:45,648 - clearml.storage - INFO - Uploading: 5.31MB / 5.31MB @ 2.85MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_6_best_by_test.pt
+2024-11-28 10:10:45,650 - clearml.storage - INFO - Uploading: 5.31MB / 5.31MB @ 0.00MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_6_best_by_test.pt
+2024-11-28 10:18:29,060 - clearml.storage - INFO - Uploading: 5.00MB / 5.31MB @ 1.35MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_7.pt
+2024-11-28 10:18:29,298 - clearml.storage - INFO - Uploading: 5.30MB / 5.31MB @ 1.26MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_7.pt
+2024-11-28 10:18:29,381 - clearml.storage - INFO - Uploading: 5.31MB / 5.31MB @ 0.12MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_7.pt
+2024-11-28 10:18:29,413 - clearml.storage - INFO - Uploading: 5.31MB / 5.31MB @ 0.00MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_7.pt
+2024-11-28 10:19:23,086 - clearml.storage - INFO - Uploading: 5.00MB / 5.31MB @ 2.14MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_7_best_by_test.pt
+2024-11-28 10:19:23,323 - clearml.storage - INFO - Uploading: 5.31MB / 5.31MB @ 1.30MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_7_best_by_test.pt
+2024-11-28 10:19:23,324 - clearml.storage - INFO - Uploading: 5.31MB / 5.31MB @ 0.00MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_7_best_by_test.pt
+2024-11-28 10:35:38,055 - clearml.storage - INFO - Uploading: 5.00MB / 5.31MB @ 3.77MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_9.pt
+2024-11-28 10:35:38,179 - clearml.storage - INFO - Uploading: 5.30MB / 5.31MB @ 2.42MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_9.pt
+2024-11-28 10:35:38,296 - clearml.storage - INFO - Uploading: 5.31MB / 5.31MB @ 0.08MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_9.pt
+2024-11-28 10:35:38,297 - clearml.storage - INFO - Uploading: 5.31MB / 5.31MB @ 0.00MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_9.pt
+2024-11-28 10:45:16,681 - clearml.storage - INFO - Uploading: 5.00MB / 5.31MB @ 1.64MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_10_best_by_test.pt
+2024-11-28 10:45:16,845 - clearml.storage - INFO - Uploading: 5.31MB / 5.31MB @ 1.98MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_10_best_by_test.pt
+2024-11-28 10:45:16,914 - clearml.storage - INFO - Uploading: 5.31MB / 5.31MB @ 0.00MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_10_best_by_test.pt
+2024-11-28 10:52:57,626 - clearml.storage - INFO - Uploading: 5.00MB / 5.31MB @ 2.05MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_11.pt
+2024-11-28 10:52:57,746 - clearml.storage - INFO - Uploading: 5.30MB / 5.31MB @ 2.51MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_11.pt
+2024-11-28 10:52:57,748 - clearml.storage - INFO - Uploading: 5.31MB / 5.31MB @ 27.16MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_11.pt
+2024-11-28 10:52:57,750 - clearml.storage - INFO - Uploading: 5.31MB / 5.31MB @ 0.00MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_11.pt
+2024-11-28 11:10:03,351 - clearml.storage - INFO - Uploading: 5.00MB / 5.31MB @ 1.66MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_13.pt
+2024-11-28 11:10:03,474 - clearml.storage - INFO - Uploading: 5.30MB / 5.31MB @ 2.44MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_13.pt
+2024-11-28 11:10:03,475 - clearml.storage - INFO - Uploading: 5.31MB / 5.31MB @ 42.30MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_13.pt
+2024-11-28 11:10:03,475 - clearml.storage - INFO - Uploading: 5.31MB / 5.31MB @ 0.00MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_13.pt
+2024-11-28 11:27:21,830 - clearml.storage - INFO - Uploading: 5.00MB / 5.31MB @ 2.69MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_15.pt
+2024-11-28 11:27:21,949 - clearml.storage - INFO - Uploading: 5.30MB / 5.31MB @ 2.52MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_15.pt
+2024-11-28 11:27:21,951 - clearml.storage - INFO - Uploading: 5.31MB / 5.31MB @ 30.28MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_15.pt
+2024-11-28 11:27:21,951 - clearml.storage - INFO - Uploading: 5.31MB / 5.31MB @ 0.00MBs to /home/albert/Baikal-ML/experiments/MuNuSepAll/2024-11-28_09-18-37_SmallTransformer_2H_128DM_128DFF_MaxPool_SmallDS_binary_lr1e-4/checkpoints/epoch_15.pt
+Training stopped early after 15 epochs due to no improvement in AUC for 5 epochs. Best AUC: 0.9078060273899192
+Training stopped early after 21 epochs due to no improvement in AUC for 5 epochs. Best AUC: 0.9404232571066984
+2024-11-28 17:45:46,048 - INFO - Shuffled all file paths. Total paths: 106
+2024-11-28 17:45:46,080 - INFO - Shuffled all file paths. Total paths: 15
+ClearML Task: created new task id=ebe3ea33ca3e4262bd07b3c6d8c7cefd
+2024-11-28 17:46:01,871 - INFO - Shuffled all file paths. Total paths: 106
+2024-11-28 17:46:01,871 - INFO - Shuffled all file paths. Total paths: 15
+ClearML Task: created new task id=b6878a0620c6445f947100712105ab3e
+ClearML results page: https://app.clear.ml/projects/d0853bc0fd254eeb9fc4e4c682d77002/experiments/ebe3ea33ca3e4262bd07b3c6d8c7cefd/output/log
+ClearML results page: https://app.clear.ml/projects/d0853bc0fd254eeb9fc4e4c682d77002/experiments/b6878a0620c6445f947100712105ab3e/output/log
+/home/albert/Baikal-ML/venv/lib/python3.10/site-packages/_distutils_hack/__init__.py:31: UserWarning: Setuptools is replacing distutils. Support for replacing an already imported distutils is deprecated. In the future, this condition will fail. Register concerns at https://github.com/pypa/setuptools/issues/new?template=distutils-deprecation.yml
+  warnings.warn(
+/home/albert/Baikal-ML/venv/lib/python3.10/site-packages/_distutils_hack/__init__.py:31: UserWarning: Setuptools is replacing distutils. Support for replacing an already imported distutils is deprecated. In the future, this condition will fail. Register concerns at https://github.com/pypa/setuptools/issues/new?template=distutils-deprecation.yml
+  warnings.warn(
+/home/albert/Baikal-ML/venv/lib/python3.10/site-packages/joblib/externals/loky/process_executor.py:752: UserWarning: A worker stopped while some jobs were given to the executor. This can be caused by a too short worker timeout or by a memory leak.
+  warnings.warn(
+/home/albert/Baikal-ML/venv/lib/python3.10/site-packages/joblib/externals/loky/process_executor.py:752: UserWarning: A worker stopped while some jobs were given to the executor. This can be caused by a too short worker timeout or by a memory leak.
+  warnings.warn(
+Training stopped early after 33 epochs due to no improvement in AUC for 5 epochs. Best AUC: 0.959430622171858
+Training stopped early after 34 epochs due to no improvement in AUC for 5 epochs. Best AUC: 0.9616121842421577

@@ -18,6 +18,7 @@ def get_activation(activation_config: dict):
     
     # Supported activations dictionary
     activations = {
+        "relu": nn.ReLU,
         "ReLU": nn.ReLU,
         "LeakyReLU": nn.LeakyReLU,
         "Sigmoid": nn.Sigmoid,

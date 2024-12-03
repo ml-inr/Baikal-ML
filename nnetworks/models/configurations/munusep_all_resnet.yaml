@@ -25,7 +25,40 @@ MuNuSepResNetConfig:
         skip:
             in_channels: 5
             out_channels: 128
-            kernel_size: 5
+            kernel_size: 3
+            strides: 2
+            activation:
+                LeakyReLU:
+                    negative_slope: 0.1
+            dropout: 0.1
+            norm:
+                LayerNorm: null
+    -   id:
+            in_channels: 256
+            out_channels: 256
+            kernel_size: 3
+            strides: 1
+            activation:
+                LeakyReLU:
+                    negative_slope: 0.1
+            dropout: 0.1
+            norm:
+                LayerNorm: null
+        cd:
+            in_channels: 256
+            out_channels: 256
+            kernel_size: 3
+            strides: 2
+            activation:
+                LeakyReLU:
+                    negative_slope: 0.1
+            dropout: 0.1
+            norm:
+                LayerNorm: null
+        skip:
+            in_channels: 256
+            out_channels: 256
+            kernel_size: 3
             strides: 2
             activation:
                 LeakyReLU:
@@ -35,11 +68,11 @@ MuNuSepResNetConfig:
                 LayerNorm: null
     pooling_type: Average
     dense_layers:
-    -   in_features: 256
+    -   in_features: 512
         units: 32
         activation:
             ReLU: null
-        dropout: 0.1
+        dropout: 0.
         do_norm: true
     -   in_features: 32
         units: 2
