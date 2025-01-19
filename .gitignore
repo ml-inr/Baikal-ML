@@ -15,5 +15,6 @@ notes.md
 nohup.out
 **/MyNotes*
 **/*.png
+*.html
 
 !nnetworks/models/create_model_cfg.ipynb
