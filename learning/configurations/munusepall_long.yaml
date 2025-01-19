@@ -13,14 +13,14 @@ TrainerConfig:
     optimizer:
         name: Adam
         kwargs:
-            lr: 0.0001
+            lr: 0.0002
             weight_decay: 1.0e-05
 
     scheduler:
         name: step_lr
         kwargs:
             step_size: 1
-            gamma: 0.8
+            gamma: 0.7
 
     loss:
         name: FocalLoss

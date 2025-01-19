@@ -10,7 +10,7 @@ from torch.optim import Adam, SGD, lr_scheduler
 from clearml import Task, Logger
 
 from data.batch_generator import BatchGenerator
-from data.config_manager import save_paths, save_data_cfg
+from data.settings_manager import save_paths, save_data_cfg
 from nnetworks.models.config_manager import save_model_cfg
 from learning.config import TrainerConfig
 from learning.config_manager import save_trainer_cfg
