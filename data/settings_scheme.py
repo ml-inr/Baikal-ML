@@ -42,16 +42,16 @@ class ProcessorConfig(BaseConfig):
 @dataclass
 class ChunksFromPathsConfig(BaseConfig):
     """Configuration of data generator. All the parameters besides root_paths are described."""
-    is_mc_data: bool
+    is_mc_data: bool = True
     lookforward: int = 50_000
-    processor_cfg: tp.Optional[ProcessorConfig] = field(default_factory=ProcessorConfig)
+    processor_cfg: dict[str, tp.Any] = field(default_factory=lambda: ProcessorConfig().to_dict())
     shuffle_paths: bool = False
     prefix: tp.Optional[str] = None
 
 @dataclass
 class MCMuNuSepBatchGeneratorConfig(BaseConfig):
     """Configuration of data generator. All the parameters besides root_paths are described."""
-    chunk_generator_cfg: ChunksFromPathsConfig
+    chunk_generator_cfg: dict = field(default_factory=lambda: ChunksFromPathsConfig().to_dict())
     mu_events_per_chunk: int = 256*100
     nu_events_per_chunk: int = 256*100
     batch_size: int = 256
@@ -83,7 +83,7 @@ class MCMuNuSepBatchGeneratorConfig(BaseConfig):
 @dataclass
 class ExpBatchGeneratorConfig(BaseConfig):
     """Configuration of data generator. All the parameters besides root_paths are described."""
-    chunk_generator_cfg: ChunksFromPathsConfig
+    chunk_generator_cfg: dict = field(default_factory=lambda: ChunksFromPathsConfig().to_dict())
     events_per_chunk: int = 256*100
     batch_size: int = 256
     features_to_take: tp.List[str] = field(default_factory=lambda: [

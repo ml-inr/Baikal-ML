@@ -23,7 +23,7 @@ from data.settings_scheme import (
 from data.batch_generators import MCMuNuSepBatchGenerator, ExpBatchGenerator
 
 # Setting up configuration of your pipeline to be able to log it well
-batches_cfg = MCMuNuSepBatchGeneratorConfig(
+batches_kwargs = MCMuNuSepBatchGeneratorConfig(
     chunk_generator_cfg=ChunksFromPathsConfig(
         is_mc_data=True,
         processor_cfg=ProcessorConfig(
@@ -79,7 +79,7 @@ nu_paths = [
     "/net/62/home3/ivkhar/Baikal/data/initial_data/MC_2020/nue2_100pev/root/all/1007.root",
 ]
 batches = MCMuNuSepBatchGenerator(
-    mu_paths, nu_paths, device=device, **batches_cfg.to_shallow_dict()
+    mu_paths, nu_paths, device=device, **batches_kwargs
 )
 
 # Load 200 batches

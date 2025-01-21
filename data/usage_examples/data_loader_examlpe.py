@@ -23,7 +23,7 @@ paths = [
 chunks = ChunksFromPaths(
     paths,
     is_mc_data=True,
-    processor_cfg=ProcessorConfig(True, False, 0, 0, same_coordinates=True),
+    processor_cfg=ProcessorConfig(True, False, 0, 0, same_coordinates=True).to_dict(),
     lookforward=float("inf"),
     events_per_chunk=25_000,
     shuffle_paths=True,
@@ -47,7 +47,7 @@ paths = [
 chunks = ChunksFromPaths(
     paths,
     is_mc_data=False,
-    processor_cfg=ProcessorConfig(False, False, 0, 0, same_coordinates=False),
+    processor_cfg=ProcessorConfig(False, False, 0, 0, same_coordinates=False).to_dict(),
     lookforward=100_000,
     events_per_chunk=100_000,
     shuffle_paths=False,

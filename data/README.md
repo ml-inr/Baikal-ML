@@ -78,7 +78,7 @@ in purpose of Neural Network training mostly `MCMuNuSepBatchGenerator` class wit
                 , only_signal=False
                 , min_signal_hits=0
                 , min_signal_strings=0
-                , same_coordinates=True),
+                , same_coordinates=True).to_dict(),
             lookforward=float("inf"), # How many events to read from each .root file at once
             events_per_chunk=25_000, # How many events to collect in one chunk
             shuffle_paths=True, # Whether to shuffle paths' lists before generating data.
@@ -108,7 +108,7 @@ in purpose of Neural Network training mostly `MCMuNuSepBatchGenerator` class wit
 
         # Setting up configuration of your pipeline
         # It may be configured using dataclasses to be able to log settings well!
-        batches_cfg = MCMuNuSepBatchGeneratorConfig(
+        batches_kwargs = MCMuNuSepBatchGeneratorConfig(
             chunk_generator_cfg=ChunksFromPathsConfig(
                 is_mc_data=True,
                 processor_cfg=ProcessorConfig(
@@ -149,7 +149,7 @@ in purpose of Neural Network training mostly `MCMuNuSepBatchGenerator` class wit
                 5.0,  # m
             ],
             shuffle=True, # Whether to shuffle events in chunk before generating batches.
-        )
+        ).to_dict()
 
         # Creating batch generator for your root_paths
         device = torch.device("cuda:0")
@@ -164,7 +164,7 @@ in purpose of Neural Network training mostly `MCMuNuSepBatchGenerator` class wit
             "/net/62/home3/ivkhar/Baikal/data/initial_data/MC_2020/nue2_100pev/root/all/1007.root",
         ]
         batches = MCMuNuSepBatchGenerator(
-            mu_paths, nu_paths, device=device, **batches_cfg.to_shallow_dict()
+            mu_paths, nu_paths, device=device, **batches_kwargs
         )
 
         # Load 200 batches
@@ -179,7 +179,9 @@ in purpose of Neural Network training mostly `MCMuNuSepBatchGenerator` class wit
 
 # Settings
 
-The behavior of the pipeline can be customized using configuration classes found in `data/settings_scheme.py`. Users can define settings for normalization, augmentation, and processing as per their requirements.
+All the classes described above can be configured by their key arguments directly (with help of `dict`s for example). However, I belive, special configuration dataclasses may make usage experience smoother: they devide nested set of arguments in logical blocks and enable helpfull IDE hints during coding.
+
+Therefore, the behavior of the pipeline can be customized using configuration classes found in `data/settings_scheme.py`. Users can define settings for normalization, augmentation, and processing as per their requirements.
 
 To store config to .yaml file and to load it back as dataclass, use `data/settings_manager.py` script.
 

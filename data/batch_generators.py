@@ -64,7 +64,7 @@ class MCMuNuSepBatchGenerator:
     def __init__(self,
                  mu_paths: list[str],
                  nu_paths: list[str],
-                 chunk_generator_cfg: ChunksFromPathsConfig,
+                 chunk_generator_cfg: dict = ChunksFromPathsConfig().to_dict(),
                  mu_events_per_chunk: int = 256*100,
                  nu_events_per_chunk: int = 256*100,
                  batch_size: int = 256,
@@ -96,8 +96,8 @@ class MCMuNuSepBatchGenerator:
                  ) -> Generator[Tuple[torch.Tensor, torch.Tensor], None, None]:
         self.chunk_gen_cfg = chunk_generator_cfg
         
-        self.mu_chunks = ChunksFromPaths(mu_paths, events_per_chunk=mu_events_per_chunk, **self.chunk_gen_cfg.to_shallow_dict())
-        self.nu_chunks = ChunksFromPaths(nu_paths, events_per_chunk=nu_events_per_chunk, **self.chunk_gen_cfg.to_shallow_dict())
+        self.mu_chunks = ChunksFromPaths(mu_paths, events_per_chunk=mu_events_per_chunk, **self.chunk_gen_cfg)
+        self.nu_chunks = ChunksFromPaths(nu_paths, events_per_chunk=nu_events_per_chunk, **self.chunk_gen_cfg)
         
         self.batch_size = batch_size
         self.features_to_take = features_to_take
@@ -263,7 +263,7 @@ class ExpBatchGenerator:
     """
     def __init__(self,
                  paths: List[str],
-                 chunk_generator_cfg: ChunksFromPathsConfig,
+                 chunk_generator_cfg: dict = ChunksFromPathsConfig(),
                  events_per_chunk: int = 256*200,
                  batch_size: int = 256,
                  features_to_take: List[str] = [
@@ -293,7 +293,7 @@ class ExpBatchGenerator:
                  device: torch.device = torch.device("cpu")
                  ) -> Generator[Tuple[torch.Tensor, torch.Tensor], None, None]:
         self.chunk_gen_cfg = chunk_generator_cfg
-        self.chunks = ChunksFromPaths(paths, events_per_chunk=events_per_chunk, **self.chunk_gen_cfg.to_shallow_dict())
+        self.chunks = ChunksFromPaths(paths, events_per_chunk=events_per_chunk, **self.chunk_gen_cfg)
         self.batch_size = batch_size
         self.features_to_take = features_to_take
         self.norm_params = norm_params if do_norm else None

@@ -33,10 +33,10 @@ class ChunksFromPaths:
     def __init__(
         self,
         root_paths: list[str],
-        is_mc_data: bool,
-        events_per_chunk,
-        lookforward: int = 50_000,
-        processor_cfg: ProcessorConfig = ProcessorConfig(),
+        is_mc_data: bool = True,
+        events_per_chunk = 1000,
+        lookforward: int = 5000,
+        processor_cfg: dict = ProcessorConfig().to_dict(),
         shuffle_paths: bool = False,
         prefix: tp.Optional[str] = None
     ):
@@ -63,8 +63,8 @@ class ChunksFromPaths:
         # Validate processor configuration
         if self.processor_cfg is not None:
             assert (self.is_mc_data) or (
-                (not self.processor_cfg.has_signal_flg)
-                and (not self.processor_cfg.to_calculate_tres)
+                (not self.processor_cfg["has_signal_flg"])
+                and (not self.processor_cfg["to_calculate_tres"])
             ), "Unable to process processor data with the given configuration."
 
         # State tracking for iteration
@@ -172,7 +172,7 @@ class ChunksFromPaths:
 
             # Process data
             pulses, events, muons = process_data(
-                pulses, events, coords, muons, **self.processor_cfg.to_dict()
+                pulses, events, coords, muons, **self.processor_cfg
             )
             logging.debug(
                 "Processed data shapes: pulses=%s, events=%s, muons=%s",
