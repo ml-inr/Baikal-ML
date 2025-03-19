@@ -1,0 +1,39 @@
+chunk_generator_cfg:
+    chunk_size: 10
+    processor_params:
+        center_times: true
+        calc_tres: false
+        filter_cfg:
+            only_signal: false
+            min_hits: 0
+            min_strings: 0
+            min_Q: 0
+            t_threshold: 100000
+    fields: [PulsesAmpl, PulsesTime, Xrel, Yrel, Zrel, nu_induced]
+    shuffle_paths: true
+
+batch_size: 1024
+
+features_name: [PulsesAmpl, PulsesTime, Xrel, Yrel, Zrel]
+
+labels_name: [nu_induced]
+
+do_norm: true
+
+norm_params:
+    PulsesTime: [0, 1372.0]
+    PulsesAmpl: [1.4, 22.0]
+    Xrel: [0, 60]
+    Yrel: [0, 60]
+    Zrel: [0, 260]
+
+do_augment: false
+
+augment_params:
+    PulsesTime: 5
+    PulsesAmpl: 0.1
+    Xrel: 2
+    Yrel: 2
+    Zrel: 5
+
+shuffle: true

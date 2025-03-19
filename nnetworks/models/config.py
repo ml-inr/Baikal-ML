@@ -23,3 +23,4 @@ class TransformerClassifierConfig(BaseConfig):
     encoder_config: TransformerEncodersBlockConfig = TransformerEncodersBlockConfig()
     pooling_type: str = "Average"
     dense_layers: list[DenseInput] = field(default_factory = lambda: [DenseInput()])
+    max_len: int = 500

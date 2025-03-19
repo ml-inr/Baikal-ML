@@ -9,25 +9,22 @@ from torch import Tensor
 from torch.optim import Adam, SGD, lr_scheduler
 from clearml import Task, Logger
 
-from data.batch_generator import BatchGenerator
-from data.settings_manager import save_paths, save_data_cfg
-from nnetworks.models.config_manager import save_model_cfg
+from data.batch_generators import MCMuNuSepBatchGenerator
 from learning.config import TrainerConfig
-from learning.config_manager import save_trainer_cfg
 from learning.losses import FocalLoss
 
 from sklearn.metrics import accuracy_score, precision_score, confusion_matrix, roc_auc_score
 
 # Map optimizer and scheduler names to PyTorch classes
 OPTIMIZERS = {
- 
     "adam": Adam,
     "sgd": SGD
 }
 
 SCHEDULERS = {
     "step_lr": lr_scheduler.StepLR,
-    "cosine_annealing": lr_scheduler.CosineAnnealingLR
+    "cosine_annealing": lr_scheduler.CosineAnnealingLR,
+    "reduce_on_plateau": lr_scheduler.ReduceLROnPlateau
 }
 
 def count_parameters(model):
@@ -36,59 +33,33 @@ def count_parameters(model):
 class MuNuSepTrainer:
     def __init__(self, 
                  model: torch.nn.Module, 
-                 train_gen: BatchGenerator, 
-                 test_gen: Optional[BatchGenerator] = None, 
+                 train_batches: MCMuNuSepBatchGenerator, 
+                 experiment_folder: Path | str,
+                 test_batches: Optional[MCMuNuSepBatchGenerator] = None, 
                  train_config: TrainerConfig = TrainerConfig(),
-                 clearml_task: Optional[Task] = None,
-                 device: torch.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")):
-        self.device = device
+                 clearml_task: Optional[Task] = None
+                 ):
         self.model = model
         self.Nparams = count_parameters(self.model)
-        self.model.to(self.device)
         
-        self.train_gen = train_gen
-        self.test_gen = test_gen
+        self.train_batches = train_batches
+        self.test_batches = test_batches
         
         self.trainer_cfg = train_config
         
         # Set up experiment folder for logs
-        self.experiment_folder = Path(self.trainer_cfg.experiment_path)
-        self.experiment_folder.mkdir(parents=True, exist_ok=True)
-        self.common_logs_path = self.experiment_folder / "logs.log"
-        
-        # Configure logging
-        logging.basicConfig(filename=self.common_logs_path, 
-                            filemode='a', 
-                            level=logging.INFO, 
-                            format="%(asctime)s - %(levelname)s - %(message)s",
-                            force=True)
-        
+        if isinstance(experiment_folder, str):
+            self.experiment_folder = Path(experiment_folder)
+        else:
+            self.experiment_folder = experiment_folder
         self.checkpoint_path = self.experiment_folder / "checkpoints"
         self.checkpoint_path.mkdir(parents=True, exist_ok=True)
         
         self.metrics_logs_path = self.experiment_folder / "metrics_logs"
         self.metrics_logs_path.mkdir(parents=True, exist_ok=True)
-
-        # Log configs
-        save_model_cfg(model.config, self.experiment_folder / "model_cfg.yaml")
-        logging.info(f"Model's parameters number: {self.Nparams}")
-        save_trainer_cfg(train_config, self.experiment_folder / "learning_cfg.yaml")
-        save_data_cfg(train_gen.cfg, self.experiment_folder / "train_dataset_cfg.yaml")
-        save_paths(train_gen.root_paths, self.experiment_folder / "train_root_files.csv")
-        logging.info(f"Train dataset path: {Path(train_gen.root_paths[0]).parent}")
-        if test_gen is not None:
-            save_data_cfg(test_gen.cfg, self.experiment_folder / "test_dataset_cfg.yaml")
-            save_paths(test_gen.root_paths, self.experiment_folder / "test_root_files.csv")
-            logging.info(f"Test dataset path: {Path(test_gen.root_paths[0]).parent}")
         
         # Initialize ClearML task if provided
-        self.use_clearml = clearml_task is not None
-        if self.use_clearml:
-            self.task = clearml_task
-            self.task.connect({**model.config.to_dict(), "NumParams": f"{self.Nparams}"}, name="Model's architecture")
-            self.task.connect(train_config.to_dict(), name="Learning config")  # Log training hyperparameters
-            self.task.connect({f"Train dataset path": f"{Path(train_gen.root_paths[0]).parent}", **train_gen.cfg.to_dict()}, name="Train data generator's config")
-            if test_gen is not None: self.task.connect({f"Test dataset path": f"{Path(test_gen.root_paths[0]).parent}", **test_gen.cfg.to_dict()}, name="Test data generator's config")
+        self.task = clearml_task
         
         # Initialize components
         self.optimizer = self._initialize_optimizer()
@@ -134,6 +105,7 @@ class MuNuSepTrainer:
             logging.info("computed metrics")
             return accuracy, precision, tpr, fpr, auc
         except Exception as e:
+            logging.info(e)
             return 0, 0, 0, 0, 0
 
     
@@ -166,7 +138,7 @@ class MuNuSepTrainer:
             writer.writerow(row)
         
         # Log to ClearML if enabled
-        if self.use_clearml:
+        if self.task:
             for metric_name, value in metrics.items():
                 Logger.current_logger().report_scalar(metric_type, f"{metric_name}", value, step)
         
@@ -178,7 +150,7 @@ class MuNuSepTrainer:
         torch.save(self.model.state_dict(), checkpoint_file)
 
         # Upload to ClearML if enabled
-        if self.use_clearml:
+        if self.task:
             self.task.upload_artifact(f"checkpoint_epoch_{epoch+1}", checkpoint_file)
         
         logging.info(f"Saved checkpoint for Epoch {epoch+1}: {checkpoint_file}")
@@ -197,23 +169,26 @@ class MuNuSepTrainer:
             
             # Scheduler step
             if self.scheduler:
-                self.scheduler.step()
+                if isinstance(self.scheduler, lr_scheduler.ReduceLROnPlateau):
+                    self.scheduler.step(self.avg_training_loss)
+                else:
+                    self.scheduler.step()
                 
             # Evaluating on test dataset
-            if self.test_gen is not None:
+            if self.test_batches is not None:
                 self._evaluate()
                 if self.trainer_cfg.early_stopping_patience <= self.epochs_after_best:
                     message = f"Training stopped early after {epoch+1} epochs due to no improvement in AUC for {self.trainer_cfg.early_stopping_patience} epochs. Best AUC: {self.best_auc}"
                     logging.info(message)  # Log locally
 
                     # Log to ClearML
-                    if self.use_clearml:
+                    if self.task:
                         Logger.current_logger().report_text(message)
                         self.task.close()  # Ensure ClearML task is closed
                     break
 
         logging.info("Training completed.")
-        if self.use_clearml:
+        if self.task:
             self.task.close()
 
     def _train_one_epoch(self):
@@ -224,8 +199,7 @@ class MuNuSepTrainer:
 
         # Cycle through batches
         current_step = 0
-        self.train_dataset = self.train_gen.get_batches(device=self.device)
-        for inputs, mask, targets in self.train_dataset:
+        for inputs, mask, targets in self.train_batches:
             self.optimizer.zero_grad()
 
             # Forward pass
@@ -247,7 +221,7 @@ class MuNuSepTrainer:
                 raise ValueError(f"Wrong output shape. Expected (B,2) or (B,3), but got {targets.shape=}")
 
             if current_step % self.trainer_cfg.log_interval == 0:
-                avg_loss = running_loss / ((self.trainer_cfg.log_interval+1) if current_step>0 else 1)
+                self.avg_training_loss = running_loss / ((self.trainer_cfg.log_interval+1) if current_step>0 else 1)
                 logging.info(f"#Batch {current_step}")
                 running_loss = 0.0
                 
@@ -257,7 +231,7 @@ class MuNuSepTrainer:
                 y_true_all, y_pred_all = [], []
                 self._log_metrics(
                     metrics={
-                        f"{self.trainer_cfg.loss.name}": avg_loss,
+                        f"{self.trainer_cfg.loss.name}": self.avg_training_loss,
                         "Accuracy": accuracy,
                         "Precision": precision,
                         "TPR": tpr,
@@ -270,7 +244,7 @@ class MuNuSepTrainer:
                 )
             current_step += 1
             self.total_steps += 1
-        self.train_gen.reinit()
+        self.train_batches.reset()
 
     def _evaluate(self):
         
@@ -279,10 +253,9 @@ class MuNuSepTrainer:
         self.model.eval()
         y_true_all, y_pred_all = [], []
         sum_test_loss = 0.0
-        test_steps = 0 
-        self.test_dataset = self.test_gen.get_batches(device=self.device)
+        test_steps = 0
         with torch.no_grad():
-            for inputs, mask, targets in self.test_dataset:
+            for inputs, mask, targets in self.test_batches:
                 # assuming model accepts shape (bs, max_length, num_features) and mask
                 outputs = self.model(inputs, mask)
                 loss = self.loss_function(outputs, targets)
@@ -297,6 +270,8 @@ class MuNuSepTrainer:
                 else:
                     raise ValueError(f"Wrong output shape. Expected (B,2) or (B,3), but got {targets.shape=}")
                 test_steps+=1
+        if test_steps==0:
+            logging.warning(f"Strange behaviour with test_batches: {test_steps=} after evaluating.")
         
         # Compute evaluation metrics
         accuracy, precision, tpr, fpr, auc = self._compute_metrics(
@@ -304,7 +279,7 @@ class MuNuSepTrainer:
         )
         self._log_metrics(
             metrics={
-                f"{self.trainer_cfg.loss.name}": sum_test_loss/test_steps,
+                f"{self.trainer_cfg.loss.name}": sum_test_loss/(test_steps if test_steps>0 else 1),
                 "Accuracy": accuracy,
                 "Precision": precision,
                 "TPR": tpr,
@@ -317,7 +292,7 @@ class MuNuSepTrainer:
         )
         
         # Re Init test data generator
-        self.test_gen.reinit()
+        self.test_batches.reset()
         
         # Early stopper
         if self.best_auc<auc:
@@ -326,7 +301,7 @@ class MuNuSepTrainer:
             checkpoint_file = self.checkpoint_path / f"epoch_{self.current_epoch+1}_best_by_test.pt"
             torch.save(self.model.state_dict(), checkpoint_file)
             # Upload to ClearML if enabled
-            if self.use_clearml:
+            if self.task:
                 self.task.upload_artifact(f"epoch_{self.current_epoch+1}_best_by_test", checkpoint_file)
             
             self.epochs_after_best = 0

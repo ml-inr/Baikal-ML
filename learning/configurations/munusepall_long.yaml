@@ -4,8 +4,6 @@ TrainerConfig:
 
     checkpoint_interval: 2 # num of epochs
 
-    experiment_path: /home/albert/Baikal-ML/experiments/test # to be changed after loading
-
     log_interval: 100 # num of batches
 
     early_stopping_patience: 5 # num of epochs
@@ -13,14 +11,16 @@ TrainerConfig:
     optimizer:
         name: Adam
         kwargs:
-            lr: 0.0002
+            lr: 0.00005
             weight_decay: 1.0e-05
 
     scheduler:
-        name: step_lr
+        name: reduce_on_plateau
         kwargs:
-            step_size: 1
-            gamma: 0.7
+            mode: min
+            factor: 0.5
+            patience: 1
+            threshold: 0.00001
 
     loss:
         name: FocalLoss

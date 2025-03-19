@@ -51,6 +51,17 @@ class ExpEventFeaturesPaths(EventFeaturesPaths):
     """
     pass
 
+@dataclass
+class ExpRecoEventFeaturesPaths(EventFeaturesPaths):
+    """
+    Paths to features
+    of event itself in experimental data. 
+    Nothing, but number of pulses is known.
+    """
+    fThetaRec: str = 'BRecoMuon./BRecoMuon.fThetaRec'
+    fNHits: str = 'BRecoMuon./BRecoMuon.fNHits'
+    fPhiRec: str = 'BRecoMuon./BRecoMuon.fPhiRec'
+    fPathLength: str = 'BRecoMuon./BRecoMuon.fPathLength'
 
 @dataclass
 class MuonsFeaturesPaths(BaseFeaturePaths):
@@ -92,7 +103,6 @@ class PulsesFeaturesPaths(BaseFeaturePaths):
     Paths to features of
     individual pulses in events
     """
-
     PulsesChID: str = "BEvent./BEvent.fPulses/BEvent.fPulses.fChannelID"
     PulsesAmpl: str = "BEvent./BEvent.fPulses/BEvent.fPulses.fAmplitude"
     PulsesTime: str = "BEvent./BEvent.fPulses/BEvent.fPulses.fTime"
@@ -117,7 +127,7 @@ class ExpPulsesFeaturesPaths(PulsesFeaturesPaths):
     individual pulses in events
     in experimental data.
     """
-    pass
+    PulsesTrueAmpl: str = "BEvent./BEvent.fPulses/BEvent.fPulses.fTrueAmplitude"
 
 
 @dataclass
@@ -142,5 +152,13 @@ class ExpRootPaths(BaseRootPaths):
     data_header: str = "Events"
     coords_header: str = "Events"
     ev_paths: EventFeaturesPaths = ExpEventFeaturesPaths()
+    ind_mu_paths: MuonsFeaturesPaths = ExpMuonsFeaturesPaths()
+    pulses_paths: PulsesFeaturesPaths = ExpPulsesFeaturesPaths()
+    
+@dataclass
+class ExpRecoRootPaths(BaseRootPaths):
+    data_header: str = "Events"
+    coords_header: str = "Events"
+    ev_paths: EventFeaturesPaths = ExpRecoEventFeaturesPaths()
     ind_mu_paths: MuonsFeaturesPaths = ExpMuonsFeaturesPaths()
     pulses_paths: PulsesFeaturesPaths = ExpPulsesFeaturesPaths()

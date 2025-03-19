@@ -5,12 +5,12 @@ import polars as pl
 
 try:
     from data.root_extractor.main import RootFileReader
-    from data.root_extractor.internal_root_paths import MCRootPaths, ExpRootPaths
+    from data.root_extractor.internal_root_paths import MCRootPaths, ExpRootPaths, ExpRecoRootPaths
     from data.settings_scheme import ProcessorConfig
     from data.processor.data_utils import process_data
 except ImportError:
     from .root_extractor.main import RootFileReader
-    from .root_extractor.internal_root_paths import MCRootPaths, ExpRootPaths
+    from .root_extractor.internal_root_paths import MCRootPaths, ExpRootPaths, ExpRecoRootPaths
     from .settings_scheme import ProcessorConfig
     from .processor.data_utils import process_data
 
@@ -34,6 +34,7 @@ class ChunksFromPaths:
         self,
         root_paths: list[str],
         is_mc_data: bool = True,
+        exp_with_reco: bool = False,
         events_per_chunk = 1000,
         lookforward: int = 5000,
         processor_cfg: dict = ProcessorConfig().to_dict(),
@@ -56,9 +57,16 @@ class ChunksFromPaths:
 
         # Initialize paths based on data type (MC or experimental)
         if self.is_mc_data:
-            self.internal_root_paths = MCRootPaths()
+            if 'MC_2019' in root_paths[0].split("/")[:-1]:
+                self.internal_root_paths = MCRootPaths(coords_header="Events")
+                #assert self.internal_root_paths.coords_header=="Events"
+            else:
+                self.internal_root_paths = MCRootPaths()
         else:
-            self.internal_root_paths = ExpRootPaths()
+            if exp_with_reco:
+                self.internal_root_paths = ExpRecoRootPaths()
+            else:
+                self.internal_root_paths = ExpRootPaths()
     
         # Validate processor configuration
         if self.processor_cfg is not None:
@@ -115,8 +123,8 @@ class ChunksFromPaths:
                         if data is None:
                             return None, None
                         return (
-                            data.join(clusters, on=join_cols, how="inner"),  # Data to return
-                            data.join(cache_clusters, on=join_cols, how="inner"),  # Data to cache
+                            data.join(clusters, on=join_cols, how="inner", maintain_order='left'),  # Data to return
+                            data.join(cache_clusters, on=join_cols, how="inner", maintain_order='left'),  # Data to cache
                         )
                     # Split pulses, events, and muons
                     pulses_to_return, pulses_to_cache = split_data(
@@ -162,11 +170,11 @@ class ChunksFromPaths:
                     self._current_start_idx += self.lookforward
                 logging.info("Reading events from %d to %d in file: %s", start, stop, path)
                 # Read data from the ROOT file
-                pulses = rr.read_pulses_as_df(start, stop)
-                events = rr.read_events_as_df(start, stop)
-                coords = rr.read_OM_coords(start, stop)
+                pulses = rr.read_pulses_as_df(start, stop).drop_nans()
+                events = rr.read_events_as_df(start, stop).drop_nans()
+                coords = rr.read_OM_coords(start, stop).drop_nans()
                 if self.is_mc_data:
-                    muons = rr.read_muons_as_df(start, stop)
+                    muons = rr.read_muons_as_df(start, stop).drop_nans()
                 else:
                     muons = None
 
@@ -209,10 +217,12 @@ class ChunksFromPaths:
         file_name = path.split("/")[-1].split(".")[0]
         if self.is_mc_data:
             # Extracts the particle type from the path
-            particle_type = path.split("/")[-4]
-            assert particle_type in [
-                "mu", "muatm", "nu", "nuatm", "nue2", "nue2_100pev", "nu2", "nu2_100pev"
-            ], f"Invalid particle type: {particle_type}"
+            for name in path.split("/")[::-1]:
+                if name in ["mu", "muatm", "nu", "nuatm", "nue2", "nue2_100pev", "nu2", "nu2_100pev"]:
+                    particle_type = name
+                    break
+            else:
+                raise ValueError(f"Invalid particle type: {particle_type}")
             prefix = f"{particle_type}_{file_name}_"
         else:
             prefix = f"exp_{file_name}_"

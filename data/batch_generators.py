@@ -1,5 +1,5 @@
 import logging
-from typing import List, Generator, Tuple
+from typing import List, Generator, Tuple, Optional
 
 from dataclasses import field
 import torch
@@ -93,6 +93,7 @@ class MCMuNuSepBatchGenerator:
                      ],
                  shuffle: bool = True,
                  device: torch.device = torch.device("cpu")
+                 , return_df: bool = False
                  ) -> Generator[Tuple[torch.Tensor, torch.Tensor], None, None]:
         self.chunk_gen_cfg = chunk_generator_cfg
         
@@ -113,39 +114,41 @@ class MCMuNuSepBatchGenerator:
         
         self.shuffle = shuffle
         
+        self.return_df = return_df
+        
         self.reset()
 
     def _prepare_mu_df(self) -> pl.DataFrame:
         try:
-            pulses, _, _ = next(self.mu_chunks)
+            pulses, events, muons = next(self.mu_chunks)
         except StopIteration:
             self._mu_was_over = True
             self.mu_chunks.reset()
-            pulses, _, _ = next(self.mu_chunks)
+            pulses, events, muons = next(self.mu_chunks)
         group_by = ["ev_id", "cluster_id"]
         df = (pulses[group_by + self.features_to_take]
               .sort(by="PulsesTime")
-              .group_by(group_by)
-              .agg(self.features_to_take)[self.features_to_take]
+              .group_by(group_by, maintain_order=True)
+              .agg(self.features_to_take)
             )
         df = df.with_columns(pl.lit(False).alias("label"))
-        return df
+        return df, events, muons
     
     def _prepare_nu_df(self) -> pl.DataFrame:
         try:
-            pulses, _, _ = next(self.nu_chunks)
+            pulses, events, muons = next(self.nu_chunks)
         except StopIteration:
             self._nu_was_over = True
             self.nu_chunks.reset()
-            pulses, _, _ = next(self.nu_chunks)
+            pulses, events, muons = next(self.nu_chunks)
         group_by = ["ev_id", "cluster_id"]
         df = (pulses[group_by + self.features_to_take]
               .sort(by="PulsesTime")
-              .group_by(group_by)
-              .agg(self.features_to_take)[self.features_to_take]
+              .group_by(group_by, maintain_order=True)
+              .agg(self.features_to_take)
             )
         df = df.with_columns(pl.lit(True).alias("label"))
-        return df
+        return df, events, muons
 
     def _features_to_list_of_tensors(self, df: pl.DataFrame) -> List[torch.Tensor]:
         data = list(df.to_numpy())
@@ -174,6 +177,8 @@ class MCMuNuSepBatchGenerator:
         self.chunk_of_labels = None
         self._num_batches_to_load = None
         self._mu_was_over, self._nu_was_over = False, False
+        self.mu_chunks.reset()
+        self.nu_chunks.reset()
         pass
     
     def __iter__(self):
@@ -187,21 +192,25 @@ class MCMuNuSepBatchGenerator:
                 # loading chunk of data
                 self._current_chunk_idx += 1
                 logging.debug(f"Start of loading chunk #{self._current_chunk_idx}")
-                mu_df, nu_df = self._prepare_mu_df(), self._prepare_nu_df()
+                mu_pulses, mu_events, mu_muons = self._prepare_mu_df()
+                nu_pulses, nu_events, nu_muons = self._prepare_nu_df()
                 if (self._mu_was_over and self._nu_was_over):
                     logging.info(f"The dataset is over, raising stop iteration")
                     raise StopIteration
-                logging.debug(f"Chunks are loaded as dataframes: {mu_df.shape=}, {nu_df.shape=}")
-                combined_df = pl.concat([mu_df, nu_df])
-                logging.debug(f"Chunks are concatenated: {combined_df.shape=}")
+                logging.debug(f"Chunks are loaded as dataframes: {mu_pulses.shape=}, {nu_pulses.shape=}")
+                self.combined_pulses_df, self.combined_events, self.combined_muons = pl.concat([mu_pulses, nu_pulses]), pl.concat([mu_events, nu_events]), pl.concat([mu_muons, nu_muons])
+                logging.debug(f"Chunks are concatenated: {self.combined_pulses_df.shape=}")
                 if self.shuffle:
-                    combined_df = combined_df.sample(fraction=1.0, shuffle=True)
+                    self.combined_pulses_df = self.combined_pulses_df.sample(fraction=1.0, shuffle=True)
                     logging.debug(f"DataFrame is shuffled")
-                self.chunk_of_data_tensors = self._features_to_list_of_tensors(combined_df[self.features_to_take])
+                self.chunk_of_data_tensors = self._features_to_list_of_tensors(self.combined_pulses_df[self.features_to_take])
                 logging.debug(f"Features are extracted: {len(self.chunk_of_data_tensors)=}, {self.chunk_of_data_tensors[0].shape=}")
                 self._num_batches_to_load = int(np.ceil( len(self.chunk_of_data_tensors) / self.batch_size ) )
-                self.chunk_of_labels = torch.tensor(combined_df["label"].to_numpy(), device=self.device)
+                self.chunk_of_labels = torch.tensor(self.combined_pulses_df["label"].to_numpy(), device=self.device)
                 logging.debug(f"Labels are extracted: {self.chunk_of_labels.shape=}")
+                # Clear extra memory
+                if not self.return_df:
+                    self.combined_pulses_df, self.combined_events, self.combined_muons = None, None, None
             
             logging.debug(f"{self._num_batches_to_load} batches to load from given chunk.")
             if self._current_local_batch_idx+1 < self._num_batches_to_load:
@@ -219,9 +228,27 @@ class MCMuNuSepBatchGenerator:
                 if self.norm_params is not None:
                     batch_features = self._norm_features_in_batch(batch_features)
                     logging.debug(f"Batch for input is normed: {batch_features.shape=}")
-                batch_labels = self.chunk_of_labels[i:i + self.batch_size]
+                batch_labels = self.chunk_of_labels[i:i + self.batch_size, None]
+                batch_labels = torch.concat((~batch_labels, batch_labels), dim=1) # to one-hot
                 logging.debug(f"Batch of labels is selected: {batch_labels.shape=}")
-                return batch_features, batch_labels
+                mask = ~batch_features[:,:, 0:1].isnan() # extract mask
+                if self.return_df:
+                    df_batch = self.combined_pulses_df[i:i + self.batch_size]
+                    df_batch = df_batch.join(
+                        self.combined_events
+                        , on=["ev_id", "cluster_id"]
+                        , how="left"
+                        , maintain_order="left"
+                        )
+                    df_batch = df_batch.join(
+                            self.combined_muons
+                            , on=["ev_id"]
+                            , how="left"
+                            , maintain_order="left"
+                            ).group_by(df_batch.columns, maintain_order=True).agg([col for col in self.combined_muons.columns if col not in df_batch.columns])
+                    return batch_features.nan_to_num(0.).float(), mask, batch_labels.float(), df_batch
+                else:
+                    return batch_features.nan_to_num(0.).float(), mask, batch_labels.float()
             else:
                 self._current_local_batch_idx = -1
                 self.chunk_of_data_tensors = None
@@ -291,6 +318,7 @@ class ExpBatchGenerator:
                      ],
                  shuffle: bool = False,
                  device: torch.device = torch.device("cpu")
+                 , return_df: bool = False
                  ) -> Generator[Tuple[torch.Tensor, torch.Tensor], None, None]:
         self.chunk_gen_cfg = chunk_generator_cfg
         self.chunks = ChunksFromPaths(paths, events_per_chunk=events_per_chunk, **self.chunk_gen_cfg)
@@ -300,23 +328,24 @@ class ExpBatchGenerator:
         self.augment_params = augment_params if do_augment else None
         self.shuffle = shuffle
         self.device = device
+        self.return_df = return_df
         
         self.reset()
 
     def _prepare_df(self) -> pl.DataFrame:
         try:
-            pulses, _, _ = next(self.chunks)
+            pulses, events, _ = next(self.chunks)
         except StopIteration:
             self._data_was_over = True
             self.chunks.reset()
-            return None
+            pulses, events, _ = next(self.chunks)
         group_by = ["ev_id", "cluster_id"]
-        df = (pulses[group_by + self.features_to_take]
+        pulses = (pulses[group_by + self.features_to_take]
               .sort(by="PulsesTime")
-              .group_by(group_by)
-              .agg(self.features_to_take)[self.features_to_take]
+              .group_by(group_by, maintain_order=True)
+              .agg(self.features_to_take)
             )
-        return df
+        return pulses, events
 
     def _features_to_list_of_tensors(self, df: pl.DataFrame) -> List[torch.Tensor]:
         data = list(df.to_numpy())
@@ -352,26 +381,29 @@ class ExpBatchGenerator:
         self.reset()
         return self
 
-    def __next__(self) -> Tuple[torch.Tensor, torch.Tensor]:
+    def __next__(self) -> Tuple[torch.Tensor, torch.Tensor, Optional[pl.DataFrame]]:
         # You need the cicle to ensure you end the iteration only when returning smth or when StopIteration occurs.
         while True:
             if self._num_batches_to_load is None:
                 self._current_chunk_idx += 1
                 logging.debug(f"Start of loading chunk #{self._current_chunk_idx}")
-                df = self._prepare_df()
+                self.pulses_df, self.events_df = self._prepare_df()
                 if self._data_was_over:
                     logging.info(f"The dataset is over, raising stop iteration")
                     raise StopIteration
-                logging.debug(f"Chunk is loaded as a dataframe: {df.shape=}")
+                logging.debug(f"Chunk is loaded as a dataframe: {self.pulses_df.shape=}")
                 
                 if self.shuffle:
-                    df = df.sample(fraction=1.0, shuffle=True)
+                    self.pulses_df = self.pulses_df.sample(fraction=1.0, shuffle=True)
                     logging.debug(f"DataFrame is shuffled")
                 
-                self.chunk_of_data_tensors = self._features_to_list_of_tensors(df[self.features_to_take])
+                self.chunk_of_data_tensors = self._features_to_list_of_tensors(self.pulses_df[self.features_to_take])
                 logging.debug(f"Features are extracted: {len(self.chunk_of_data_tensors)=}, {self.chunk_of_data_tensors[0].shape=}")
                 self._num_batches_to_load = int(np.ceil( len(self.chunk_of_data_tensors) / self.batch_size ) )
-            
+                # Clear extra memory
+                if not self.return_df:
+                    self.pulses_df, self.events_df = None, None
+                    
             if self._current_local_batch_idx+1 < self._num_batches_to_load:
                 self._current_local_batch_idx += 1
                 self._current_global_batch_idx += 1
@@ -386,7 +418,18 @@ class ExpBatchGenerator:
                 if self.norm_params is not None:
                     batch_features = self._norm_features_in_batch(batch_features)
                     logging.debug(f"Batch for input is normed: {batch_features.shape=}")
-                return batch_features
+                mask = ~batch_features[:,:, 0:1].isnan() # extract mask
+                if self.return_df:
+                    df_batch = self.pulses_df[i:i + self.batch_size]
+                    df_batch = df_batch.join(
+                        self.events_df
+                        , on=["ev_id", "cluster_id"]
+                        , how="left"
+                        , maintain_order="left"
+                        )
+                    return batch_features.nan_to_num(0.).float(), mask, df_batch
+                else:
+                    return batch_features.nan_to_num(0.), mask
             else:
                 self._num_batches_to_load = None
                 self._current_local_batch_idx = -1

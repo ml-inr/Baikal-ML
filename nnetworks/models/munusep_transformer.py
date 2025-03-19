@@ -40,6 +40,10 @@ class TransformerClassifier(nn.Module):
         self.dense_layers = nn.ModuleList([DenseBlock(dense_config) for dense_config in self.config.dense_layers])
 
     def forward(self, x, mask):
+        # Cut big events
+        if x.shape[1]>self.config.max_len:
+            x = x[:,:self.config.max_len]
+            mask = mask[:,:self.config.max_len]
         # Apply ResBlocks with mask
         x, mask = self.encoder_block(x, mask)
         

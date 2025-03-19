@@ -2,28 +2,28 @@ TransformerClassifierConfig:
     encoder_config:
         in_features: 5
         encoders_number: 4
-        d_model: 1024
-        nhead: 8
-        dim_feedforward: 1024
-        dropout: 0.2
+        d_model: 256
+        nhead: 4
+        dim_feedforward: 256
+        dropout: 0.1
         layer_norm_eps: 1.0e-05
         activation:
             LeakyReLU:
                 negative_slope: 0.1
     pooling_type: Max
     dense_layers:
-    -   in_features: 2048
-        units: 256
+    -   in_features: 512
+        units: 128
         activation:
             LeakyReLU:
                 negative_slope: 0.1
         dropout: 0.1
         do_norm: true
-    -   in_features: 256
+    -   in_features: 128
         units: 32
         activation:
-            LeakyReLU:
-                negative_slope: 0.1
+            Softmax:
+                dim: 1
         dropout: 0.1
         do_norm: true
     -   in_features: 32

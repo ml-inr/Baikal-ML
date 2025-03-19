@@ -1,39 +1,35 @@
 chunk_generator_cfg:
-    chunk_size: 10
-    processor_params:
+    is_mc_data: true
+    lookforward: 200000
+    processor_cfg:
+        has_signal_flg: true
+        only_signal: false
+        min_sig_hits: 0
+        min_sig_strings: 0
+        min_Q: 0.0
+        max_Q: 100.0
         center_times: true
-        calc_tres: false
-        filter_cfg:
-            only_signal: false
-            min_hits: 0
-            min_strings: 0
-            min_Q: 0
-            t_threshold: 100000
-    fields: [PulsesAmpl, PulsesTime, Xrel, Yrel, Zrel, num_signal_hits, num_signal_strings, nu_induced, enough_info]
-    shuffle_paths: true
+        relative_coords: true
+        to_calculate_tres: false
+        t_threshold: 100000.0
+        same_coordinates: true
+    shuffle_paths: false
+    prefix: null
 
-batch_size: 512
+mu_events_per_chunk: 64000
 
-features_name: [PulsesAmpl, PulsesTime, Xrel, Yrel, Zrel]
+nu_events_per_chunk: 64000
 
-target_regime: 'munusep_2'
+batch_size: 256
+
+features_to_take: [PulsesTime, PulsesAmpl, Xrel, Yrel, Zrel]
 
 do_norm: true
 
-norm_params:
-    PulsesTime: [0, 1374.0]
-    PulsesAmpl: [1.4, 23.1]
-    Xrel: [0, 60]
-    Yrel: [0, 60]
-    Zrel: [0, 260]
+norm_params: [[0, 1372], [1.6, 40.5], [0, 40], [0, 40], [0, 260]]
 
 do_augment: true
 
-augment_params:
-    PulsesTime: 5
-    PulsesAmpl: 0.1
-    Xrel: 2
-    Yrel: 2
-    Zrel: 5
+augment_params: [5, 0.3, 2, 2, 5]
 
 shuffle: true

@@ -1,0 +1,47 @@
+general:
+  take_single_cluster: true
+  take_clust_num: null
+  split_multi: true
+  shift_coords_to_cl_center: true
+  center_times: true
+  exclude_big_ts: true
+  t_threshold: 1e5
+  coords_are_same: true
+
+output:
+  sqlite_db_name: "baikal_mc2020_0924.db"
+
+input:
+  particle: "muatm"
+  #MC_dir_path: "/net/62/home3/ivkhar/Baikal/data/initial_data/MC_2020/muatm/root/all"
+  MC_dir_path: "/home/albert/Baikal2/data/mock_MC_2020/muatm/root/all"
+
+root_paths:
+  data:
+    - "Events/BEvent./BEvent.fPulses/BEvent.fPulses.fAmplitude"
+    - "Events/BEvent./BEvent.fPulses/BEvent.fPulses.fTime"
+    - "Events/MCEventMask./MCEventMask.BEventMask/MCEventMask.BEventMask.fOrigins/MCEventMask.BEventMask.fOrigins.fFlag"
+    - "Events/BEvent./BEvent.fPulses/BEvent.fPulses.fChannelID"
+
+  primary:
+    - "Events/BMCEvent./BMCEvent.fPrimaryParticleTheta"
+    - "Events/BMCEvent./BMCEvent.fPrimaryParticlePhi"
+    - "Events/BMCEvent./BMCEvent.fPrimaryParticleEnergy"
+    - "Events/BMCEvent./BMCEvent.fNucleonN"
+    - "Events/BMCEvent./BMCEvent.fResponseMuonsN"
+    - "Events/BMCEvent./BMCEvent.fEventWeight"
+
+  resp_muons:
+    - "Events/BMCEvent./BMCEvent.fTracks/BMCEvent.fTracks.fTheta"
+    - "Events/BMCEvent./BMCEvent.fTracks/BMCEvent.fTracks.fPhi"
+    - "Events/BMCEvent.fTracks.fX"
+    - "Events/BMCEvent.fTracks.fY"
+    - "Events/BMCEvent.fTracks.fZ"
+    - "Events/BMCEvent./BMCEvent.fTracks/BMCEvent.fTracks.fDelay"
+    - "Events/BMCEvent./BMCEvent.fTracks/BMCEvent.fTracks.fMuonEnergy"
+
+  mu_scalar:
+    - "Events/BMCEvent./BMCEvent.fFirstMuonTime"
+    - "Events/BMCEvent./BMCEvent.fSumEnergyBundleReg"
+
+  geometry: "ArrayConfig/BGeomTel./BGeomTel.BGeomTel/BGeomTel.BGeomTel.fOMs/BGeomTel.BGeomTel.fOMs.fPosition"

@@ -43,8 +43,8 @@ trainer_config.experiment_path = f"/home/albert/Baikal-ML/experiments/{project_n
 device = torch.device("cuda:0")
 fitter = MuNuSepTrainer(
                         model, 
-                        train_gen=train_gen, 
-                        test_gen=test_gen, 
+                        train_batches=train_gen, 
+                        test_batches=test_gen, 
                         train_config=trainer_config,
                         clearml_task=task,
                         device=device

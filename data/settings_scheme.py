@@ -33,6 +33,7 @@ class ProcessorConfig(BaseConfig):
     min_sig_hits: int = 0  # Minimum number of signal hits per cluster to be kept
     min_sig_strings: int = 0  # Minimum number of unique signal strings in a cluster
     min_Q: float = 0  # Minimum pulse amplitude threshold
+    max_Q: float = float('inf')
     center_times: bool = True  # Whether to center the event times
     relative_coords: bool = True # Whether to add coordinates relatively to the clusters centers
     to_calculate_tres: bool = False # Whether to calculate tres

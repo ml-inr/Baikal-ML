@@ -1,0 +1,35 @@
+chunk_generator_cfg:
+    is_mc_data: true
+    lookforward: 64000
+    processor_cfg:
+        has_signal_flg: true
+        only_signal: false
+        min_sig_hits: 0
+        min_sig_strings: 0
+        min_Q: 0.0
+        max_Q: 100.0
+        center_times: true
+        relative_coords: true
+        to_calculate_tres: false
+        t_threshold: 100000.0
+        same_coordinates: true
+    shuffle_paths: false
+    prefix: null
+
+mu_events_per_chunk: 64000
+
+nu_events_per_chunk: 64000
+
+batch_size: 256
+
+features_to_take: [PulsesTime, PulsesAmpl, Xrel, Yrel, Zrel]
+
+do_norm: true
+
+norm_params: [[0, 1380], [1.2, 2.8], [0, 60], [0, 60], [0, 260]]
+
+do_augment: true
+
+augment_params: [5, 0.3, 2, 2, 5]
+
+shuffle: true

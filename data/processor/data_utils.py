@@ -1,3 +1,4 @@
+import numpy as np
 import polars as pl
 import typing as tp
 import logging
@@ -27,9 +28,19 @@ def enrich_pulses(df_pulses: pl.DataFrame, has_signal_flg: bool) -> pl.DataFrame
     ]
     if has_signal_flg:
         assert "PulsesFlg" in df_pulses.columns
+        flags = df_pulses[["PulsesFlg"]].unique()
+        flags = flags.filter(flags["PulsesFlg"]!=0)
+        if len(flags>0):
+            value = flags['PulsesFlg'].abs().min()
+            if np.log10(value)>5.8:
+                devidor = 1_000_000
+            else:
+                devidor = 1000
+        else:
+            devidor = 1000
         pl_expression += [
             (pl.col("PulsesFlg") != 0).alias("is_signal"),
-            (pl.col("PulsesFlg") % 1_000_000 - 1).cast(pl.Int16).alias("mu_local_id")
+            (pl.col("PulsesFlg") % devidor - 1).cast(pl.Int16).alias("mu_local_id")
         ]
     return df_pulses.with_columns(pl_expression)
 
@@ -38,6 +49,7 @@ def filter_pulses(
     only_signal: bool,
     has_signal_flg: bool,
     min_Q: float,
+    max_Q: float,
     t_threshold: float
 ) -> pl.DataFrame:
     """Filter pulses based on configuration parameters."""
@@ -45,10 +57,10 @@ def filter_pulses(
     if only_signal and has_signal_flg:
         logging.debug("Filtering only signal pulses")
         df_pulses = df_pulses.filter(pl.col("is_signal"))
-    if min_Q > 0:
+    if min_Q > 0. or max_Q<float('inf'):
         logging.debug(f"Filtering pulses with amplitude >= {min_Q}")
-        df_pulses = df_pulses.filter(pl.col("PulsesAmpl") >= min_Q)
-    return df_pulses.filter(pl.col("PulsesTime") <= t_threshold)
+        df_pulses = df_pulses.filter((pl.col("PulsesAmpl") >= min_Q) & (pl.col("PulsesAmpl")<=max_Q))
+    return df_pulses.filter(pl.col("PulsesTime").abs() <= t_threshold)
 
 def calculate_relative_coords(df_coords: pl.DataFrame) -> pl.DataFrame:
     """Calculate relative coordinates based on cluster centers."""
@@ -97,6 +109,7 @@ def process_data(
     min_sig_hits: int = 5,
     min_sig_strings: int = 2,
     min_Q: float = 0,
+    max_Q: float = float('inf'),
     center_times: bool = True,
     relative_coords: bool = True,
     to_calculate_tres: bool = False,
@@ -112,7 +125,7 @@ def process_data(
 
     # Filter pulses
     logging.debug("Filtering pulses")
-    df_pulses = filter_pulses(df_pulses, only_signal, has_signal_flg, min_Q, t_threshold)
+    df_pulses = filter_pulses(df_pulses, only_signal, has_signal_flg, min_Q, max_Q, t_threshold)
 
     # Join coordinates to pulses
     if same_coordinates:
@@ -133,6 +146,7 @@ def process_data(
         df_coords[columns_from_coords],
         on=to_join_on,
         how="left"
+        , maintain_order="left"
     )
 
     # Aggregate clusters
@@ -182,8 +196,15 @@ def process_data(
     events_to_take = df_events[["ev_id"]].join(df_pulses[["ev_id"]].unique(), on="ev_id", how="inner")
     if has_signal_flg and df_muons is not None:
         events_to_take = events_to_take.join(df_muons[["ev_id"]].unique(), on="ev_id", how="inner")
-    df_events = df_events.join(events_to_take, on=["ev_id"], how="inner").explode("cluster_id")
-
+    df_events = df_events.join(events_to_take, on=["ev_id"], how="inner")
+    df_events = df_events.explode([name for name in pulses_agg_info.columns if name != "ev_id" and name in df_events.columns])
+    
+    # Additional info from ChannelID
+    df_pulses = df_pulses.with_columns(local_z_layer_id=pl.col("PulsesChID")%Cnst.STRING_DIVISOR)
+    df_pulses = df_pulses.with_columns(local_string_id=pl.col("PulsesChID")//Cnst.STRING_DIVISOR%Cnst.STRINGS_PER_CLUSTER)
+    df_pulses = df_pulses.with_columns(is_central_string=(pl.col("local_string_id")==7))
+    df_pulses = df_pulses.with_columns(local_hit_polar_angle_id=(pl.col("local_string_id")%7))
+        
     logging.debug("Transformation complete")
     return df_pulses, df_events, df_muons
 

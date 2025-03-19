@@ -1,0 +1,36 @@
+resnet:
+  input_channels: 1
+  num_classes: 2
+  fc_hidden_size: 128
+  conv_layers:
+    - in_channels: 1
+      out_channels: 64
+      kernel_size: 3
+      stride: 1
+      padding: 1
+      activation: "ReLU"
+      use_dropout: true
+      dropout_rate: 0.3
+    - in_channels: 64
+      out_channels: 128
+      kernel_size: 3
+      stride: 1
+      padding: 1
+      activation: "LeakyReLU"
+      use_dropout: false
+    - in_channels: 128
+      out_channels: 256
+      kernel_size: 3
+      stride: 1
+      padding: 1
+      activation: "ReLU"
+      use_dropout: true
+      dropout_rate: 0.2
+  mlp_layers:
+    - hidden_size: 128
+      activation: "ReLU"
+      use_dropout: true
+      dropout_rate: 0.5
+    - hidden_size: 64
+      activation: "Sigmoid"
+      use_dropout: false
