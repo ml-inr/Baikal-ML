@@ -1,0 +1,38 @@
+Create an idea.md file that describes my neural network research project with the following details:
+
+**Project Goals:**
+- Build a nice data manager, that can read data from source .root files and save data into configurable hdf5 datasets for training, testing and validating NN models
+- Develop and train neural network models for specific data analysis tasks
+- Build a modular, reproducible research framework
+- Focus on experimentation with different architectures and training strategies
+
+**Project Structure:**
+- data_manager: Module for data loading, preprocessing, and datasets management
+- nn_architectures: Custom neural network architectures and model definitions
+- training: Training loops, optimization, and learning rate scheduling  
+- evaluation: Model evaluation, metrics calculation, and inference tools
+All models and datasets should be perfectly configurable and reproducible, but I don't see by now, where and how to put configs.
+
+**Technical Stack:**
+- Python 3.10+
+- PyTorch for deep learning
+- NumPy for numerical computing
+- SciPy for scientific computing
+- PyROOT for ROOT data analysis
+- PyHDF5 for HDF5 file handling
+- matplotlib
+- jupyter
+- awkward
+- pandas
+
+**Research Focus:**
+- Reproducible experiments
+- Clean, modular code architecture
+- Comprehensive testing and validation
+- Flexible configuration management
+
+**More details**
+- I use VSCode as IDE.
+- Much of testing and research of new libraries and ideas are going to be done in jupyter notebooks within VSCode IDE.
+
+Please format this as a clear, well-structured markdown document that serves as the project's initial vision and technical specification.
