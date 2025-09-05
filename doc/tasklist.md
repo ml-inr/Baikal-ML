@@ -5,7 +5,7 @@
 | Iteration | Task | Status | Progress |
 |-----------|------|--------|----------|
 | 1 | Project Setup | ✅ Complete | ✅ 100% |
-| 2 | Basic Data Manager | ⏳ Pending | ⬜ 0% |
+| 2 | Basic Data Manager | ✅ Complete | ✅ 100% |
 | 3 | Simple Model + Training | ⏳ Pending | ⬜ 0% |
 | 4 | Experiment Management | ⏳ Pending | ⬜ 0% |
 | 5 | Inference Pipeline | ⏳ Pending | ⬜ 0% |
@@ -39,11 +39,11 @@
 **Goal:** Convert ROOT files to HDF5 format
 
 ### Tasks:
-- [ ] Create `data_manager/root_reader.py` - read ROOT files with PyROOT
-- [ ] Create `data_manager/h5_writer.py` - write data to HDF5 format
-- [ ] Create `data_manager/config.py` - load YAML configs
-- [ ] Create basic YAML config for data processing
-- [ ] Create `data_manager/process_data.py` - main processing script
+- [x] Create `data_manager/root_reader.py` - read ROOT files with PyROOT
+- [x] Create `data_manager/h5_writer.py` - write data to HDF5 format
+- [x] Create `data_manager/config.py` - load YAML configs
+- [x] Create basic YAML config for data processing
+- [x] Create `data_manager/process_data.py` - main processing script
 
 **Test:** Process one small ROOT file → generate `train.h5`, verify data integrity
 
