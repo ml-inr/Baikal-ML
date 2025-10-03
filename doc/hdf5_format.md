@@ -6,7 +6,7 @@
 
 The HDF5 files contain processed neutrino detector data organized into a hierarchical structure optimized for machine learning. Two types of data are available:
 
-- **Experimental Data** (`exp.h5`): Real detector data from experimental runs
+- **Experimental Data** (`exp.h5`): Real detector data from experimental runs. The file is stored at cluster63.inr.ac.ru by path: `/home/albert/Baikal2025/data_manager/h5datasets/exp.h5`
 - **Monte Carlo Data** (`*.h5` with MC particle names): Simulated data with ground truth physics information
 
 Each file contains multiple "parts" corresponding to different ROOT files.
@@ -16,9 +16,10 @@ Each file contains multiple "parts" corresponding to different ROOT files.
 The HDF5 files are created using ROOT files, obtained with BARS. All ROOT files are stored at cluster62.inr.ac.ru cluster:
 
 - **Experimental runs**: `/home/albert/Baikal/Data/exp_root_files/`
-- **MC .root files**: `home3/ivkhar/Baikal/data/initial_data/MC_2020/<particle_name>/root/all`
+- **MC .root files**: `/home3/ivkhar/Baikal/data/initial_data/MC_2020/<particle_name>/root/all`
 
-**Experimental** .root files' names indicate the season, cluster and run numbers in format: `s{year}_c{cluster}_r{run}`.  For example: s2020_c07_r0041.  
+**Experimental data**  
+Experimental ROOT files named indicating the season, cluster and run numbers in format: `s{year}_c{cluster}_r{run}`.  For example: s2020_c07_r0041.  
 By september 2025, only runs for the 2020 season have been uploaded, being evenly distributed throughout the year, and each .root file contains only the first 25,000 events of the run.
 
 ## File Structure
