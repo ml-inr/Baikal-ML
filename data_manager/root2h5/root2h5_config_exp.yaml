@@ -1,0 +1,32 @@
+# Configuration for root2h5.py
+
+general:
+  take_single_cluster: true
+  take_clust_num: null
+  split_multi: true
+  shift_coords_to_cl_center: true
+  center_times: true
+  exclude_big_ts: true
+  t_threshold: 1e5
+  coords_are_same: false
+
+multiprocessing:
+  MAX_QUEUE_SIZE: 4
+  NUM_WORKERS: 4
+
+output:
+  h5_name: "exp.h5"
+  h5_prefix: "/home/albert/Baikal2025/data_manager/h5datasets/"
+
+input:
+  particle: "exp"
+  root_dir_path: '/net/62/home/albert/Baikal/Data/exp_root_files/' #"/home3/ivkhar/Baikal/data/initial_data/exp_data/2020/"
+
+root_paths:
+  data:
+    - "Events/BEvent./BEvent.fPulses/BEvent.fPulses.fAmplitude"
+    - "Events/BEvent./BEvent.fPulses/BEvent.fPulses.fTime"
+    #- "ScanfitMask./ScanfitMask.fOrigins/ScanfitMask.fOrigins.fFlag"
+    - "Events/BEvent./BEvent.fPulses/BEvent.fPulses.fChannelID"
+
+  geometry: "Events/BGeomTel./BGeomTel.BGeomTel/BGeomTel.BGeomTel.fOMs/BGeomTel.BGeomTel.fOMs.fPosition"  #"ArrayConfig/BGeomTel./BGeomTel.BGeomTel/BGeomTel.BGeomTel.fOMs/BGeomTel.BGeomTel.fOMs.fPosition"

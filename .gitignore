@@ -19,32 +19,120 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+*.pyc
+*.pyo
+*.pyd
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
 
 # Jupyter Notebook
 .ipynb_checkpoints
+*.ipynb_checkpoints/
+*.ipynb
 
-# PyTorch
+# PyTorch & ML
 *.pth
 *.pt
+*.pkl
+*.pickle
+*.model
+*.weights
+*.onnx
 
-# Data files
+# Data files (keep small test files, ignore large datasets)
 *.h5
 *.hdf5
 *.root
+*.npz
+*.npy
+data/large/
+data/raw/
+data/processed/
+datasets/
 
-# Experiments
+# Experiments & Results
 experiments/*/checkpoints/
 experiments/*/logs/
+experiments/*/results/
 experiments/*/*.csv
 experiments/*/*.pth
+experiments/*/*.pkl
+results/
+logs/
+runs/
+outputs/
+checkpoints/
+
+# Conda & Package Management
+.conda/
+*.conda
+environment.lock
+conda-meta/
 
 # IDE
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
 
 # OS
 .DS_Store
 Thumbs.db
+*.tmp
+*.temp
 
-# ClearML
+# ClearML & MLflow
 .clearml/
+mlruns/
+.mlflow/
+
+# Git & Version Control
+*.orig
+*.rej
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.cache/
+nosetests.xml
+coverage.xml
+*.cover
+
+# Documentation
+docs/_build/
+.readthedocs.yml
+
+# Project planning and development docs (exclude from repo)
+CLAUDE.md
+vision.md
+conventions.md
+idea.md
+promts.txt
+PROJECT_STATUS.md
+doc/workflow.md
+doc/tasklist.md
+doc/data_format.md
+Встречи.md
+
+# Keep technical documentation
+!doc/hdf5_format.md
+
+# Large files that shouldn't be in git
+*.log
+*.zip
+*.tar.gz
+*.7z
+*.rar
+
+# Temporary analysis files
+scratch/
+temp/
+tmp/
