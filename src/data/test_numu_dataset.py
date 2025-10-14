@@ -40,7 +40,9 @@ def test_dataset_basic():
         logger.info(f"Dataset stats: {stats}")
         
         # Test single item access
-        features, label = dataset[0]
+        item = dataset[0]
+        features = item['features']
+        label = item['labels']
         logger.info(f"First event: {features.shape} features, label={label}")
         logger.info(f"Feature sample: {features[:3]}")  # First 3 hits
         
@@ -145,7 +147,8 @@ def test_variable_length_handling():
         # Sample a few events to check length variation
         lengths = []
         for i in range(min(10, len(dataset))):
-            features, _ = dataset[i]
+            item = dataset[i]
+            features = item['features']
             lengths.append(len(features))
         
         logger.info(f"Sample event lengths: {lengths}")
@@ -254,8 +257,10 @@ def test_sampling_strategies():
         # Check if first few events are the same (reproducibility test)
         same_events = True
         for i in range(min(3, len(dataset_random), len(dataset_random2))):
-            feat1, label1 = dataset_random[i]
-            feat2, label2 = dataset_random2[i]
+            item1 = dataset_random[i]
+            item2 = dataset_random2[i]
+            feat1, label1 = item1['features'], item1['labels']
+            feat2, label2 = item2['features'], item2['labels']
             if not torch.equal(feat1, feat2) or label1 != label2:
                 same_events = False
                 break
@@ -277,15 +282,8 @@ def test_hits_truncation():
     logger.info("=== Testing Hits Truncation ===")
     
     try:
-        # Create dataset with low max_hits to force truncation
-        dataset = NuMuDataset(
-            h5_path=all_mc_path2h5,
-            particle_types=['muatm_2020'],
-            neutrino_types=[],
-            max_hits=50,  # Low limit to force truncation
-            events_per_particle={'muatm_2020': 20},
-            device='cpu'
-        )
+        # Test hits truncation via dataloader
+        logger.info("Testing hits truncation through dataloader...")
         
         # Get a batch to test truncation
         dataloader = create_numu_dataloader(

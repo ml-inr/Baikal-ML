@@ -1,0 +1,158 @@
+# Standard Neutrino Detection Training Configuration
+# Baseline experiment using attention-based Transformer encoder
+
+experiment:
+  name: "baseline_251010_middle_2"  # Unique experiment name
+  description: "Baseline attention-based model for neutrino vs muon binary classification"
+  mode: "standard"  # standard or domain_adaptation
+  seed: 42
+  tags: ["baseline", "attention", "binary_classification"]
+
+# Logging and output
+logging:
+  level: "INFO"
+  log_every: 10  # Log every N batches during training
+  
+  # Experiment tracking
+  clearml:
+    enabled: true  # Enable beautiful training curve visualizations
+    project_name: "neutrino_detection"
+    task_name: null  # Will use experiment.name if null
+  
+  # Output directories (relative to project root)
+  output_dir: "experiments/numu" # will create experiment.name subdir
+  save_config: true
+  save_model_summary: true
+
+# Data loader configuration
+data:
+  h5_path: "/net/62/home3/ivkhar/Baikal/data/h5s/baikal_mc_merged.h5"
+  
+  # Particle types for binary classification
+  particle_types: ["muatm_2020", "nuatm_2020", "nue2_2020"]  # Muons (background) + Neutrinos (signal)
+  neutrino_types: ["nuatm_2020", "nue2_2020"]  # Particles considered as neutrinos (positive class)
+  
+  # Data limits and sampling
+  events_per_particle:
+    muatm_2020: 300000    # Atmospheric muons (background)
+    nue2_2020: 150000     # Neutrinos (signal)
+    nuatm_2020: 150000
+
+  # Events loading strategy
+  sampling_config:
+    muatm_2020:
+      mode: "range" # 'range' or 'random'
+      start_event: 0
+    nue2_2020:
+      mode: "range"
+      start_event: 0
+    nuatm_2020:
+      mode: "range"
+      start_event: 0
+
+  max_hits: 500         # Maximum hits per event (memory management)
+  
+  # Data splitting
+  train_split: 0.7
+  #val_split: 0.3
+  
+  # Data processing
+  device: "cuda:1"  # or "cpu"
+  
+  # Normalization (will be calculated from training data)
+  normalization:
+    enabled: true
+    # means and stds will be calculated and saved during training
+
+# Model architecture
+model:
+  type: "numu"
+  
+  feature_extractor:
+    input_dim: 5  # [amplitude, time, x, y, z]
+    d_model: 128
+    num_heads: 4
+    num_layers: 4
+    dim_feedforward: 256
+    dropout: 0.1
+    pooling: "cls"  # cls, mean, max, attention
+    use_positional_encoding: true
+    max_seq_len: 1000 # Length for positional encoding
+  
+  classifier:
+    hidden_dims: [64, 32]
+    dropout: 0.2
+    use_batch_norm: true
+
+# Training configuration
+training:
+  # Optimization
+  optimizer: "adamw"
+  learning_rate: 0.001
+  weight_decay: 0.01
+  
+  # Learning rate scheduling
+  scheduler: "cosine"
+  scheduler_params:
+    T_max: 100
+    eta_min: 0.00001
+  
+  # Training loop
+  epochs: 100
+  batch_size: 256
+  accumulation_steps: 1  # Gradient accumulation
+  
+  # Loss function
+  loss: "bce_with_logits"  # Binary cross-entropy with logits
+  class_weights: null  # Will be calculated from data if null
+  
+  # Validation and early stopping
+  validate_every: 1  # Epochs between validation
+  early_stopping:
+    enabled: true
+    patience: 10
+    monitor: "val_auc"  # val_loss, val_f1, val_auc
+    mode: "max"  # max for f1/auc, min for loss
+    min_delta: 0.0001
+  
+  # Model checkpointing
+  save_every: 5  # Save checkpoint every N epochs
+  save_best: true  # Save best model based on validation metric
+
+# Metrics to track
+metrics:
+  - "accuracy"
+  - "precision" 
+  - "recall"
+  - "f1"
+  - "auc"
+  - "confusion_matrix"
+
+# Data loading
+dataloader:
+  num_workers: 0
+  pin_memory: false
+  reshuffle_train: true # Whether to have the data reshuffled at every epoch. Dataset is already shuffled when loaded, if data.shuffle_events
+  use_polar_coords: false  # Whether to use polar coordinates (r, cos, sin) concat to (Q, t, x, y, z)
+  
+  # Data augmentation (optional)
+  augmentation:
+    enabled: true
+    noise_std: [0.1, 5.0, 2., 2., 5.0]  # Per feature: [amp, time, x, y, z]
+    rotation_std: 1.  # Random rotation in radians
+
+# Reproducibility
+reproducibility:
+  deterministic: true
+  benchmark: false  # Set to true for consistent input sizes
+
+# Hardware and performance
+hardware:
+  mixed_precision: false  # Enable automatic mixed precision
+  compile_model: false    # PyTorch 2.0 model compilation
+  
+# Debugging and development
+debug:
+  enabled: false
+  max_batches_per_epoch: 10  # Limit batches for quick testing
+  overfit_single_batch: false

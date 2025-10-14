@@ -453,15 +453,23 @@ class NuMuDataset(Dataset):
         """Return number of events in dataset."""
         return len(self.events)
     
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
+    def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
         """
         Get a single event.
         
         Returns:
-            features: Tensor of shape (n_hits, 5) with hit features
-            label: Boolean tensor indicating neutrino (True) or muon (False)
+            Dict with keys:
+                'features': Tensor of shape (n_hits, 5) with hit features
+                'labels': Boolean tensor indicating neutrino (True) or muon (False)
+                'lengths': Integer tensor with actual sequence length
+                'event_id': String identifier for the event
         """
-        return self.events[idx], self.labels[idx]
+        return {
+            'features': self.events[idx],
+            'labels': self.labels[idx],
+            'lengths': self.hit_counts[idx],
+            'event_id': self.event_ids[idx]
+        }
     
     def get_event_with_id(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor, str]:
         """
@@ -527,7 +535,7 @@ class NuMuDataset(Dataset):
     
     def collate_fn(
         self, 
-        batch: List[Tuple[torch.Tensor, torch.Tensor]], 
+        batch: List[Dict[str, torch.Tensor]], 
         normalization_config: Optional[Dict[str, List[float]]] = None,
         shuffle_batch: bool = True,
         augmentation_config: Optional[Dict[str, Any]] = None,
@@ -540,8 +548,9 @@ class NuMuDataset(Dataset):
         normalization, coordinate transformations, and memory-safe truncation.
         
         Args:
-            batch: List of (features, label) tuples from dataset __getitem__
-                Each features tensor has shape (n_hits, 5) with [amplitude, time, x, y, z]
+            batch: List of dicts from dataset __getitem__
+                Each dict contains 'features', 'labels', 'lengths', 'event_id'
+                Features tensor has shape (n_hits, 5) with [amplitude, time, x, y, z]
             normalization_config: Optional dict for feature normalization with keys:
                 - 'means': List of 5 feature means [amp, time, x, y, z]
                 - 'stds': List of 5 feature standard deviations
@@ -574,7 +583,8 @@ class NuMuDataset(Dataset):
             - Polar coordinate conversion adds r, cos(α), sin(α) as additional features
             
         Example:
-            >>> batch = [(torch.randn(50, 5), True), (torch.randn(60, 5), False)]
+            >>> batch = [{'features': torch.randn(50, 5), 'labels': True}, 
+            ...          {'features': torch.randn(60, 5), 'labels': False}]
             >>> result = dataset.collate_fn(batch, normalization_config=norm_cfg)
             >>> print(result['features'].shape)  # torch.Size([2, 60, 5])
             >>> print(result['mask'].sum(dim=1))  # tensor([50, 60]) - actual lengths
@@ -584,14 +594,16 @@ class NuMuDataset(Dataset):
             batch = list(batch)
             self.rng.shuffle(batch)
         
-        features, labels = zip(*batch)
+        # Extract features and labels from dict batch
+        features = [item['features'] for item in batch]
+        labels = [item['labels'] for item in batch]
         
         # Get original sequence lengths
-        original_lengths = torch.tensor([len(f) for f in features], dtype=torch.long)
+        original_lengths = torch.tensor([len(f) for f in features], dtype=torch.long, device=self.device)
         
         # Apply max_hits limit to prevent memory issues
         truncated_features = []
-        hits_lost = torch.zeros(len(features), dtype=torch.long)
+        hits_lost = torch.zeros(len(features), dtype=torch.long, device=self.device)
         
         for i, feat in enumerate(features):
             original_len = len(feat)
@@ -604,7 +616,7 @@ class NuMuDataset(Dataset):
             truncated_features.append(truncated_feat)
         
         # Get sequence lengths after truncation
-        lengths = torch.tensor([len(f) for f in truncated_features], dtype=torch.long)
+        lengths = torch.tensor([len(f) for f in truncated_features], dtype=torch.long, device=self.device)
         max_len = lengths.max().item()
         
         # Determine feature dimension based on coordinate system
@@ -736,7 +748,7 @@ class NuMuDataset(Dataset):
         
         return {
             'features': padded_features,
-            'labels': torch.stack(labels),
+            'labels': torch.stack([label.to(self.device) if hasattr(label, 'to') else torch.tensor(label, device=self.device) for label in labels]),
             'lengths': lengths,
             'original_lengths': original_lengths,
             'mask': mask,
@@ -769,7 +781,7 @@ def create_numu_dataloader(
     Args:
         h5_path: Path to HDF5 file (MC or experimental data)
         batch_size: Batch size for training
-        shuffle: Whether to shuffle data
+        shuffle: Whether to  to have the data reshuffled at every epoch
         particle_types: Particle types to include (e.g., ['muatm_2020', 'nue2_2020', 'exp'])
         neutrino_types: Which particles are neutrinos (positive class)
         max_hits: Maximum hits per event
@@ -816,4 +828,57 @@ def create_numu_dataloader(
         collate_fn=collate_wrapper,
         num_workers=num_workers,
         pin_memory=(device == 'cuda' and num_workers > 0)
+    )
+    
+    
+def create_from_ds_numu_dataloader(
+    dataset: NuMuDataset,
+    batch_size: int = 32,
+    shuffle: bool = True,
+    normalization_config: Optional[Dict[str, List[float]]] = None,
+    shuffle_batch: bool = True,
+    augmentation_config: Optional[Dict[str, Any]] = None,
+    use_polar_coords: bool = False,
+    num_workers: int = 0,
+    pin_memory: bool = False
+) -> torch.utils.data.DataLoader:
+    """
+    Create a DataLoader from an existing NuMuDataset instance.
+    
+    Args:
+        dataset: Pre-initialized NuMuDataset instance or Subset from train/val split
+        batch_size: Batch size for training
+        shuffle: Whether to  to have the data reshuffled at every epoch
+        num_workers: Number of workers for data loading
+        device: PyTorch device
+        normalization_config: Dict with 'means' and 'stds' lists for feature normalization
+        shuffle_batch: Whether to shuffle events within each batch
+        augmentation_config: Dict with 'noise_std' list for Gaussian noise augmentation per feature
+        use_polar_coords: If True, concat polar coordinates (r, cos_α, sin_α) to existing Cartesian coordinates
+    """
+    # Create wrapper collate function with normalization, batch shuffling, and augmentation
+    def collate_wrapper(batch):
+        # Handle both NuMuDataset and Subset (when train-val splitting) objects
+        if hasattr(dataset, 'collate_fn'):
+            underlying_dataset = dataset
+        else:
+            # Handle Subset objects from train/val splits
+            underlying_dataset = dataset.dataset
+            
+        return underlying_dataset.collate_fn(
+            batch, 
+            normalization_config=normalization_config, 
+            shuffle_batch=shuffle_batch,
+            augmentation_config=augmentation_config,
+            use_polar_coords=use_polar_coords
+        )
+    
+    # Events are already interleaved in dataset for balanced batches
+    return torch.utils.data.DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=shuffle,
+        collate_fn=collate_wrapper,
+        num_workers=num_workers,
+        pin_memory=pin_memory
     )
