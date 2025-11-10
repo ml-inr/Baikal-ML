@@ -1,0 +1,18 @@
+experiment: baseline_251010_middle_2
+accuracy: 0.9907961343764381
+precision: 0.69377990430622
+recall: 1.0
+f1_score: 0.8192090395480226
+auc: 0.9999048667658651
+precision_muon: 1.0
+precision_neutrino: 0.69377990430622
+recall_muon: 0.9906001233733808
+recall_neutrino: 1.0
+confusion_matrix:
+- - 33723
+  - 320
+- - 0
+  - 725
+total_muons: 34043
+total_neutrinos: 725
+test_events: 750000

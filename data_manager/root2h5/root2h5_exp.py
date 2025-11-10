@@ -168,7 +168,7 @@ def write_data(hf, res, file_num):
             'dtype': get_dtype(key, value),
             'compression': 'gzip' if any(substring in key for substring in ['raw', 'reco', 'muons']) and 'starts' not in key else None
         }
-        
+        if dataset_path in hf: del hf[dataset_path]
         hf.create_dataset(dataset_path, data=value.astype(kwarg['dtype']), **kwarg)
 
 # Main processing routine; takes 1 file for processing
@@ -280,7 +280,7 @@ def process_file(args_q, result_q, do_quit):
 
                 # Define results
                 # Get number of unique string
-                sig_strings = r_data[3] // 36
+                sig_strings = r_data[2] // 36
                 un_strings = [ set(sig_strings[ev_starts[i]:ev_starts[i+1]]) for i in range(len(ev_starts)-1)  ]
                 res_dict['raw/num_un_strings'] = np.array([ len(s) for s in un_strings ]).astype('int')
                 # Make event ids
@@ -297,8 +297,8 @@ def process_file(args_q, result_q, do_quit):
                 # Data
                 res_dict['raw/cluster_ids'] = cluster_ids
                 res_dict['raw/data'] = np.transpose( r_data[[0,1,-3,-2,-1]], (1,0) )
-                res_dict['raw/labels'] = r_data[2]
-                res_dict['raw/channels'] = r_data[3]
+                res_dict['raw/labels'] = np.zeros(len(r_data[2]), dtype=np.int32)
+                res_dict['raw/channels'] = r_data[2]
                 res_dict['raw/ev_starts'] = ev_starts
                 logging.info(f"Successfully processed file: {os.path.basename(rf_path)}, ({len(ev_ids)} events)")
                 result_q.put((True, res_dict, id_prefix))
@@ -362,8 +362,12 @@ def main():
     # Write clusters coordinates to file
     with h5.File(os.path.join(h5_prefix, h5_name), 'a') as hf:
         for name, center in zip(filenames, cl_centers):
-            hf.create_dataset(f"{particle}/clusters_centers/part_{name}/data", data=center)
-        hf.create_dataset(f"{particle}/coords_are_cluster_centered/data", data=shift_coords_to_cl_center)
+            ds_path = f"{particle}/clusters_centers/part_{name}/data"
+            if ds_path in hf: del hf[ds_path]
+            hf.create_dataset(ds_path, data=center)
+        meta_info_path = f"{particle}/coords_are_cluster_centered/data"
+        if meta_info_path in hf: del hf[meta_info_path]
+        hf.create_dataset(meta_info_path, data=shift_coords_to_cl_center)
 
     logging.info("Cluster information written to file")
 

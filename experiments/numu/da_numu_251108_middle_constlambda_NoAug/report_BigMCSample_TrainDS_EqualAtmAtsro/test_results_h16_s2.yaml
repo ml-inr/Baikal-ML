@@ -1,0 +1,18 @@
+experiment: da_numu_251108_middle_constlambda_NoAug
+accuracy: 0.9949499970177148
+precision: 0.9918490917559385
+recall: 0.9996982093756287
+f1_score: 0.9957581830327321
+auc: 0.9999267448398961
+precision_muon: 0.9995553139977271
+precision_neutrino: 0.9918490917559385
+recall_muon: 0.9880341880341881
+recall_neutrino: 0.9996982093756287
+confusion_matrix:
+- - 20230
+  - 245
+- - 9
+  - 29813
+total_muons: 20475
+total_neutrinos: 29822
+test_events: 600000

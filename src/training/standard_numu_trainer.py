@@ -34,7 +34,7 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from src.models.base_models import create_model
-from src.data.numu_dataset import NuMuDataset, create_from_ds_numu_dataloader
+from src.data.numu_dataset import NuMuDataset, create_numu_dataloader_from_ds
 from src.training.metrics import MetricsTracker, calculate_class_weights, binary_cross_entropy_with_logits_weighted
 
 logger = logging.getLogger(__name__)
@@ -339,7 +339,7 @@ Training Configuration:
         # Create data loaders
         batch_size = self.config['training']['batch_size']
         
-        self.train_loader = create_from_ds_numu_dataloader(
+        self.train_loader = create_numu_dataloader_from_ds(
             train_dataset, batch_size,
             shuffle=self.config['dataloader'].get('reshuffle_train', True),
             normalization_config = self.normalization_config,
@@ -350,7 +350,7 @@ Training Configuration:
             pin_memory=self.config['dataloader'].get('pin_memory', True)
             )
         
-        self.val_loader = create_from_ds_numu_dataloader(
+        self.val_loader = create_numu_dataloader_from_ds(
             val_dataset, batch_size,
             shuffle=False,
             normalization_config = self.normalization_config,

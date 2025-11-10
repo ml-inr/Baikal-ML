@@ -1,0 +1,18 @@
+experiment: da_numu_251014_middle_noaug
+accuracy: 0.91551
+precision: 0.8815182499981636
+recall: 0.960058
+f1_score: 0.9191133389753271
+auc: 0.9804023817859999
+precision_muon: 0.9561512519431247
+precision_neutrino: 0.8815182499981636
+recall_muon: 0.870962
+recall_neutrino: 0.960058
+confusion_matrix:
+- - 435481
+  - 64519
+- - 19971
+  - 480029
+total_muons: 500000
+total_neutrinos: 500000
+test_events: 1000000

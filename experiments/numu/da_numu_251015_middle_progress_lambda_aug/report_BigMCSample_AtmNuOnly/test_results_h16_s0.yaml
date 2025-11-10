@@ -1,0 +1,18 @@
+experiment: da_numu_251015_middle_progress_lambda_aug
+accuracy: 0.9820514263208238
+precision: 0.7021972884525479
+recall: 0.9993346640053227
+f1_score: 0.8248215266337178
+auc: 0.9998711660289366
+precision_muon: 0.9999700661538001
+precision_neutrino: 0.7021972884525479
+recall_muon: 0.981288370590136
+recall_neutrino: 0.9993346640053227
+confusion_matrix:
+- - 33406
+  - 637
+- - 1
+  - 1502
+total_muons: 34043
+total_neutrinos: 1503
+test_events: 1000000

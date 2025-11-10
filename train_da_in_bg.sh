@@ -1,0 +1,1 @@
+nohup python src/training/da_numu_trainer.py --config experiments/da_numu_baseline.yaml > experiments/logs/DA_train_$(date +'%Y%m%d_%H%M%S').log &

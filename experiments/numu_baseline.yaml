@@ -119,14 +119,6 @@ training:
   save_every: 5  # Save checkpoint every N epochs
   save_best: true  # Save best model based on validation metric
 
-# Metrics to track
-metrics:
-  - "accuracy"
-  - "precision" 
-  - "recall"
-  - "f1"
-  - "auc"
-  - "confusion_matrix"
 
 # Data loading
 dataloader:

@@ -128,8 +128,10 @@ class NuMuDataset(Dataset):
         """Load data from HDF5 file and prepare for training."""
         all_events = []
         all_labels = []
+        all_magic_numbers = []
         all_hit_counts = []
         all_event_ids = []
+        all_channel_ids = []
         total_loaded = 0
         
         with h5py.File(self.h5_path, 'r') as f:
@@ -150,14 +152,16 @@ class NuMuDataset(Dataset):
                 num_events_to_load = self.max_events_per_class[particle_type]
                 
                 # Load data for this particle type
-                events, labels, hit_counts, event_ids = self._load_particle_data(
+                events, labels, magic_numbers, hit_counts, event_ids, channel_ids = self._load_particle_data(
                     f, particle_type, is_neutrino, num_events_to_load
                 )
                 
                 all_events.extend(events)
                 all_labels.extend(labels)
+                all_magic_numbers.extend(magic_numbers)
                 all_hit_counts.extend(hit_counts)
                 all_event_ids.extend(event_ids)
+                all_channel_ids.extend(channel_ids)
                 total_loaded += len(events)
                 
                 logger.info(f"Loaded {len(events)} events from {particle_type} (neutrino={is_neutrino})")
@@ -167,17 +171,17 @@ class NuMuDataset(Dataset):
         
         # Optional shuffling to remove bias from group-by-group loading
         if self.shuffle_events:
-            combined_data = list(zip(all_events, all_labels, all_hit_counts, all_event_ids))
+            combined_data = list(zip(all_events, all_labels, all_magic_numbers, all_hit_counts, all_event_ids, all_channel_ids))
             self.rng.shuffle(combined_data)
-            all_events, all_labels, all_hit_counts, all_event_ids = zip(*combined_data)
-            all_events, all_labels, all_hit_counts, all_event_ids = (
-                list(all_events), list(all_labels), list(all_hit_counts), list(all_event_ids)
+            all_events, all_labels, all_magic_numbers, all_hit_counts, all_event_ids, all_channel_ids = zip(*combined_data)
+            all_events, all_labels, all_magic_numbers, all_hit_counts, all_event_ids, all_channel_ids = (
+                list(all_events), list(all_labels), list(all_magic_numbers), list(all_hit_counts), list(all_event_ids), list(all_channel_ids)
             )
             logger.info(f"Shuffled {len(combined_data)} events to remove particle-type ordering bias")
         
         # Store as class attributes with optional interleaving for balanced batches
-        self.events, self.labels, self.hit_counts, self.event_ids = self._organize_events_for_batching(
-            all_events, all_labels, all_hit_counts, all_event_ids
+        self.events, self.labels, self.magic_numbers, self.hit_counts, self.event_ids, self.channel_ids = self._organize_events_for_batching(
+            all_events, all_labels, all_magic_numbers, all_hit_counts, all_event_ids, all_channel_ids
         )
         
         # Calculate statistics
@@ -187,36 +191,48 @@ class NuMuDataset(Dataset):
         self, 
         events: List[torch.Tensor], 
         labels: List[bool], 
+        magic_numbers: List[int],
         hit_counts: List[int],
-        event_ids: List[str]
-    ) -> Tuple[List[torch.Tensor], torch.Tensor, torch.Tensor, List[str]]:
+        event_ids: List[str],
+        channel_ids: List[int]
+    ) -> Tuple[List[torch.Tensor], torch.Tensor, List[int], torch.Tensor, List[str]]:
         """
         Organize events to ensure good mixing of classes in batches.
         Interleaves neutrino and muon events to prevent single-class batches.
         """
         # Separate events by class
         neutrino_events = []
+        neutrino_magic_numbers = []
         neutrino_hit_counts = []
         neutrino_ids = []
+        neutrino_channels = []
         muon_events = []
+        muon_magic_numbers = []
         muon_hit_counts = []
         muon_ids = []
+        muon_channels = []
         
         for i, is_neutrino in enumerate(labels):
             if is_neutrino:
                 neutrino_events.append(events[i])
+                neutrino_magic_numbers.append(magic_numbers[i])
                 neutrino_hit_counts.append(hit_counts[i])
                 neutrino_ids.append(event_ids[i])
+                neutrino_channels.append(channel_ids[i])
             else:
                 muon_events.append(events[i])
+                muon_magic_numbers.append(magic_numbers[i])
                 muon_hit_counts.append(hit_counts[i])
                 muon_ids.append(event_ids[i])
+                muon_channels.append(channel_ids[i])
         
         # Interleave neutrino and muon events for better batch mixing
         interleaved_events = []
         interleaved_labels = []
+        interleaved_magic_numbers = []
         interleaved_hit_counts = []
         interleaved_ids = []
+        interleaved_channels = []
         
         max_len = max(len(neutrino_events), len(muon_events))
         
@@ -225,23 +241,29 @@ class NuMuDataset(Dataset):
             if i < len(neutrino_events):
                 interleaved_events.append(neutrino_events[i])
                 interleaved_labels.append(True)
+                interleaved_magic_numbers.append(neutrino_magic_numbers[i])
                 interleaved_hit_counts.append(neutrino_hit_counts[i])
                 interleaved_ids.append(neutrino_ids[i])
+                interleaved_channels.append(neutrino_channels[i])
             
             # Add muon event if available
             if i < len(muon_events):
                 interleaved_events.append(muon_events[i])
                 interleaved_labels.append(False)
+                interleaved_magic_numbers.append(muon_magic_numbers[i])
                 interleaved_hit_counts.append(muon_hit_counts[i])
                 interleaved_ids.append(muon_ids[i])
+                interleaved_channels.append(muon_channels[i])
         
         logger.info(f"Interleaved {len(neutrino_events)} neutrino and {len(muon_events)} muon events for balanced batches")
         
         return (
             interleaved_events,
             torch.tensor(interleaved_labels, dtype=torch.bool, device=self.device),
+            interleaved_magic_numbers,
             torch.tensor(interleaved_hit_counts, dtype=torch.long, device=self.device),
-            interleaved_ids
+            interleaved_ids,
+            interleaved_channels
         )
     
     def _lazy_load_event_indices(
@@ -384,10 +406,12 @@ class NuMuDataset(Dataset):
         particle_type: str, 
         is_neutrino: bool,
         max_events_for_type: Optional[int] = None
-    ) -> Tuple[List[torch.Tensor], List[bool], List[int], List[str]]:
+    ) -> Tuple[List[torch.Tensor], List[bool], List[int], List[int], List[str]]:
         """Load data for a specific particle type with advanced sampling options."""
         events = []
         labels = []
+        magic_numbers = []
+        channel_ids = []
         hit_counts = []
         event_ids = []
         
@@ -406,27 +430,39 @@ class NuMuDataset(Dataset):
         
         # Second pass: load selected events
         parts_data_cache = {}  # Cache loaded parts to avoid re-reading
-        
+        parts_magic_number_cache = {}
+        parts_chanels_id_cache = {}
         for part, original_event_idx, start_idx, end_idx in selected_indices:
             try:
                 # Load part data if not cached
                 if part not in parts_data_cache:
                     parts_data_cache[part] = particle_group['raw']['data'][part]['data'][:]
+                    parts_magic_number_cache[part] = particle_group['raw']['labels'][part]['data'][()]
+                    parts_chanels_id_cache[part] = particle_group['raw']['channels'][part]['data'][()]
                 
                 hit_data = parts_data_cache[part]
+                part_magic_numbers = parts_magic_number_cache[part]
+                part_channel_id = parts_chanels_id_cache[part]
                 event_hits = hit_data[start_idx:end_idx]
+                event_magic_numbers = part_magic_numbers[start_idx:end_idx]
+                event_channel_id = part_channel_id[start_idx:end_idx]
                 
                 # Apply max_hits limit if specified
                 if self.max_hits is not None and len(event_hits) > self.max_hits:
                     event_hits = event_hits[:self.max_hits]
+                    event_magic_numbers = event_magic_numbers[:self.max_hits]
+                    event_channel_id = event_channel_id[:self.max_hits]
                 
                 # Convert to tensor
                 event_tensor = torch.tensor(event_hits, dtype=torch.float32, device=self.device)
+                #event_magic_numbers_tensor = torch.tensor(event_magic_numbers, dtype=torch.int32, device=self.device)
                 
                 # Generate unique event ID: particle_type:part_name:event_index
                 event_id = f"{particle_type}:{part}:{original_event_idx}"
                 
                 events.append(event_tensor)
+                magic_numbers.append(event_magic_numbers)
+                channel_ids.append(event_channel_id)
                 labels.append(is_neutrino)
                 hit_counts.append(len(event_hits))
                 event_ids.append(event_id)
@@ -436,7 +472,7 @@ class NuMuDataset(Dataset):
                 continue
         
         logger.info(f"Loaded {len(events)} events for {particle_type}")
-        return events, labels, hit_counts, event_ids
+        return events, labels, magic_numbers, hit_counts, event_ids, channel_ids
     
     def _calculate_stats(self):
         """Calculate dataset statistics."""
@@ -467,20 +503,11 @@ class NuMuDataset(Dataset):
         return {
             'features': self.events[idx],
             'labels': self.labels[idx],
+            'magic_numbers': self.magic_numbers[idx],
             'lengths': self.hit_counts[idx],
-            'event_id': self.event_ids[idx]
+            'event_id': self.event_ids[idx],
+            'channels_ids': self.channel_ids[idx]
         }
-    
-    def get_event_with_id(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor, str]:
-        """
-        Get a single event with its ID.
-        
-        Returns:
-            features: Tensor of shape (n_hits, 5) with hit features
-            label: Boolean tensor indicating neutrino (True) or muon (False)
-            event_id: Unique event identifier
-        """
-        return self.events[idx], self.labels[idx], self.event_ids[idx]
     
     def _get_stats(self, with_data_stats=True, max_sample_size=1_000_000) -> Dict[str, float]:
         """Get dataset statistics."""
@@ -597,6 +624,8 @@ class NuMuDataset(Dataset):
         # Extract features and labels from dict batch
         features = [item['features'] for item in batch]
         labels = [item['labels'] for item in batch]
+        magic_numbers = [item['magic_numbers'] for item in batch]
+        channels = [item['channels_ids'] for item in batch]
         
         # Get original sequence lengths
         original_lengths = torch.tensor([len(f) for f in features], dtype=torch.long, device=self.device)
@@ -637,12 +666,12 @@ class NuMuDataset(Dataset):
         # Feature indices: [amplitude, time, x, y, z] = [0, 1, 2, 3, 4]
         
         # Apply random rotation augmentation if specified
-        if augmentation_config is not None and 'rotation_std' in augmentation_config:
-            rotation_std = augmentation_config['rotation_std']
-            if rotation_std > 0:
-                # Generate random rotation angles for each event in the batch
+        if augmentation_config is not None and 'rotation_enabled' in augmentation_config:
+            rotation_enabled = augmentation_config['rotation_enabled']
+            if rotation_enabled:
+                # Generate uniform random rotation angles [0, 2π) for each event in the batch
                 batch_size = padded_features.shape[0]
-                rotation_angles = torch.normal(0, rotation_std, (batch_size,), device=self.device)
+                rotation_angles = torch.rand(batch_size, device=self.device) * 2 * torch.pi
                 
                 # Apply rotation to x, y coordinates for each event
                 for b in range(batch_size):
@@ -752,7 +781,9 @@ class NuMuDataset(Dataset):
             'lengths': lengths,
             'original_lengths': original_lengths,
             'mask': mask,
-            'hits_lost': hits_lost
+            'hits_lost': hits_lost,
+            'magic_numbers': magic_numbers,
+            'channels_ids': channels
         }
 
 
@@ -831,7 +862,7 @@ def create_numu_dataloader(
     )
     
     
-def create_from_ds_numu_dataloader(
+def create_numu_dataloader_from_ds(
     dataset: NuMuDataset,
     batch_size: int = 32,
     shuffle: bool = True,

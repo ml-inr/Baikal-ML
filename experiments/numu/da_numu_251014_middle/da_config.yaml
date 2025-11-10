@@ -1,0 +1,128 @@
+data:
+  device: cuda:0
+  max_hits: 500
+  normalization:
+    enabled: true
+  source_domain:
+    events_per_particle:
+      muatm_2020: 300000
+      nuatm_2020: 150000
+      nue2_2020: 150000
+    h5_path: /net/62/home3/ivkhar/Baikal/data/h5s/baikal_mc_merged.h5
+    neutrino_types:
+    - nue2_2020
+    - nuatm_2020
+    particle_types:
+    - muatm_2020
+    - nue2_2020
+    - nuatm_2020
+    shuffle_events: true
+    train_split: 0.7
+  target_domain:
+    events_per_particle:
+      exp: 300000
+    h5_path: /home/albert/Baikal2025/data_manager/h5datasets/exp.h5
+    neutrino_types: []
+    particle_types:
+    - exp
+    shuffle_events: true
+    train_split: 0.7
+dataloader:
+  augmentation:
+    enabled: true
+    noise_std:
+    - 0.05
+    - 5.0
+    - 1.0
+    - 1.0
+    - 2.0
+    rotation_std: 0.05
+  num_workers: 0
+  pin_memory: false
+  reshuffle_train: true
+debug:
+  enabled: false
+  max_batches_per_epoch: 10
+domain_adaptation:
+  domain_discriminator:
+    dropout: 0.2
+    hidden_dims:
+    - 64
+    - 32
+    lambda_factor: 1.0
+    use_batch_norm: true
+    use_gradient_reversal: true
+  lambda_scheduler:
+    gamma: 10.0
+    max_lambda: 1.0
+    type: progressive
+experiment:
+  description: "Domain adaptation baseline using DANN for MC\u2192Exp transfer learning"
+  name: da_numu_251014_middle
+  seed: 42
+  tags:
+  - domain_adaptation
+  - dann
+  - mc_to_exp
+  - neutrino_detection
+logging:
+  clearml:
+    enabled: false
+    project_name: neutrino_domain_adaptation
+    task_name: null
+  level: INFO
+  log_every: 10
+  output_dir: experiments/numu
+  save_config: true
+  save_model_summary: true
+model:
+  classifier:
+    dropout: 0.2
+    hidden_dims:
+    - 64
+    - 32
+    use_batch_norm: true
+  feature_extractor:
+    d_model: 128
+    dim_feedforward: 256
+    dropout: 0.2
+    input_dim: 5
+    max_seq_len: 1000
+    num_heads: 4
+    num_layers: 4
+    pooling: cls
+    use_positional_encoding: true
+  type: numu
+reproducibility:
+  benchmark: false
+  deterministic: true
+training:
+  class_weights: null
+  classifier_optimizer:
+    learning_rate: 0.001
+    optimizer: adamw
+    weight_decay: 0.01
+  discriminator_optimizer:
+    learning_rate: 0.002
+    optimizer: adamw
+    weight_decay: 0.01
+  early_stopping:
+    enabled: true
+    min_delta: 0.0001
+    mode: max
+    monitor: val_auc
+    patience: 15
+  epochs: 100
+  feature_optimizer:
+    learning_rate: 0.0005
+    optimizer: adamw
+    weight_decay: 0.01
+  loss: bce_with_logits
+  save_every: 5
+  scheduler: cosine
+  scheduler_params:
+    T_max: 100
+    eta_min: 1e-6
+  source_batch_size: 512
+  target_batch_size: 256
+  validate_every: 1
