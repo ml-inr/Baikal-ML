@@ -152,7 +152,7 @@ with open('normalization_config.yaml', 'r') as f:
 means = torch.tensor(norm_config['means'])
 stds = torch.tensor(norm_config['stds'])
 
-# Your detector hit data (example)
+# Your detector hit data (example of 1 event)
 raw_hits = torch.tensor([
     [0.695, -2336.3, 145.0, 109.8, -172.6],
     [1.234, -1890.1, 120.5, 95.2, -180.1],
@@ -161,11 +161,13 @@ raw_hits = torch.tensor([
 
 # Normalize
 normalized_hits = (raw_hits - means) / stds
-
+# Add 'batch' dimension as axis 0
+input_hits = normalized_hits.unsqueeze(0)
 # Prepare batch
 batch = {
-    'features': normalized_hits.unsqueeze(0),
-    'lengths': torch.tensor([len(normalized_hits)])
+    'features': input_hits,
+    'lengths': torch.tensor([input_hits.shape[1]]),
+    'mask': torch.ones(input_hits.shape[0], input_hits.shape[1], dtype=bool)
 }
 
 # Predict

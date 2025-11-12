@@ -515,8 +515,8 @@ class DomainAdaptationTrainer:
             self.optimizer_classifier.zero_grad()
             self.optimizer_discriminator.zero_grad()
             
-            # Backward pass for classification loss (accumulates gradients)
-            classification_loss.backward(retain_graph=True)
+            # Backward pass for classification loss
+            classification_loss.backward()
             
             # === DOMAIN ADAPTATION TRAINING ===
             # CRITICAL FIX: Use only muon events for domain discrimination

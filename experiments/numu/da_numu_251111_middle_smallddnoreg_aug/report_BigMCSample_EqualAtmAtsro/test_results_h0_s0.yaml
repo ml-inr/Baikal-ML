@@ -1,0 +1,18 @@
+experiment: da_numu_251111_middle_smallddnoreg_aug
+accuracy: 0.897607
+precision: 0.9411708574941138
+recall: 0.848234
+f1_score: 0.8922889840073972
+auc: 0.9697819369
+precision_muon: 0.8618734448180017
+precision_neutrino: 0.9411708574941138
+recall_muon: 0.94698
+recall_neutrino: 0.848234
+confusion_matrix:
+- - 473490
+  - 26510
+- - 75883
+  - 424117
+total_muons: 500000
+total_neutrinos: 500000
+test_events: 1000000

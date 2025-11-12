@@ -8,10 +8,9 @@
 # - Early stopping: Based on source domain classification metrics (val_auc)
 
 experiment:
-  name: "da_numu_251109_middle_progresssteplambda_aug_TEST2"
+  name: "da_numu_251111_middle_smallddnoreg_aug"
   description: "Domain adaptation baseline using DANN for MC→Exp transfer learning"
   seed: 42
-  tags: ["domain_adaptation", "dann", "mc_to_exp", "neutrino_detection"]
 
 # Reproducibility settings
 reproducibility:
@@ -69,7 +68,7 @@ model:
   
   # Classification head
   classifier:
-    hidden_dims: [64, 32]
+    hidden_dims: [32]
     dropout: 0.1
     use_batch_norm: true
 
@@ -77,11 +76,11 @@ model:
 domain_adaptation:
   # Domain discriminator configuration
   domain_discriminator:
-    hidden_dims: [64, 32]
-    dropout: 0.1
-    use_batch_norm: true
+    hidden_dims: [32]
+    dropout: 0.
+    use_batch_norm: false
     use_gradient_reversal: true
-    lambda_factor: 1.0      # Initial lambda value
+    lambda_factor: 0.0      # Initial lambda value
   
   # Lambda scheduling for gradient reversal
   lambda_scheduler:
@@ -117,13 +116,13 @@ training:
   # Classifier optimizer
   classifier_optimizer:
     optimizer: "adamw"
-    learning_rate: 0.001
+    learning_rate: 0.002
     weight_decay: 0.01
   
   # Domain discriminator optimizer
   discriminator_optimizer:
     optimizer: "adamw"
-    learning_rate: 0.01     # Slightly higher LR for discriminator
+    learning_rate: 0.004     # higher LR for discriminator
     weight_decay: 0.01
   
   # Learning rate scheduling
