@@ -92,6 +92,16 @@ Thumbs.db
 mlruns/
 .mlflow/
 
+# TensorBoard
+tensorboard/
+*/tensorboard/
+**/tensorboard/
+runs/
+*/runs/
+**/runs/
+events.out.tfevents.*
+**/events.out.tfevents.*
+
 # Git & Version Control
 *.orig
 *.rej

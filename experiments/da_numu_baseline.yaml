@@ -8,7 +8,7 @@
 # - Early stopping: Based on source domain classification metrics (val_auc)
 
 experiment:
-  name: "da_numu_251111_middle_smallddnoreg_aug"
+  name: "da_numu_251112_small_tinylambdasmallddnoreg_aug_newlr"
   description: "Domain adaptation baseline using DANN for MC→Exp transfer learning"
   seed: 42
 
@@ -57,10 +57,10 @@ model:
   # Feature extractor (shared between domains)
   feature_extractor:
     input_dim: 5            # [amplitude, time, x, y, z]
-    d_model: 128
+    d_model: 64
     num_heads: 4
-    num_layers: 4
-    dim_feedforward: 256
+    num_layers: 2
+    dim_feedforward: 64
     dropout: 0.1
     pooling: "cls"          # "cls", "mean", "max", "attention"
     use_positional_encoding: true
@@ -89,8 +89,8 @@ domain_adaptation:
     # end_lambda: 5.0
     schedule_by: 'step'
     type: "progressive"
-    max_lambda: 1.       # Maximum λ value
-    gamma: 5.0            # For progressive scheduling: λ = 2/(1+exp(-γ*p)) - 1, where p = epoch / total_epochs
+    max_lambda: 0.0001       # Maximum λ value
+    gamma: 10.0            # For progressive scheduling: λ = 2/(1+exp(-γ*p)) - 1, where p = epoch / total_epochs
     # type: "constant"
     # lambda: 1.       # Maximum λ value
     # # gamma: 10.0            # For
@@ -116,13 +116,13 @@ training:
   # Classifier optimizer
   classifier_optimizer:
     optimizer: "adamw"
-    learning_rate: 0.002
+    learning_rate: 0.001
     weight_decay: 0.01
   
   # Domain discriminator optimizer
   discriminator_optimizer:
     optimizer: "adamw"
-    learning_rate: 0.004     # higher LR for discriminator
+    learning_rate: 0.002     # higher LR for discriminator
     weight_decay: 0.01
   
   # Learning rate scheduling

@@ -1,0 +1,130 @@
+best_epoch: 34
+best_metric: 0.9450080509339769
+domain_adaptation_analysis:
+  domain_adaptation_progress: -0.03116782619697278
+  domain_confusion_achieved: true
+  early_domain_accuracy: 0.5388588880703467
+  late_domain_accuracy: 0.5076910618733739
+domain_discriminator_metrics:
+  final_domain_accuracy: 0.5069699719353927
+  final_domain_loss: 0.7073074136837315
+  final_lambda_factor: 0.9866129644732715
+  final_val_domain_accuracy: 0.46303813210265204
+  final_val_domain_loss: 0.6971634301272306
+final_train_metrics:
+  accuracy: 0.8259333333333333
+  auc: 0.9152098954294507
+  class_balance: !!python/object/apply:numpy._core.multiarray.scalar
+  - &id001 !!python/object/apply:numpy.dtype
+    args:
+    - f8
+    - false
+    - true
+    state: !!python/tuple
+    - 3
+    - <
+    - null
+    - null
+    - null
+    - -1
+    - -1
+    - 0
+  - !!binary |
+    HsWU9Rv97z8=
+  f1: 0.8199536772251765
+  false_negatives: 52811
+  false_positives: 35963
+  loss: !!python/object/apply:numpy._core.multiarray.scalar
+  - *id001
+  - !!binary |
+    57m8Lcg41z8=
+  positive_class_ratio: !!python/object/apply:numpy._core.multiarray.scalar
+  - *id001
+  - !!binary |
+    ywgT6o3+3z8=
+  precision: 0.848962861234655
+  precision_muon: !!python/object/apply:numpy._core.multiarray.scalar
+  - *id001
+  - !!binary |
+    ZhSjvNTI6T8=
+  precision_neutrino: !!python/object/apply:numpy._core.multiarray.scalar
+  - *id001
+  - !!binary |
+    ja+QKbQq6z8=
+  recall: 0.7928614853601615
+  sensitivity: !!python/object/apply:numpy._core.multiarray.scalar
+  - *id001
+  - !!binary |
+    8ye8DB9f6T8=
+  specificity: !!python/object/apply:numpy._core.multiarray.scalar
+  - *id001
+  - !!binary |
+    fxOg9d986z8=
+  total_muons: 255045
+  total_neutrinos: 254955
+  true_negatives: 219082
+  true_positives: 202144
+final_val_metrics:
+  accuracy: 0.7791666666666667
+  auc: 0.9072334129124253
+  class_balance: !!python/object/apply:numpy._core.multiarray.scalar
+  - *id001
+  - !!binary |
+    E1zY4qHv7z8=
+  f1: 0.7248182762201454
+  false_negatives: 18870
+  false_positives: 1005
+  loss: !!python/object/apply:numpy._core.multiarray.scalar
+  - *id001
+  - !!binary |
+    o4su8Ztb4z8=
+  positive_class_ratio: !!python/object/apply:numpy._core.multiarray.scalar
+  - *id001
+  - !!binary |
+    arx0kxgE4D8=
+  precision: 0.9630242825607064
+  precision_muon: !!python/object/apply:numpy._core.multiarray.scalar
+  - *id001
+  - !!binary |
+    O8kfMkVj5j8=
+  precision_neutrino: !!python/object/apply:numpy._core.multiarray.scalar
+  - *id001
+  - !!binary |
+    YUTbTBjR7j8=
+  recall: 0.5810855810855811
+  sensitivity: !!python/object/apply:numpy._core.multiarray.scalar
+  - *id001
+  - !!binary |
+    PhLeyUCY4j8=
+  specificity: !!python/object/apply:numpy._core.multiarray.scalar
+  - *id001
+  - !!binary |
+    OJ/YuNxI7z8=
+  total_muons: 44955
+  total_neutrinos: 45045
+  true_negatives: 43950
+  true_positives: 26175
+model_parameters:
+  base_model: 53185
+  domain_discriminator: 2113
+  total: 55298
+normalization_config:
+  feature_names:
+  - amplitude
+  - time
+  - x
+  - y
+  - z
+  means:
+  - 2.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  stds:
+  - 60.0
+  - 1370.0
+  - 40.0
+  - 40.0
+  - 150.0
+total_epochs: 50
