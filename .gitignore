@@ -1,8 +1,13 @@
-# Python
+# ============================================================
+# Python Build & Cache
+# ============================================================
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
+*.pyc
+*.pyo
+*.pyd
 .Python
 build/
 develop-eggs/
@@ -19,9 +24,10 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-*.pyc
-*.pyo
-*.pyd
+
+# ============================================================
+# Virtual Environments
+# ============================================================
 .env
 .venv
 env/
@@ -30,13 +36,34 @@ ENV/
 env.bak/
 venv.bak/
 
-# Jupyter Notebook
-.ipynb_checkpoints
-*.ipynb_checkpoints/
+# ============================================================
+# Jupyter Notebooks
+# ============================================================
+.ipynb_checkpoints/
 *.ipynb
 
-# PyTorch & ML
+# ============================================================
+# Data Files
+# ============================================================
+*.h5
+*.hdf5
+*.root
+*.npz
+*.npy
+*.parquet
+
+data/large/
+data/raw/
+data/processed/
+datasets/
+/data_manager/data
+/data_manager/h5_catalogs
+
+# ============================================================
+# ML Artifacts (models, checkpoints, weights)
+# ============================================================
 *.pth
+*.ckpt
 *.pt
 *.pkl
 *.pickle
@@ -44,18 +71,9 @@ venv.bak/
 *.weights
 *.onnx
 
-# Data files (keep small test files, ignore large datasets)
-*.h5
-*.hdf5
-*.root
-*.npz
-*.npy
-data/large/
-data/raw/
-data/processed/
-datasets/
-
+# ============================================================
 # Experiments & Results
+# ============================================================
 experiments/*/checkpoints/
 experiments/*/logs/
 experiments/*/results/
@@ -63,50 +81,59 @@ experiments/*/*.csv
 experiments/*/*.pth
 experiments/*/*.pkl
 results/
-logs/
-runs/
 outputs/
 checkpoints/
 
-# Conda & Package Management
+# ============================================================
+# Tracking & Logging (TensorBoard, ClearML, MLflow)
+# ============================================================
+*.log
+**/events.out.tfevents.*
+**/tensorboard/
+**/runs/
+.clearml/
+mlruns/
+.mlflow/
+
+# ============================================================
+# Package Management (Conda)
+# ============================================================
 .conda/
 *.conda
-environment.lock
 conda-meta/
+environment.lock
+environment.yml
 
-# IDE
+# ============================================================
+# IDE & Editor
+# ============================================================
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# OS
+# ============================================================
+# OS & Temp Files
+# ============================================================
 .DS_Store
 Thumbs.db
 *.tmp
 *.temp
+*.zip
+*.tar.gz
+*.7z
+*.rar
 
-# ClearML & MLflow
-.clearml/
-mlruns/
-.mlflow/
-
-# TensorBoard
-tensorboard/
-*/tensorboard/
-**/tensorboard/
-runs/
-*/runs/
-**/runs/
-events.out.tfevents.*
-**/events.out.tfevents.*
-
-# Git & Version Control
+# ============================================================
+# Version Control
+# ============================================================
 *.orig
 *.rej
 
+# ============================================================
 # Testing
+# ============================================================
 .pytest_cache/
 .coverage
 htmlcov/
@@ -115,12 +142,35 @@ htmlcov/
 nosetests.xml
 coverage.xml
 *.cover
+ManualTests
 
-# Documentation
+# ============================================================
+# Documentation Build
+# ============================================================
 docs/_build/
 .readthedocs.yml
 
-# Project planning and development docs (exclude from repo)
+# ============================================================
+# Project Assets (configs, scripts, images — tracked selectively)
+# ============================================================
+*.yaml
+*.yml
+*.md
+*.txt
+*.csv
+*.png
+*.sh
+*.envrc
+
+archive/
+Archive/
+scratch/
+temp/
+tmp/
+
+# ============================================================
+# Project-Specific Development Docs
+# ============================================================
 CLAUDE.md
 vision.md
 conventions.md
@@ -132,17 +182,5 @@ doc/tasklist.md
 doc/data_format.md
 Встречи.md
 
-# Keep technical documentation
+# Exception: keep this technical reference doc
 !doc/hdf5_format.md
-
-# Large files that shouldn't be in git
-*.log
-*.zip
-*.tar.gz
-*.7z
-*.rar
-
-# Temporary analysis files
-scratch/
-temp/
-tmp/
