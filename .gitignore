@@ -51,6 +51,7 @@ venv.bak/
 *.npz
 *.npy
 *.parquet
+*.arrow
 
 data/large/
 data/raw/
@@ -142,6 +143,7 @@ htmlcov/
 nosetests.xml
 coverage.xml
 *.cover
+test*.py
 ManualTests
 
 # ============================================================
@@ -181,6 +183,7 @@ doc/workflow.md
 doc/tasklist.md
 doc/data_format.md
 Встречи.md
+memory
 
 # Exception: keep this technical reference doc
 !doc/hdf5_format.md

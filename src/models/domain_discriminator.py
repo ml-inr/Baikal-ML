@@ -256,8 +256,13 @@ class DomainAdaptationModel(nn.Module):
         """
         # Extract features using base model
         features = self.base_model.get_feature_representation(batch)
-        
-        # Domain prediction with gradient reversal
+
+        # When GRL is disabled, detach features so domain loss gradients do not
+        # leak into the feature extractor — discriminator trains as standalone.
+        if not self.domain_discriminator.use_gradient_reversal:
+            features = features.detach()
+
+        # Domain prediction with gradient reversal (or detached features)
         domain_logits = self.domain_discriminator(features)
         
         return domain_logits, features

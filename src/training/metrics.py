@@ -56,7 +56,7 @@ class BinaryClassificationMetrics:
         with torch.no_grad():
             probs = torch.sigmoid(logits).cpu().numpy().flatten()
             preds = (probs > 0.5).astype(int)
-            true_labels = labels.cpu().numpy().astype(int).flatten()
+            true_labels = (labels.cpu().numpy() > 0.5).astype(int).flatten()
             
             self.predictions.extend(preds.tolist())
             self.labels.extend(true_labels.tolist())
@@ -197,7 +197,7 @@ def calculate_class_weights(labels: torch.Tensor) -> torch.Tensor:
     Returns:
         Class weights tensor [2] for [negative_class, positive_class]
     """
-    labels_np = labels.cpu().numpy().astype(int)
+    labels_np = (labels.cpu().numpy() > 0.5).astype(int)
     positive_count = np.sum(labels_np)
     negative_count = len(labels_np) - positive_count
     total_count = len(labels_np)
@@ -219,29 +219,109 @@ def calculate_class_weights(labels: torch.Tensor) -> torch.Tensor:
 
 
 def binary_cross_entropy_with_logits_weighted(
-    logits: torch.Tensor, 
-    targets: torch.Tensor, 
+    logits: torch.Tensor,
+    targets: torch.Tensor,
     pos_weight: Optional[torch.Tensor] = None
 ) -> torch.Tensor:
     """
     Weighted binary cross-entropy loss with logits.
-    
+
     Args:
         logits: Model logits [batch_size, 1]
         targets: Binary targets [batch_size] (0 or 1)
         pos_weight: Weight for positive class (optional)
-        
+
     Returns:
         Loss value
     """
     targets = targets.float().view(-1, 1)
     logits = logits.view(-1, 1)
-    
+
     loss = F.binary_cross_entropy_with_logits(
         logits, targets, pos_weight=pos_weight, reduction='mean'
     )
-    
+
     return loss
+
+
+def focal_loss_with_logits_weighted(
+    logits: torch.Tensor,
+    targets: torch.Tensor,
+    gamma: float = 2.0,
+    pos_weight: Optional[torch.Tensor] = None,
+) -> torch.Tensor:
+    """Focal loss with logits, optional positive class weighting.
+
+    FL(p_t) = -alpha_t * (1 - p_t)^gamma * log(p_t)
+
+    Args:
+        logits: Model logits [batch_size, 1]
+        targets: Binary targets [batch_size] (0 or 1)
+        gamma: Focusing exponent. 0 = standard BCE, 2 = default focal.
+        pos_weight: Alpha weight for positive class (optional).
+
+    Returns:
+        Scalar loss value.
+    """
+    targets = targets.float().view(-1, 1)
+    logits = logits.view(-1, 1)
+
+    # Per-element BCE (no pos_weight yet — needed for clean p_t computation)
+    bce = F.binary_cross_entropy_with_logits(logits, targets, reduction='none')
+    # p_t = sigmoid(logit) for pos, 1-sigmoid for neg
+    p_t = torch.exp(-bce)
+    loss = (1.0 - p_t) ** gamma * bce
+
+    if pos_weight is not None:
+        alpha = torch.where(targets == 1, pos_weight, torch.ones_like(targets))
+        loss = alpha * loss
+
+    return loss.mean()
+
+
+def soft_focal_loss_with_logits(
+    logits: torch.Tensor,
+    targets: torch.Tensor,
+    gamma: float = 2.0,
+    pos_weight: Optional[torch.Tensor] = None,
+) -> torch.Tensor:
+    """Focal loss for soft (continuous) labels in [0, 1].
+
+    Replaces the standard (1 - p_t)^gamma focusing term with a normalized
+    residual weight that correctly vanishes when the model matches the soft label:
+
+        w = (|target - p| / max(target, 1 - target))^gamma
+
+    For hard labels (target in {0, 1}) this is equivalent to the standard focal
+    loss. For soft labels the weight is zero when p == target and peaks at 1 when
+    the model is maximally wrong, regardless of the label value.
+
+    Args:
+        logits:     Model logits [batch_size, 1].
+        targets:    Soft targets [batch_size], values in [0, 1].
+        gamma:      Focusing exponent. 0 = weighted BCE, 2 = default focal.
+        pos_weight: Alpha weight applied to samples with target >= 0.5 (optional).
+
+    Returns:
+        Scalar loss value.
+    """
+    targets = targets.float().view(-1, 1)
+    logits  = logits.view(-1, 1)
+
+    bce = F.binary_cross_entropy_with_logits(logits, targets, reduction='none')
+    p   = torch.sigmoid(logits)
+
+    # Normalise so the weight always spans [0, 1] regardless of label softness
+    max_residual = torch.maximum(targets, 1.0 - targets).clamp(min=1e-6)
+    focal_weight = ((targets - p).abs() / max_residual) ** gamma
+
+    loss = focal_weight * bce
+
+    if pos_weight is not None:
+        alpha = torch.where(targets >= 0.5, pos_weight, torch.ones_like(targets))
+        loss  = alpha * loss
+
+    return loss.mean()
 
 
 class MetricsTracker:

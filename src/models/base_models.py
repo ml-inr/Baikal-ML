@@ -16,6 +16,10 @@ import torch.nn.functional as F
 
 logger = logging.getLogger(__name__)
 
+# Normalized amplitude clip threshold corresponding to Q=100 PE.
+# Computed as (Q_max - amp_mean) / amp_std = (100 - 2) / 60 ≈ 1.633.
+_AMP_CLIP_Q100: float = 98.0 / 60.0
+
 
 class PositionalEncoding(nn.Module):
     """
@@ -323,9 +327,10 @@ class NuMuClassifierModel(nn.Module):
     
     def __init__(self, config: Dict):
         super().__init__()
-        
+
         self.config = config
-        
+        self.amp_clip: Optional[float] = config.get('amp_clip', _AMP_CLIP_Q100)
+
         # Feature extractor
         feature_config = config.get('feature_extractor', {})
         self.feature_extractor = AttentionFeatureExtractor(
@@ -351,42 +356,61 @@ class NuMuClassifierModel(nn.Module):
         
         logger.info(f"Created StandardNeutrinoModel with {self.count_parameters()} parameters")
     
+    def _clip_amplitude(
+        self,
+        batch: Dict[str, torch.Tensor],
+        amp_clip: Optional[float],
+    ) -> Dict[str, torch.Tensor]:
+        """Clip the amplitude channel (index 0) on real hits only.
+
+        Args:
+            batch: Batch dict with 'features' (B, L, 5) and 'mask' (B, L).
+            amp_clip: Upper bound in normalized space. None = no clipping.
+
+        Returns:
+            Batch dict with clipped features (new tensor, original unchanged).
+        """
+        if amp_clip is None:
+            return batch
+        features = batch['features'].clone()
+        amp = features[:, :, 0]
+        features[:, :, 0] = torch.where(batch['mask'], amp.clamp(max=amp_clip), amp)
+        return {**batch, 'features': features}
+
     def forward(self, batch: Dict[str, torch.Tensor]) -> torch.Tensor:
         """
         Forward pass through complete model.
-        
+
         Args:
-            batch: Batch dict containing 'features', 'lengths', 'mask'
-            
+            batch: Batch dict containing 'features', 'lengths', 'mask'.
+
         Returns:
             logits: Binary classification logits [batch_size, 1]
         """
-        # Extract features from sequences using attention
+        batch = self._clip_amplitude(batch, self.amp_clip)
         features = self.feature_extractor(
             sequences=batch['features'],
             lengths=batch['lengths'],
             mask=batch['mask']
         )
-        
-        # Binary classification
         logits = self.classifier(features)
-        
         return logits
-    
+
     def count_parameters(self) -> int:
         """Count total number of trainable parameters."""
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
-    
+
     def get_feature_representation(self, batch: Dict[str, torch.Tensor]) -> torch.Tensor:
         """
-        Get feature representation without classification (useful for DA later).
-        
+        Get feature representation without classification (useful for DA).
+
         Args:
-            batch: Batch dict containing 'features', 'lengths', 'mask'
-            
+            batch: Batch dict containing 'features', 'lengths', 'mask'.
+
         Returns:
             features: Feature representation [batch_size, feature_dim]
         """
+        batch = self._clip_amplitude(batch, self.amp_clip)
         return self.feature_extractor(
             sequences=batch['features'],
             lengths=batch['lengths'],

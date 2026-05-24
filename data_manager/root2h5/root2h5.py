@@ -80,6 +80,14 @@ def get_multi_mask(active_clusters, num_un_clusters):
     mask = num_un_clusters != 1
     return mask, [ac for ac, m in zip(active_clusters, mask) if m]
 
+def _make_object_array(lst):
+    """Build a 1-D object array from a list of arrays, always ragged-safe."""
+    arr = np.empty(len(lst), dtype=object)
+    for i, x in enumerate(lst):
+        arr[i] = x
+    return arr
+
+
 # Splits data for multi cluster events into single clusters
 def flatten_multi(datas, channels, cluster_ids_multi):
     ress = []
@@ -213,7 +221,7 @@ def process_file(args_q, result_q, do_quit):
                 if split_multi:    
                     data_multi = [d[mask_multi] for d in data]
                     data_multi = flatten_multi(data_multi, channels[mask_multi], cluster_ids_multi)
-                    data_multi = [np.array(d, dtype=object) for d in data_multi]
+                    data_multi = [_make_object_array(d) for d in data_multi]
                     num_channels_multi = np.array([ len(chs) for chs in data_multi[-1] ])
                     # for muons, we need to keep tham all for multicluster events 
                     num_resp_mu_multi = cast_to_single( num_resp_mu, mask_single, mask_multi, nums_multi, take_single_cluster, split_multi )

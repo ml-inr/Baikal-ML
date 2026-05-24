@@ -13,7 +13,7 @@ def get_smallest_tres(t_res: np.ndarray, n: int) -> np.ndarray:
     t_res = np.reshape( t_res, (-1,n), order='F' )
     t_res_idxs = np.argmin( np.abs( t_res ), axis=1, keepdims=True )
     t_res = np.take_along_axis( t_res, t_res_idxs, 1)
-    return np.squeeze(t_res)
+    return np.atleast_1d(np.squeeze(t_res))
 
 def eval_tres(
     mus: np.ndarray,
