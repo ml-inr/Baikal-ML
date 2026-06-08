@@ -37,10 +37,11 @@ STRING_DIVISOR = 36
 
 class EventLocation(NamedTuple):
     """Where to find an event's hits in the source HDF5 file."""
-    particle_type: str   # e.g. "muatm_2020"
-    part_key: str        # e.g. "part_0"
-    hit_start: int       # within the part
+    particle_type: str       # e.g. "muatm_2020"
+    part_key: str            # e.g. "part_0"
+    hit_start: int           # within the part
     hit_end: int
+    event_idx_in_part: int   # 0-based local index within the h5 part
 
 
 # ---------------------------------------------------------------------------
@@ -212,6 +213,7 @@ def read_all_metadata(
                     part_key=pk,
                     hit_start=int(meta["hit_starts"][j]),
                     hit_end=int(meta["hit_ends"][j]),
+                    event_idx_in_part=j,
                 ))
 
             if (i + 1) % 20 == 0 or i == n_parts - 1:

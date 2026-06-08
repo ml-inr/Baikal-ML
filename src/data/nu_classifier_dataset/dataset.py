@@ -16,14 +16,15 @@ Expected directory layout::
 """
 
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import torch
-from torch.utils.data import Dataset
+
+from src.data.base_npy_dataset import BaseNpyDataset
 
 
-class NuClassifierNpyDataset(Dataset):
+class NuClassifierNpyDataset(BaseNpyDataset):
     """Zero-copy dataset backed by memory-mapped .npy files.
 
     Args:
@@ -57,22 +58,9 @@ class NuClassifierNpyDataset(Dataset):
         self.probs: Optional[np.ndarray] = (
             np.load(npy_dir / "probs.npy", mmap_mode="r") if include_probs else None
         )
-
         self.max_hits = max_hits
 
-        if indices is not None:
-            self._indices = indices.astype(np.int64)
-        else:
-            self._indices = np.arange(len(self.labels), dtype=np.int64)
-
-        if max_events is not None and max_events < len(self._indices):
-            rng = np.random.RandomState(seed)
-            sel = rng.choice(len(self._indices), size=max_events, replace=False)
-            sel.sort()
-            self._indices = self._indices[sel]
-
-    def __len__(self) -> int:
-        return len(self._indices)
+        self._init_indices(len(self.labels), max_events, seed, indices)
 
     def __getitem__(self, idx: int) -> Dict[str, Any]:
         real_idx = self._indices[idx]
@@ -88,9 +76,9 @@ class NuClassifierNpyDataset(Dataset):
             length = n_hits
 
         if self.include_probs:
-            p_end  = start + length
-            probs  = np.array(self.probs[start:p_end]).reshape(-1, 1)
-            hits   = np.concatenate([hits, probs], axis=1)
+            p_end = start + length
+            probs = np.array(self.probs[start:p_end]).reshape(-1, 1)
+            hits  = np.concatenate([hits, probs], axis=1)
 
         return {
             "features":            torch.from_numpy(hits),
@@ -102,35 +90,9 @@ class NuClassifierNpyDataset(Dataset):
             "particle_type":       int(self.particle_types[real_idx]),
         }
 
-    # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
-
-    def split(
-        self, train_frac: float, seed: int = 42
-    ) -> "tuple[NuClassifierNpyDataset, NuClassifierNpyDataset]":
-        """Return (train, val) views sharing the same mmap files."""
-        rng    = np.random.RandomState(seed)
-        perm   = rng.permutation(len(self._indices))
-        n_train = int(len(perm) * train_frac)
-
-        train_ds = NuClassifierNpyDataset.__new__(NuClassifierNpyDataset)
-        val_ds   = NuClassifierNpyDataset.__new__(NuClassifierNpyDataset)
-
-        for ds in (train_ds, val_ds):
-            ds.features       = self.features
-            ds.offsets        = self.offsets
-            ds.labels         = self.labels
-            ds.n_sig_hits     = self.n_sig_hits
-            ds.n_sig_strings  = self.n_sig_strings
-            ds.particle_types = self.particle_types
-            ds.max_hits       = self.max_hits
-            ds.include_probs  = self.include_probs
-            ds.probs          = self.probs
-
-        train_ds._indices = self._indices[perm[:n_train]]
-        val_ds._indices   = self._indices[perm[n_train:]]
-        return train_ds, val_ds
-
-    def get_all_labels(self) -> np.ndarray:
-        return self.labels[self._indices]
+    def _split_attrs(self) -> List[str]:
+        return [
+            "features", "offsets", "labels",
+            "n_sig_hits", "n_sig_strings", "particle_types",
+            "max_hits", "include_probs", "probs",
+        ]

@@ -1,5 +1,21 @@
+from pathlib import Path
+
 import numpy as np
 from dataclasses import dataclass
+
+# ── Catalog ────────────────────────────────────────────────────────────────
+# Generated artifact — not committed to git.
+CATALOG_PATH = Path(__file__).parent / "catalog_v2.duckdb"
+
+# ── Known H5 paths ─────────────────────────────────────────────────────────
+_DATA = Path(__file__).parent / "data" / "h5datasets"
+H5_EXP_PATH       = _DATA / "exp.h5"
+H5_EXP_RECO_PATH  = _DATA / "exp_reco.h5"
+
+# ROOT source directories (local copies only)
+_ROOT = Path(__file__).parent / "data"
+ROOT_EXP_DIR      = _ROOT / "exp_root"
+ROOT_EXP_RECO_DIR = _ROOT / "exp_reco_root"
 
 
 @dataclass

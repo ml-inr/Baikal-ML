@@ -31,6 +31,7 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from src.models.base_models import create_model
+from src.utils.training import set_reproducible_seeds
 from src.models.domain_discriminator import create_da_model
 from src.data.nu_classifier_dataset import (
     NuClassifierNpyDataset,
@@ -48,11 +49,6 @@ from src.training.metrics import (
 logger = logging.getLogger(__name__)
 
 
-def set_reproducible_seeds(seed: int) -> None:
-    torch.manual_seed(seed)
-    np.random.seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(seed)
 
 
 class NuClassifierDomainAdaptationTrainer:
@@ -561,9 +557,7 @@ class NuClassifierDomainAdaptationTrainer:
             tgt_feat_flip_aug[:, :, 4] = torch.where(
                 tgt_mask, -tgt_feat_orig[:, :, 4], tgt_feat_orig[:, :, 4]
             )
-            tgt_feat_flip_aug, tgt_mask_flip_aug = self._augment_features(
-                tgt_feat_flip_aug, tgt_mask.clone()
-            )
+            tgt_mask_flip_aug = tgt_mask.clone()
 
             tgt_features_cat = torch.cat([tgt_feat_orig, tgt_feat_flip_aug], dim=0)
             tgt_lengths_cat  = torch.cat([target_batch["lengths"], target_batch["lengths"]], dim=0)
@@ -746,9 +740,7 @@ class NuClassifierDomainAdaptationTrainer:
                 tgt_feat_flip_aug[:, :, 4] = torch.where(
                     tgt_mask, -tgt_feat_orig[:, :, 4], tgt_feat_orig[:, :, 4]
                 )
-                tgt_feat_flip_aug, tgt_mask_flip_aug = self._augment_features(
-                    tgt_feat_flip_aug, tgt_mask.clone()
-                )
+                tgt_mask_flip_aug = tgt_mask.clone()
                 tgt_features_cat = torch.cat([tgt_feat_orig, tgt_feat_flip_aug], dim=0)
                 tgt_lengths_cat  = torch.cat([tb["lengths"], tb["lengths"]], dim=0)
                 tgt_mask_cat     = torch.cat([tgt_mask, tgt_mask_flip_aug], dim=0)

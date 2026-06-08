@@ -31,6 +31,7 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from src.models.base_models import create_model
+from src.utils.training import set_reproducible_seeds
 from src.models.domain_discriminator import create_da_model
 from src.data.prefilter_npy_dataset import (
     PrefilterNpyDataset,
@@ -41,16 +42,13 @@ from src.training.metrics import (
     MetricsTracker,
     calculate_class_weights,
     binary_cross_entropy_with_logits_weighted,
+    focal_loss_with_logits_weighted,
+    soft_focal_loss_with_logits,
 )
 
 logger = logging.getLogger(__name__)
 
 
-def set_reproducible_seeds(seed: int) -> None:
-    torch.manual_seed(seed)
-    np.random.seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(seed)
 
 
 class PrefilterDomainAdaptationTrainer:
@@ -241,7 +239,20 @@ class PrefilterDomainAdaptationTrainer:
 
     def prepare_model(self) -> None:
         logger.info("Preparing model …")
-        self.base_model = create_model(self.config["model"])
+        model_config = dict(self.config["model"])  # shallow copy — don't mutate original
+
+        # Convert amp_clip from raw Q (PE) to normalized space
+        raw_clip = model_config.get("amp_clip")
+        if raw_clip is not None and self.normalization_config is not None:
+            mean_amp = self.normalization_config["means"][0]
+            std_amp = self.normalization_config["stds"][0]
+            model_config["amp_clip"] = (raw_clip - mean_amp) / std_amp
+            logger.info(
+                f"amp_clip: Q={raw_clip} PE → normalized={model_config['amp_clip']:.4f} "
+                f"(mean={mean_amp}, std={std_amp})"
+            )
+
+        self.base_model = create_model(model_config)
         self.base_model.to(self.device)
 
         self.da_model = create_da_model(
@@ -323,6 +334,24 @@ class PrefilterDomainAdaptationTrainer:
             self.scheduler_discriminator = optim.lr_scheduler.StepLR(
                 self.optimizer_discriminator, step_size=ss, gamma=g,
             )
+        elif stype == "plateau":
+            sp = tcfg.get("scheduler_params", {})
+            mode = sp.get("mode", "max")
+            factor = float(sp.get("factor", 0.5))
+            patience = int(sp.get("patience", 5))
+            min_lr = float(sp.get("min_lr", 1e-6))
+            self.scheduler_feature = optim.lr_scheduler.ReduceLROnPlateau(
+                self.optimizer_feature, mode=mode, factor=factor,
+                patience=patience, min_lr=min_lr,
+            )
+            self.scheduler_classifier = optim.lr_scheduler.ReduceLROnPlateau(
+                self.optimizer_classifier, mode=mode, factor=factor,
+                patience=patience, min_lr=min_lr,
+            )
+            self.scheduler_discriminator = optim.lr_scheduler.ReduceLROnPlateau(
+                self.optimizer_discriminator, mode=mode, factor=factor,
+                patience=patience, min_lr=min_lr,
+            )
 
     # -- Lambda scheduling ------------------------------------------------
 
@@ -366,7 +395,21 @@ class PrefilterDomainAdaptationTrainer:
             else:
                 w = self.class_weights.to(self.device)
             pos_weight = w[1] / w[0]
-        return binary_cross_entropy_with_logits_weighted(logits, labels, pos_weight)
+
+        loss_fn = tcfg.get("classification_loss", "bce")
+        if loss_fn == "bce":
+            return binary_cross_entropy_with_logits_weighted(logits, labels, pos_weight)
+        elif loss_fn == "focal":
+            gamma = float(tcfg.get("focal_gamma", 2.0))
+            return focal_loss_with_logits_weighted(logits, labels, gamma, pos_weight)
+        elif loss_fn == "soft_focal":
+            gamma = float(tcfg.get("focal_gamma", 2.0))
+            return soft_focal_loss_with_logits(logits, labels, gamma, pos_weight)
+        else:
+            raise ValueError(
+                f"Unknown classification_loss: '{loss_fn}'. "
+                "Expected 'bce', 'focal', or 'soft_focal'."
+            )
 
     # -- Signal-hits subset metrics ---------------------------------------
 
@@ -405,23 +448,83 @@ class PrefilterDomainAdaptationTrainer:
                 metrics[f"cls_events_{tag}"] = 0
         return metrics
 
+    # -- Augmentation helper ----------------------------------------------
+
+    def _augment_features(
+        self,
+        features: torch.Tensor,
+        mask: torch.Tensor,
+    ):
+        """Apply rotation + gaussian noise augmentation to a padded feature batch.
+
+        Mirrors the collate augmentation logic. Returns (features, mask) — mask
+        may change due to time re-sorting.
+
+        Args:
+            features: (B, L, 5) padded feature tensor on self.device.
+            mask: (B, L) bool mask (True = real hit).
+
+        Returns:
+            (augmented_features, augmented_mask)
+        """
+        aug_cfg = self.config.get("dataloader", {}).get("augmentation")
+        if aug_cfg is None:
+            return features, mask
+
+        features = features.clone()
+        batch_size = features.shape[0]
+
+        # Rotation around z-axis
+        if aug_cfg.get("rotation_enabled", False):
+            angles = torch.rand(batch_size, device=self.device) * 2 * math.pi
+            cos_a = torch.cos(angles)
+            sin_a = torch.sin(angles)
+            x = features[:, :, 2].clone()
+            y = features[:, :, 3].clone()
+            x_rot = cos_a[:, None] * x - sin_a[:, None] * y
+            y_rot = sin_a[:, None] * x + cos_a[:, None] * y
+            features[:, :, 2] = torch.where(mask, x_rot, features[:, :, 2])
+            features[:, :, 3] = torch.where(mask, y_rot, features[:, :, 3])
+
+        # Gaussian noise + re-sort by time
+        noise_std_list = aug_cfg.get("noise_std")
+        if noise_std_list is not None:
+            noise_std = torch.tensor(
+                noise_std_list, dtype=torch.float32, device=self.device
+            )
+            noise = torch.randn_like(features) * noise_std
+            features = torch.where(mask.unsqueeze(-1), features + noise, features)
+
+            time_for_sort = features[:, :, 1].masked_fill(~mask, float("inf"))
+            sort_idx = time_for_sort.argsort(dim=1)
+            sort_idx_exp = sort_idx.unsqueeze(-1).expand(-1, -1, features.shape[2])
+            features = features.gather(dim=1, index=sort_idx_exp)
+            mask = mask.gather(dim=1, index=sort_idx)
+
+        return features, mask
+
     # -- Training epoch ---------------------------------------------------
 
     def train_epoch(self) -> Dict[str, float]:
         self.da_model.train()
         self.metrics_tracker.reset_epoch()
 
+        import itertools
+
         total_epochs = self.config["training"]["epochs"]
-        total_steps = total_epochs * min(
-            len(self.source_train_loader), len(self.target_train_loader)
-        )
+        n_src = len(self.source_train_loader)
+        n_tgt = len(self.target_train_loader)
+        total_batches = max(n_src, n_tgt)
+        total_steps = total_epochs * total_batches
         log_every = self.config["logging"].get("log_every", 10)
 
-        source_iter = iter(self.source_train_loader)
-        target_iter = iter(self.target_train_loader)
-        total_batches = min(
-            len(self.source_train_loader), len(self.target_train_loader)
-        )
+        # Cycle the smaller loader so the larger one drives epoch length
+        if n_src >= n_tgt:
+            source_iter = iter(self.source_train_loader)
+            target_iter = itertools.cycle(self.target_train_loader)
+        else:
+            source_iter = itertools.cycle(self.source_train_loader)
+            target_iter = iter(self.target_train_loader)
 
         epoch_metrics = {
             "classification_loss": 0.0,
@@ -443,11 +546,8 @@ class PrefilterDomainAdaptationTrainer:
         all_source_signal_hits: List[torch.Tensor] = []
 
         for batch_idx in range(total_batches):
-            try:
-                source_batch = next(source_iter)
-                target_batch = next(target_iter)
-            except StopIteration:
-                break
+            source_batch = next(source_iter)
+            target_batch = next(target_iter)
 
             # Move to device
             for b in (source_batch, target_batch):
@@ -483,48 +583,65 @@ class PrefilterDomainAdaptationTrainer:
 
             classification_loss.backward()
 
-            # === Domain adaptation (muon events only) ===
-            # Filter by particle type (0=muatm), not soft label — low-signal
-            # neutrino events (label < 0.5) must not enter domain training since
-            # exp data contains no neutrinos.
-            source_bg_mask = (source_batch["particle_types"] == 0).squeeze()
-            n_source_bg = int(source_bg_mask.sum().item())
-            n_target = target_batch["features"].shape[0]
+            # === Domain adaptation (all MC events vs exp original + z-flipped) ===
+            # Source: all MC events (nu + mu) — not filtered by particle type.
+            # Target: exp batch concatenated with z-flipped copy (inverted z coord),
+            #         representing hypothetical upgoing events in experimental data.
+            # Both target variants get label=1 (target domain).
+            n_source = source_batch["features"].shape[0]
 
-            if n_source_bg == 0:
-                # Rare: no background in this source batch — skip domain step
-                epoch_metrics["classification_loss"] += classification_loss.item()
-                self.optimizer_feature.step()
-                self.optimizer_classifier.step()
-                self.optimizer_discriminator.step()
-                self.current_step += 1
-                continue
+            # Build z-flipped + augmented target half
+            tgt_feat_orig = target_batch["features"]
+            tgt_mask = target_batch["mask"]
+            tgt_feat_flip_aug = tgt_feat_orig.clone()
+            tgt_feat_flip_aug[:, :, 4] = torch.where(
+                tgt_mask, -tgt_feat_orig[:, :, 4], tgt_feat_orig[:, :, 4]
+            )
 
-            domain_bs = min(n_source_bg, n_target)
+            tgt_mask_flip_aug = tgt_mask.clone()
 
-            # Sample balanced domain sub-batches
-            src_bg_idx = torch.where(source_bg_mask)[0]
-            if n_source_bg > domain_bs:
-                sel_src = src_bg_idx[
-                    torch.randperm(n_source_bg, device=self.device)[:domain_bs]
-                ]
+            # Concatenate original and augmented z-flipped target
+            tgt_features_cat = torch.cat([tgt_feat_orig, tgt_feat_flip_aug], dim=0)
+            tgt_lengths_cat = torch.cat(
+                [target_batch["lengths"], target_batch["lengths"]], dim=0
+            )
+            tgt_mask_cat = torch.cat([tgt_mask, tgt_mask_flip_aug], dim=0)
+            n_target = tgt_features_cat.shape[0]  # 2 * original target batch size
+
+            domain_bs = min(n_source, n_target)
+
+            # Subsample if needed (source and target are typically equal after concat)
+            if n_source > domain_bs:
+                sel_src = torch.randperm(n_source, device=self.device)[:domain_bs]
             else:
-                sel_src = src_bg_idx
+                sel_src = torch.arange(n_source, device=self.device)
 
             if n_target > domain_bs:
                 sel_tgt = torch.randperm(n_target, device=self.device)[:domain_bs]
             else:
                 sel_tgt = torch.arange(n_target, device=self.device)
 
+            src_features = source_batch["features"][sel_src].clone()
+            src_mask = source_batch["mask"][sel_src]
+
+            # Randomly flip z (feature index 4) for half the source events
+            n_flip = domain_bs // 2
+            flip_idx = torch.randperm(domain_bs, device=self.device)[:n_flip]
+            src_features[flip_idx, :, 4] = torch.where(
+                src_mask[flip_idx],
+                -src_features[flip_idx, :, 4],
+                src_features[flip_idx, :, 4],
+            )
+
             src_dom_batch = {
-                "features": source_batch["features"][sel_src],
+                "features": src_features,
                 "lengths": source_batch["lengths"][sel_src],
-                "mask": source_batch["mask"][sel_src],
+                "mask": src_mask,
             }
             tgt_dom_batch = {
-                "features": target_batch["features"][sel_tgt],
-                "lengths": target_batch["lengths"][sel_tgt],
-                "mask": target_batch["mask"][sel_tgt],
+                "features": tgt_features_cat[sel_tgt],
+                "lengths": tgt_lengths_cat[sel_tgt],
+                "mask": tgt_mask_cat[sel_tgt],
             }
 
             src_dom_logits, _ = self.da_model.domain_forward(src_dom_batch)
@@ -543,7 +660,7 @@ class PrefilterDomainAdaptationTrainer:
             ) / 2
 
             # Normalize by utilization rate
-            src_util = domain_bs / n_source_bg
+            src_util = domain_bs / n_source
             tgt_util = domain_bs / n_target
             avg_util = (src_util + tgt_util) / 2
             norm_domain_loss = domain_loss / avg_util
@@ -582,7 +699,7 @@ class PrefilterDomainAdaptationTrainer:
             epoch_metrics["domain_accuracy"] += dom_acc.item()
             epoch_metrics["lambda_factor"] = lambda_factor
             epoch_metrics["domain_utilization"] += avg_util
-            epoch_metrics["source_background_avg"] += n_source_bg
+            epoch_metrics["source_background_avg"] += n_source
             epoch_metrics["target_events_avg"] += n_target
             epoch_metrics["domain_batch_size_avg"] += domain_bs
 
@@ -672,26 +789,45 @@ class PrefilterDomainAdaptationTrainer:
                 all_val_labels.append(labels.cpu())
                 all_val_signal_hits.append(batch["signal_hit_counts"].cpu())
 
-                # Collect muon domain logits in the same pass
-                src_bg_mask = (batch["particle_types"] == 0).squeeze()
-                if src_bg_mask.any():
-                    src_idx = torch.where(src_bg_mask)[0]
-                    src_dl, _ = self.da_model.domain_forward({
-                        "features": batch["features"][src_idx],
-                        "lengths": batch["lengths"][src_idx],
-                        "mask": batch["mask"][src_idx],
-                    })
-                    src_domain_logits.append(src_dl.cpu())
+                # Collect all MC domain logits — randomly flip z for half
+                src_feat = batch["features"].clone()
+                src_mask = batch["mask"]
+                bs = src_feat.shape[0]
+                n_flip = bs // 2
+                flip_idx = torch.randperm(bs, device=self.device)[:n_flip]
+                src_feat[flip_idx, :, 4] = torch.where(
+                    src_mask[flip_idx],
+                    -src_feat[flip_idx, :, 4],
+                    src_feat[flip_idx, :, 4],
+                )
+                src_dl, _ = self.da_model.domain_forward({
+                    "features": src_feat,
+                    "lengths": batch["lengths"],
+                    "mask": src_mask,
+                })
+                src_domain_logits.append(src_dl.cpu())
 
-            # Target domain pass
+            # Target domain pass — original + z-flipped concatenated
             for tb in self.target_val_loader:
                 for k in tb:
                     if isinstance(tb[k], torch.Tensor):
                         tb[k] = tb[k].to(self.device)
+
+                tgt_feat_orig = tb["features"]
+                tgt_mask = tb["mask"]
+                tgt_feat_flip_aug = tgt_feat_orig.clone()
+                tgt_feat_flip_aug[:, :, 4] = torch.where(
+                    tgt_mask, -tgt_feat_orig[:, :, 4], tgt_feat_orig[:, :, 4]
+                )
+                tgt_mask_flip_aug = tgt_mask.clone()
+                tgt_features_cat = torch.cat([tgt_feat_orig, tgt_feat_flip_aug], dim=0)
+                tgt_lengths_cat = torch.cat([tb["lengths"], tb["lengths"]], dim=0)
+                tgt_mask_cat = torch.cat([tgt_mask, tgt_mask_flip_aug], dim=0)
+
                 tgt_dl, _ = self.da_model.domain_forward({
-                    "features": tb["features"],
-                    "lengths": tb["lengths"],
-                    "mask": tb["mask"],
+                    "features": tgt_features_cat,
+                    "lengths": tgt_lengths_cat,
+                    "mask": tgt_mask_cat,
                 })
                 tgt_domain_logits.append(tgt_dl.cpu())
 
@@ -758,7 +894,7 @@ class PrefilterDomainAdaptationTrainer:
             f"  Val dom  — loss={val_metrics['domain_loss']:.4f}, "
             f"acc={val_metrics['domain_accuracy']:.4f}, "
             f"auc={val_metrics['domain_auc']:.4f} "
-            f"(src={n_src:,} mu, tgt={n_tgt:,} exp, balanced={min(n_src, n_tgt) if n_src > 0 and n_tgt > 0 else 0:,})"
+            f"(src={n_src:,} mc, tgt={n_tgt:,} exp+zflip, balanced={min(n_src, n_tgt) if n_src > 0 and n_tgt > 0 else 0:,})"
         )
 
         val_sig = self._calculate_signal_hits_metrics(
@@ -881,9 +1017,21 @@ class PrefilterDomainAdaptationTrainer:
 
             # Scheduler step
             if self.scheduler_feature is not None:
-                self.scheduler_feature.step()
-                self.scheduler_classifier.step()
-                self.scheduler_discriminator.step()
+                if isinstance(
+                    self.scheduler_feature,
+                    optim.lr_scheduler.ReduceLROnPlateau,
+                ):
+                    plateau_metric = val_metrics.get(
+                        monitor.replace("val_", ""),
+                        train_metrics.get(monitor, 0),
+                    )
+                    self.scheduler_feature.step(plateau_metric)
+                    self.scheduler_classifier.step(plateau_metric)
+                    self.scheduler_discriminator.step(plateau_metric)
+                else:
+                    self.scheduler_feature.step()
+                    self.scheduler_classifier.step()
+                    self.scheduler_discriminator.step()
 
             if self.writer:
                 self._log_tensorboard_lr(epoch)

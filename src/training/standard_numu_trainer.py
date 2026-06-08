@@ -34,18 +34,13 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from src.models.base_models import create_model
+from src.utils.training import set_reproducible_seeds
 from src.data.numu_dataset import NuMuDataset, create_numu_dataloader_from_ds
 from src.training.metrics import MetricsTracker, calculate_class_weights, binary_cross_entropy_with_logits_weighted
 
 logger = logging.getLogger(__name__)
 
 
-def set_reproducible_seeds(seed: int):
-    """Set seeds for reproducible training."""
-    torch.manual_seed(seed)
-    np.random.seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(seed)
 
 
 class StandardTrainer:

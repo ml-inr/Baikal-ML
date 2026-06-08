@@ -143,6 +143,10 @@ def build_nu_classifier_npy(cfg: dict) -> None:
     n_selected = len(selected)
     logger.info(f"\n{n_selected:,} events after {'balance + ' if do_balance else ''}shuffle")
 
+    # ── Extract h5 back-links for selected events ─────────────────────────
+    sel_part_keys    = np.array([locations[i].part_key          for i in selected], dtype=object)
+    sel_h5_local_ids = np.array([locations[i].event_idx_in_part for i in selected], dtype=np.int32)
+
     # ── Build output offsets (n_sig_hits after cuts, per selected event) ──
     sig_lengths = n_sig_hits[selected].astype(np.int64)
     offsets = np.zeros(n_selected + 1, dtype=np.int64)
@@ -187,11 +191,14 @@ def build_nu_classifier_npy(cfg: dict) -> None:
     save("n_gt_sig_hits.npy",     n_gt_sig_hits[selected].astype(np.int32))
     save("n_gt_sig_strings.npy",  n_gt_sig_strings[selected].astype(np.int32))
     save("particle_types.npy",    sel_particle_types)
+    save("h5_part_keys.npy",      sel_part_keys)
+    save("h5_local_event_ids.npy", sel_h5_local_ids)
 
     npy_names = [
         "features.npy", "probs.npy", "offsets.npy", "labels.npy",
         "n_sig_hits.npy", "n_sig_strings.npy",
         "n_gt_sig_hits.npy", "n_gt_sig_strings.npy", "particle_types.npy",
+        "h5_part_keys.npy", "h5_local_event_ids.npy",
     ]
     total_bytes = sum((output_dir / f).stat().st_size for f in npy_names)
 
@@ -202,6 +209,7 @@ def build_nu_classifier_npy(cfg: dict) -> None:
         "total_bytes":       total_bytes,
         "sig_noise_threshold": threshold,
         "event_cuts":        {"min_hits": min_hits, "min_strings": min_strings},
+        "h5_source":         cfg.get("h5_source", "mc_merged"),
         "particle_encode":   PARTICLE_ENCODE,
         "parts":             {k: len(v) for k, v in parts_dict.items()},
         "label_counts":      {

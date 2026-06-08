@@ -112,7 +112,7 @@ def _collate_on_device(
 
 def predict_flat(
     model: nn.Module,
-    data,
+    data: np.ndarray,
     ev_starts: np.ndarray,
     batch_size: int,
     device: torch.device,

@@ -52,6 +52,7 @@ venv.bak/
 *.npy
 *.parquet
 *.arrow
+*.duckdb
 
 data/large/
 data/raw/
@@ -59,6 +60,10 @@ data/processed/
 datasets/
 /data_manager/data
 /data_manager/h5_catalogs
+/data_manager/catalog.db*
+/data_manager/catalog_v2.duckdb*
+/data_manager/catalog_v2/logs/
+/data_manager/catalog/logs/
 
 # ============================================================
 # ML Artifacts (models, checkpoints, weights)
@@ -89,6 +94,7 @@ checkpoints/
 # Tracking & Logging (TensorBoard, ClearML, MLflow)
 # ============================================================
 *.log
+*.out
 **/events.out.tfevents.*
 **/tensorboard/
 **/runs/
@@ -156,6 +162,7 @@ docs/_build/
 # Project Assets (configs, scripts, images — tracked selectively)
 # ============================================================
 *.yaml
+*.json
 *.yml
 *.md
 *.txt
@@ -171,8 +178,25 @@ temp/
 tmp/
 
 # ============================================================
+# Signal/Noise Models — keep only the canonical model
+# ============================================================
+# All model variants except k_nsol_labelneq0_da_hs128_k0p0001 are excluded.
+gplotnikov_sig_noise_models/archive/
+gplotnikov_sig_noise_models/encoder_nl5_nh1_dff512_hs512_bs128/
+gplotnikov_sig_noise_models/k_nsol_labelneq0_da_hs128/
+gplotnikov_sig_noise_models/k_nsol_labelneq0_da_hs128_k0p001/
+gplotnikov_sig_noise_models/k_nsol_labelneq0_hs512_dff512/
+gplotnikov_sig_noise_models/logs/
+gplotnikov_sig_noise_models/test.ipynb
+
+# Allow the model config and README for the canonical model
+!gplotnikov_sig_noise_models/k_nsol_labelneq0_da_hs128_k0p0001/train_config_mc_2020.yaml
+!gplotnikov_sig_noise_models/k_nsol_labelneq0_da_hs128_k0p0001/README.md
+
+# ============================================================
 # Project-Specific Development Docs
 # ============================================================
+.claude
 CLAUDE.md
 vision.md
 conventions.md
@@ -184,6 +208,7 @@ doc/tasklist.md
 doc/data_format.md
 Встречи.md
 memory
+my_notes
 
 # Exception: keep this technical reference doc
 !doc/hdf5_format.md

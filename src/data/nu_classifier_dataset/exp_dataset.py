@@ -1,22 +1,25 @@
 """Memory-mapped NPY dataset for the experimental target domain.
 
-Reads pre-built .npy files produced by ``nu_classifier_ds_builder/exp_builder.py``.
+Reads pre-built .npy files produced by ``nu_classifier_ds_builder/exp_builder.py``
+or ``inference_v2/nu_classifier/exp_finetuning/build_exp_bg.py``.
 The sig-noise model has already been applied — only signal-hit-filtered events
 and their filtered features are stored.
 
-All events are unlabeled (label=0.0) — they are used only for domain adaptation.
+All events return label=0.0 — used for domain adaptation or as labeled background.
 
 Returns the same ``__getitem__`` dict format as ``NuClassifierNpyDataset``
 so the same collate function and dataloader factory work for both.
 
-Expected files (same directory as the MC dataset)::
+Expected files in ``<npy_dir>/`` (all names are ``{prefix}_*.npy``)::
 
-    <npy_dir>/
-        exp_features.npy        (total_sig_hits, 5) float32
-        exp_probs.npy           (total_sig_hits,)   float32  — optional, sig-noise prob per hit
-        exp_offsets.npy          (n_events+1,)       int64
-        exp_n_sig_hits.npy       (n_events,)          int32
-        exp_n_sig_strings.npy    (n_events,)          int32
+    {prefix}_features.npy        (total_sig_hits, 5) float32
+    {prefix}_probs.npy           (total_sig_hits,)   float32  — optional, sig-noise prob per hit
+    {prefix}_offsets.npy          (n_events+1,)       int64
+    {prefix}_n_sig_hits.npy       (n_events,)          int32
+    {prefix}_n_sig_strings.npy    (n_events,)          int32
+
+Default prefix is ``"exp"`` (backward-compatible).  Use ``prefix="exp_bg"`` for the
+background pseudo-labeled dataset built by ``build_exp_bg.py``.
 """
 
 import logging
@@ -50,17 +53,19 @@ class NuClassifierExpNpyDataset(Dataset):
         seed: int = 42,
         indices: Optional[np.ndarray] = None,
         include_probs: bool = False,
+        prefix: str = "exp",
     ) -> None:
         npy_dir = Path(npy_dir)
+        self._prefix = prefix
 
-        self.features:      np.ndarray = np.load(npy_dir / "exp_features.npy",      mmap_mode="r")
-        self.offsets:       np.ndarray = np.load(npy_dir / "exp_offsets.npy")
-        self.n_sig_hits:    np.ndarray = np.load(npy_dir / "exp_n_sig_hits.npy")
-        self.n_sig_strings: np.ndarray = np.load(npy_dir / "exp_n_sig_strings.npy")
+        self.features:      np.ndarray = np.load(npy_dir / f"{prefix}_features.npy",      mmap_mode="r")
+        self.offsets:       np.ndarray = np.load(npy_dir / f"{prefix}_offsets.npy")
+        self.n_sig_hits:    np.ndarray = np.load(npy_dir / f"{prefix}_n_sig_hits.npy")
+        self.n_sig_strings: np.ndarray = np.load(npy_dir / f"{prefix}_n_sig_strings.npy")
 
         self.include_probs = include_probs
         self.probs: Optional[np.ndarray] = (
-            np.load(npy_dir / "exp_probs.npy", mmap_mode="r") if include_probs else None
+            np.load(npy_dir / f"{prefix}_probs.npy", mmap_mode="r") if include_probs else None
         )
 
         self.max_hits = max_hits
@@ -78,8 +83,8 @@ class NuClassifierExpNpyDataset(Dataset):
             self._indices = self._indices[sel]
 
         logger.info(
-            f"NuClassifierExpNpyDataset: {len(self):,} events loaded from {npy_dir} "
-            f"(total available: {n_total:,})"
+            f"NuClassifierExpNpyDataset(prefix={prefix!r}): {len(self):,} events loaded "
+            f"from {npy_dir} (total available: {n_total:,})"
         )
 
     def __len__(self) -> int:
@@ -129,6 +134,7 @@ class NuClassifierExpNpyDataset(Dataset):
         val_ds   = NuClassifierExpNpyDataset.__new__(NuClassifierExpNpyDataset)
 
         for ds in (train_ds, val_ds):
+            ds._prefix       = self._prefix
             ds.features      = self.features
             ds.offsets       = self.offsets
             ds.n_sig_hits    = self.n_sig_hits
