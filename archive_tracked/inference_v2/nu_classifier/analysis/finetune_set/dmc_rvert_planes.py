@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+d#!/usr/bin/env python
 """2D distributions in the (d_MC, r_vert) plane --- the plane the fine-tuning cut lives in.
 
 d_MC is the mean distance to the 20 nearest events of a kNN reference. Unlike the deployed
@@ -101,7 +101,7 @@ def qmean_of(h: np.ndarray) -> float:
 
 def _read_and_measure(h5, probs, d, label):
     """read_filtered on a small (part_key, local_idx) frame -> hits, r_vert, q_mean."""
-    from inference_v2.nu_classifier.exp_finetuning.build_exp_bg_ood import read_filtered
+    from archive_tracked.inference_v2.nu_classifier.exp_finetuning.build_exp_bg_ood import read_filtered
     feats, _, _, rv = read_filtered(h5, True, probs, d, SN)
     keep = [i for i, x in enumerate(feats) if x is not None and n_strings(x) >= MIN_STR]
     hits = [feats[i] for i in keep]
@@ -119,7 +119,7 @@ def hiscore_mc_from_db(cls, train_keys, limit):
     Training events are dropped via the NPY back-links.
     """
     import duckdb
-    from inference_v2.nu_classifier.exp_finetuning.build_exp_bg_ood import MCH5, MCPROBS
+    from archive_tracked.inference_v2.nu_classifier.exp_finetuning.build_exp_bg_ood import MCH5, MCPROBS
 
     c = duckdb.connect()
     c.execute("PRAGMA disable_progress_bar")
@@ -149,7 +149,7 @@ def hiscore_exp_from_db():
     is what limits this population.
     """
     import duckdb
-    from inference_v2.nu_classifier.exp_finetuning.build_exp_bg_ood import EXH5, EXPROBS
+    from archive_tracked.inference_v2.nu_classifier.exp_finetuning.build_exp_bg_ood import EXH5, EXPROBS
 
     c = duckdb.connect()
     c.execute("PRAGMA disable_progress_bar")
