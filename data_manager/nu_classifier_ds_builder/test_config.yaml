@@ -1,0 +1,21 @@
+# Small test config for smoke-testing the nu-classifier dataset builder
+
+h5_path: "data_manager/data/h5datasets/baikal_mc_merged.h5"
+
+parts_json: "data_manager/nu_classifier_ds_builder/parts_test.json"
+
+output_dir: "./nu_classifier_test"
+
+sig_noise_model:
+  device: "auto"
+  batch_size: 128
+
+sig_noise_threshold: 0.5
+
+event_cuts:
+  min_hits: 8
+  min_strings: 2
+
+balance: true
+
+seed: 42

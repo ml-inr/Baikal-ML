@@ -1,0 +1,108 @@
+data:
+  device: cuda:2
+  include_probs: false
+  max_hits: 500
+  normalization:
+    enabled: true
+  source_domain:
+    max_events: null
+    npy_dir: data_manager/datasets/nu_classifier_dataset_h5s0_thr0.5
+    train_split: 0.9
+  target_domain:
+    max_events: null
+    npy_dir: data_manager/datasets/nu_classifier_dataset_h5s0_thr0.5
+    train_split: 0.8
+dataloader:
+  augmentation:
+    noise_std:
+    - 0.05
+    - 5.0
+    - 1.0
+    - 1.0
+    - 2.0
+    rotation_enabled: true
+  num_workers: 0
+  pin_memory: false
+debug:
+  enabled: false
+  max_batches_per_epoch: 10
+domain_adaptation:
+  domain_discriminator:
+    dropout: 0.0
+    hidden_dims:
+    - 32
+    - 16
+    lambda_factor: 0.0
+    use_batch_norm: false
+    use_gradient_reversal: true
+  lambda_scheduler:
+    gamma: 10.0
+    max_lambda: 0.001
+    schedule_by: step
+    type: progressive
+experiment:
+  description: 'Nu-classifier DA: sig-noise-filtered MC source + filtered exp target'
+  name: 260503_1101_da_nu_classifier_h5s0_lambda0.001
+  seed: 42
+logging:
+  level: INFO
+  log_every: 10
+  output_dir: experiments/numu
+  save_config: true
+  save_model_summary: true
+  tensorboard: true
+model:
+  amp_clip: 100
+  classifier:
+    dropout: 0.0
+    hidden_dims:
+    - 32
+    - 16
+    use_batch_norm: false
+  feature_extractor:
+    d_model: 128
+    dim_feedforward: 128
+    dropout: 0.0
+    input_dim: 5
+    max_seq_len: 1000
+    num_heads: 4
+    num_layers: 4
+    pooling: cls
+    use_positional_encoding: true
+  type: numu
+reproducibility:
+  benchmark: false
+  deterministic: true
+training:
+  class_weights: null
+  classification_loss: focal
+  classifier_optimizer:
+    learning_rate: 0.001
+    optimizer: adamw
+    weight_decay: 0.01
+  discriminator_optimizer:
+    learning_rate: 0.002
+    optimizer: adamw
+    weight_decay: 0.01
+  early_stopping:
+    enabled: true
+    min_delta: 0.0
+    mode: min
+    monitor: val_loss
+    patience: 15
+  epochs: 100
+  feature_optimizer:
+    learning_rate: 0.001
+    optimizer: adamw
+    weight_decay: 0.01
+  focal_gamma: 2.0
+  save_every: 5
+  scheduler: plateau
+  scheduler_params:
+    factor: 0.5
+    min_lr: 1.0e-06
+    mode: min
+    patience: 3
+  source_batch_size: 512
+  target_batch_size: 256
+  validate_every: 1

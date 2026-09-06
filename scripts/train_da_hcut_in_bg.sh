@@ -1,0 +1,1 @@
+nohup python src/training/da_hcut_numu_trainer.py --config experiments/da_hcut_numu_baseline.yaml > experiments/logs/DA_HCUT_train_$(date +'%Y%m%d_%H%M%S').log &

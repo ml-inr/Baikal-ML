@@ -1,0 +1,139 @@
+# Domain Adaptation Configuration for Prefilter Neutrino Detection
+# MC → Exp Transfer Learning using DANN
+#
+# Source: memory-mapped NPY arrays (MC, from prefilter_npy_ds_builder)
+#   - Soft labels, class balancing, and shuffling are baked into the .npy files.
+#   - The builder config is saved alongside the data as build_config.yaml.
+#
+# Target: in-memory exp.h5 (~300K events, all background)
+#
+# Usage:
+#   python src/training/da_prefilter_numu_trainer.py \
+#       --config experiments/da_prefilter_numu_baseline.yaml [--debug]
+
+experiment:
+  name: "da_prefilter_numu_290327_1323_lambda0.05"
+  description: "Domain adaptation, with NPY source (soft labels) and exp.h5 target"
+  seed: 42
+
+reproducibility:
+  deterministic: true
+  benchmark: false
+
+# Data configuration
+data:
+  device: "cuda:1"
+  max_hits: 500
+
+  normalization:
+    enabled: true
+    # Uses data_manager/stats_dict/default_mc.yaml
+
+  # Source domain (MC) — memory-mapped NPY from prefilter_npy_ds_builder
+  source_domain:
+    npy_dir: "/home2/albert/Baikal/datasets/baikal_mc2020_prefilter"
+    # max_events: 500000       # null = use all events from the .npy files
+    train_split: 0.85
+
+  # Target domain (Experimental data) — loaded in-memory from HDF5
+  target_domain:
+    h5_path: "/home/albert/Baikal2025/data_manager/data/h5datasets/exp.h5"
+    max_events: 300000        # subsample from ~650K total
+    train_split: 0.85
+
+# Model architecture (same as hcut baseline)
+model:
+  type: "numu"
+
+  feature_extractor:
+    input_dim: 5              # [amplitude, time, x, y, z]
+    d_model: 64
+    num_heads: 4
+    num_layers: 2
+    dim_feedforward: 64
+    dropout: 0.
+    pooling: "cls"
+    use_positional_encoding: true
+    max_seq_len: 1000
+
+  classifier:
+    hidden_dims: [32, 16]
+    dropout: 0.
+    use_batch_norm: false
+
+# Domain adaptation
+domain_adaptation:
+  domain_discriminator:
+    hidden_dims: [32, 16]
+    dropout: 0.
+    use_batch_norm: false
+    use_gradient_reversal: true
+    lambda_factor: 0.
+
+  lambda_scheduler:
+    schedule_by: "step"
+    type: "progressive"
+    max_lambda: 0.05
+    gamma: 10.0
+
+# Training
+training:
+  epochs: 100
+  source_batch_size: 512
+  target_batch_size: 256
+
+  loss: "bce_with_logits"
+  class_weights: null         # auto-computed from source labels
+
+  feature_optimizer:
+    optimizer: "adamw"
+    learning_rate: 0.001
+    weight_decay: 0.01
+
+  classifier_optimizer:
+    optimizer: "adamw"
+    learning_rate: 0.001
+    weight_decay: 0.01
+
+  discriminator_optimizer:
+    optimizer: "adamw"
+    learning_rate: 0.002
+    weight_decay: 0.01
+
+  scheduler: "cosine"
+  scheduler_params:
+    T_max: 100
+    eta_min: 1e-6
+
+  validate_every: 1
+  save_every: 5
+
+  early_stopping:
+    enabled: true
+    monitor: "val_auc"
+    mode: "max"
+    patience: 15
+    min_delta: 0.0001
+
+# Data loading
+dataloader:
+  num_workers: 0
+  pin_memory: false
+
+  augmentation:
+    noise_std: [0.05, 5.0, 1.0, 1.0, 2.0]
+    rotation_enabled: true
+
+# Logging
+logging:
+  level: "INFO"
+  output_dir: "experiments/numu"
+  log_every: 10
+  tensorboard: true
+  save_config: true
+  save_model_summary: true
+
+# Debug mode
+debug:
+  enabled: false
+  max_batches_per_epoch: 10

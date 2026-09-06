@@ -1,0 +1,79 @@
+data:
+  device: cuda:0
+  max_hits: 500
+  source_domain:
+    max_events: 5000000
+    npy_dir: data_manager/datasets/baikal_mc2020_prefilter/hard_nu_labels
+    train_split: 0.9
+  source_type: prefilter
+  target_domain:
+    h5_path: data_manager/data/h5datasets/exp.h5
+    max_events: null
+    train_split: 0.8
+dataloader:
+  augmentation:
+    noise_std:
+    - 0.05
+    - 5.0
+    - 1.0
+    - 1.0
+    - 2.0
+    rotation_enabled: true
+  num_workers: 0
+  pin_memory: false
+debug:
+  enabled: false
+  max_batches_per_epoch: 10
+experiment:
+  name: domain_sep_prefilter
+  seed: 42
+logging:
+  log_every: 50
+  output_dir: experiments/domain_sep_prefilter
+  save_config: true
+  tensorboard: true
+model:
+  amp_clip: 100
+  classifier:
+    dropout: 0.0
+    hidden_dims:
+    - 32
+    - 16
+    use_batch_norm: false
+  domain_discriminator:
+    dropout: 0.0
+    hidden_dims:
+    - 32
+    - 16
+    use_batch_norm: false
+    use_gradient_reversal: false
+  feature_extractor:
+    d_model: 128
+    dim_feedforward: 128
+    dropout: 0.0
+    input_dim: 5
+    max_seq_len: 1000
+    num_heads: 4
+    num_layers: 4
+    pooling: cls
+    use_positional_encoding: true
+  type: numu
+training:
+  batch_size: 512
+  early_stopping:
+    enabled: true
+    min_delta: 0.0001
+    mode: min
+    monitor: domain_loss
+    patience: 15
+  epochs: 100
+  learning_rate: 0.0003
+  save_every: 5
+  scheduler: plateau
+  scheduler_params:
+    factor: 0.5
+    min_lr: 1.0e-06
+    mode: min
+    patience: 5
+  validate_every: 1
+  weight_decay: 0.01

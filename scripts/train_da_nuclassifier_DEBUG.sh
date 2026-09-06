@@ -1,0 +1,1 @@
+nohup python src/training/da_nu_classifier_trainer.py --config experiments/da_nu_classifier_DEBUG.yaml > experiments/logs/DA_NUCLASSIFIER_train_$(date +'%Y%m%d_%H%M%S').log &

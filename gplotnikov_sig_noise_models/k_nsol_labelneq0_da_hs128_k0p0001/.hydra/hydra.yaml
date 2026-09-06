@@ -1,0 +1,179 @@
+hydra:
+  run:
+    dir: checkpoints/${exp_project}/${exp_name}
+  sweep:
+    dir: checkpoints/${exp_project}
+    subdir: ${exp_name}
+  launcher:
+    _target_: hydra._internal.core_plugins.basic_launcher.BasicLauncher
+  sweeper:
+    _target_: hydra._internal.core_plugins.basic_sweeper.BasicSweeper
+    max_batch_size: null
+    params: null
+  help:
+    app_name: ${hydra.job.name}
+    header: '${hydra.help.app_name} is powered by Hydra.
+
+      '
+    footer: 'Powered by Hydra (https://hydra.cc)
+
+      Use --hydra-help to view Hydra specific help
+
+      '
+    template: '${hydra.help.header}
+
+      == Configuration groups ==
+
+      Compose your configuration from those groups (group=option)
+
+
+      $APP_CONFIG_GROUPS
+
+
+      == Config ==
+
+      Override anything in the config (foo.bar=value)
+
+
+      $CONFIG
+
+
+      ${hydra.help.footer}
+
+      '
+  hydra_help:
+    template: 'Hydra (${hydra.runtime.version})
+
+      See https://hydra.cc for more info.
+
+
+      == Flags ==
+
+      $FLAGS_HELP
+
+
+      == Configuration groups ==
+
+      Compose your configuration from those groups (For example, append hydra/job_logging=disabled
+      to command line)
+
+
+      $HYDRA_CONFIG_GROUPS
+
+
+      Use ''--cfg hydra'' to Show the Hydra config.
+
+      '
+    hydra_help: ???
+  hydra_logging:
+    version: 1
+    formatters:
+      simple:
+        format: '[%(asctime)s][HYDRA] %(message)s'
+    handlers:
+      console:
+        class: logging.StreamHandler
+        formatter: simple
+        stream: ext://sys.stdout
+    root:
+      level: INFO
+      handlers:
+      - console
+    loggers:
+      logging_example:
+        level: DEBUG
+    disable_existing_loggers: false
+  job_logging:
+    version: 1
+    formatters:
+      simple:
+        format: '[%(asctime)s][%(name)s][%(levelname)s] - %(message)s'
+    handlers:
+      console:
+        class: logging.StreamHandler
+        formatter: simple
+        stream: ext://sys.stdout
+      file:
+        class: logging.FileHandler
+        formatter: simple
+        filename: ${hydra.runtime.output_dir}/${hydra.job.name}.log
+    root:
+      level: INFO
+      handlers:
+      - console
+      - file
+    disable_existing_loggers: false
+  env: {}
+  mode: RUN
+  searchpath: []
+  callbacks: {}
+  output_subdir: .hydra
+  overrides:
+    hydra:
+    - hydra.mode=RUN
+    task:
+    - +experiment=noise_sig_original_labels_2020_da
+    - exp_name=k_nsol_labelneq0_da_hs128_k0p0001
+    - use_clearml=false
+    - train_type.domain_adaptation_loss_k=0.0001
+    - data.datasets.0.path_to_data=/home2/ivkhar/Baikal/data/normed/baikal_2020_sig-noise_mid-eq_normed.h5
+    - +data.datasets.0.val_path=/home/plotnikovgp/baikal/Baikal-ML/pytorch_training/data/baikal_2020_balanced_val_2k_each.h5
+    - data.datasets.0.val_subset_cut=1
+    - data.datasets.1.path_to_data=/home/plotnikovgp/baikal/Baikal-ML/pytorch_training/data/baikal_exp_filtered_norm_w_model_enc_v2_fix_q.h5
+    - data.datasets.1.val_subset_cut=10
+    - data.datasets.1.renorm_to=/home2/ivkhar/Baikal/data/normed/baikal_2020_sig-noise_mid-eq_normed.h5
+    - model.params.hidden_size=128
+    - model.params.dim_feedforward_size=512
+    - model.params.out_size=2
+    - model.params.domain_classifier_hidden_size=128
+    - model.params.domain_classifier_layers=2
+    - training.lr=1.0e-3
+    - training.num_train_steps_per_validation=500
+    - training.warmup_steps=100
+    - training.batch_size=128
+    - data.num_workers=4
+    - data.prefetch_factor=4
+  job:
+    name: train
+    chdir: null
+    override_dirname: +data.datasets.0.val_path=/home/plotnikovgp/baikal/Baikal-ML/pytorch_training/data/baikal_2020_balanced_val_2k_each.h5,+experiment=noise_sig_original_labels_2020_da,data.datasets.0.path_to_data=/home2/ivkhar/Baikal/data/normed/baikal_2020_sig-noise_mid-eq_normed.h5,data.datasets.0.val_subset_cut=1,data.datasets.1.path_to_data=/home/plotnikovgp/baikal/Baikal-ML/pytorch_training/data/baikal_exp_filtered_norm_w_model_enc_v2_fix_q.h5,data.datasets.1.renorm_to=/home2/ivkhar/Baikal/data/normed/baikal_2020_sig-noise_mid-eq_normed.h5,data.datasets.1.val_subset_cut=10,data.num_workers=4,data.prefetch_factor=4,exp_name=k_nsol_labelneq0_da_hs128_k0p0001,model.params.dim_feedforward_size=512,model.params.domain_classifier_hidden_size=128,model.params.domain_classifier_layers=2,model.params.hidden_size=128,model.params.out_size=2,train_type.domain_adaptation_loss_k=0.0001,training.batch_size=128,training.lr=1.0e-3,training.num_train_steps_per_validation=500,training.warmup_steps=100,use_clearml=false
+    id: ???
+    num: ???
+    config_name: config
+    env_set: {}
+    env_copy: []
+    config:
+      override_dirname:
+        kv_sep: '='
+        item_sep: ','
+        exclude_keys: []
+  runtime:
+    version: 1.3.2
+    version_base: '1.3'
+    cwd: /home/plotnikovgp/baikal/Baikal-ML/pytorch_training
+    config_sources:
+    - path: hydra.conf
+      schema: pkg
+      provider: hydra
+    - path: /home/plotnikovgp/baikal/Baikal-ML/pytorch_training/conf
+      schema: file
+      provider: main
+    - path: ''
+      schema: structured
+      provider: schema
+    output_dir: /home/plotnikovgp/baikal/Baikal-ML/pytorch_training/checkpoints/noise_sig_experiments/k_nsol_labelneq0_da_hs128_k0p0001
+    choices:
+      experiment: noise_sig_original_labels_2020_da
+      data: multi
+      model: encoder_da
+      train_type: noise_sig_original_labels_da
+      hydra/env: default
+      hydra/callbacks: null
+      hydra/job_logging: default
+      hydra/hydra_logging: default
+      hydra/hydra_help: default
+      hydra/help: default
+      hydra/sweeper: basic
+      hydra/launcher: basic
+      hydra/output: default
+  verbose: false

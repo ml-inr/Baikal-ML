@@ -1,0 +1,94 @@
+# Configuration for root2h5_exp_reco.py
+# Processes experimental ROOT files with reconstruction parameters
+
+general:
+  take_single_cluster: true
+  take_clust_num: null
+  split_multi: true
+  shift_coords_to_cl_center: true
+  center_times: true
+  exclude_big_ts: true
+  t_threshold: 1e5
+  coords_are_same: false
+
+multiprocessing:
+  MAX_QUEUE_SIZE: 4
+  NUM_WORKERS: 4
+
+output:
+  h5_name: "exp_reco_full_2020.h5"
+  h5_prefix: "/home/albert/Baikal2025/data_manager/data/h5datasets/"
+
+input:
+  particle: "exp_reco"
+  root_dir_path: "/home/albert/Baikal2025/data_manager/data/exp_reco_root/exp_reco_files" #"/home/albert/Baikal2025/data_manager/data/exp_reco_root/root_files/"
+
+root_paths:
+
+  header:
+    - "Events/BJointHeader./BJointHeader.fSeason"
+    - "Events/BJointHeader./BJointHeader.fCluster"
+    - "Events/BJointHeader./BJointHeader.fRun"
+    - "Events/BJointHeader./BJointHeader.fEventIDCC"
+    
+
+  data:
+    - "Events/BEvent./BEvent.fPulses/BEvent.fPulses.fAmplitude"
+    - "Events/BEvent./BEvent.fPulses/BEvent.fPulses.fTime"
+    - "Events/BEvent./BEvent.fPulses/BEvent.fPulses.fChannelID"
+
+  # Per-event reconstruction scalars (stored as reco_prty, analogous to prime_prty)
+  # Column order: [thetaRec, phiRec, thetaErr, phiErr, funcValue, timeChi2,
+  #                chargeTerm, LLFit, nHits, nStrings, nOMs, pathLength, timeXYZRec]
+  reco_ev:
+    - "Events/BRecoMuon./BRecoMuon.fThetaRec"
+    - "Events/BRecoMuon./BRecoMuon.fPhiRec"
+    - "Events/BRecoMuon./BRecoMuon.fThetaErr"
+    - "Events/BRecoMuon./BRecoMuon.fPhiErr"
+    - "Events/BRecoMuon./BRecoMuon.fFuncValue"
+    - "Events/BRecoMuon./BRecoMuon.fTimeChi2"
+    - "Events/BRecoMuon./BRecoMuon.fChargeTerm"
+    - "Events/BRecoMuon./BRecoMuon.fLLFit"
+    - "Events/BRecoMuon./BRecoMuon.fNHits"
+    - "Events/BRecoMuon./BRecoMuon.fNStrings"
+    - "Events/BRecoMuon./BRecoMuon.fNOMs"
+    - "Events/BRecoMuon./BRecoMuon.fPathLength"
+    - "Events/BRecoMuon./BRecoMuon.fTimeXYZRec"
+    - "Events/BRecoMuon./BRecoMuon.fCovMatrixStatus"
+    - "Events/BRecoMuon./BRecoMuon.fScfMaxTheta"
+    - "Events/BRecoMuon./BRecoMuon.fScfMinTheta"
+    - "Events/BRecoMuon./BRecoMuon.fScfTheta"
+    - "Events/BRecoMuon./BRecoMuon.fScfPhi"
+    - "Events/BRecoMuon./BRecoMuon.fPHit"
+    - "Events/BRecoMuon./BRecoMuon.fEvCenterZ"
+    - "Events/BRecoMuon./BRecoMuon.fZDist"
+    - "Events/BRecoMuon./BRecoMuon.fNTriplets"
+    - "Events/BRecoMuon./BRecoMuon.fNCalls"
+    - "Events/BRecoMuon./BRecoMuon.fClassBDT" # BDT classificataion !
+    - "Events/BRecoMuon./BRecoMuon.fClassBDTLowE" # BDT classificataion !
+
+  # Per-hit reconstruction values (stored as reco_hit_prty, flat array shape: n_hits × n_fields)
+  # Same flatten/sort/filter pipeline as hit data. Leave empty list [] to skip.
+  reco_hit:
+    - "Events/BRecoMuon./BRecoMuon.fTRes"
+
+  # Per-hit reconstruction mask (stored as raw/labels, analogous to MC labels)
+  reco_mask: "Events/ScanfitMask./ScanfitMask.fOrigins/ScanfitMask.fOrigins.fFlag"
+
+  geometry: "Events/BGeomTel./BGeomTel.BGeomTel/BGeomTel.BGeomTel.fOMs/BGeomTel.BGeomTel.fOMs.fPosition"
+
+# reco_prty column names (for documentation / catalog scripts)
+reco_prty_columns:
+  - "thetaRec"
+  - "phiRec"
+  - "thetaErr"
+  - "phiErr"
+  - "funcValue"
+  - "timeChi2"
+  - "chargeTerm"
+  - "LLFit"
+  - "nHits"
+  - "nStrings"
+  - "nOMs"
+  - "pathLength"
+  - "timeXYZRec"

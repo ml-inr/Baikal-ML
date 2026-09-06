@@ -1,0 +1,41 @@
+# Configuration for root2h5_exp_full.py
+# Full-statistics experimental data: per-cluster ROOT files with BJointHeader
+# physical event IDs. All events are single-cluster (channels local 0-287).
+
+general:
+  shift_coords_to_cl_center: true   # subtract per-file cluster center from coords
+  center_times: true                # subtract per-event mean time
+  exclude_big_ts: true              # drop hits with |t| > t_threshold (known bug)
+  t_threshold: 1e5
+  chunk_size: 200000                # ROOT entries read per chunk (memory bound)
+  events_per_file_cap: null         # optional cap (int) for quick tests; null = full run
+  exclude_clusters: [1]             # skip these clusters entirely. c01 has a time-
+                                    # calibration bug in this production (82-91% of
+                                    # events carry spurious early hits, t down to ~34ns
+                                    # vs main pulse ~13000-19000ns); c02-c07 are clean.
+
+multiprocessing:
+  NUM_WORKERS: 3                    # ROOT files processed in parallel (one part each)
+
+output:
+  h5_name: "exp_full.h5"
+  h5_prefix: "/home/albert/Baikal2025/data_manager/data/h5datasets/"
+
+input:
+  particle: "exp_full"             # top-level h5 group name
+  root_dir_path: "/home/albert/Baikal2025/data_manager/data/exp_root/"
+
+root_paths:
+  amplitude: "BEvent./BEvent.fPulses/BEvent.fPulses.fAmplitude"
+  time:      "BEvent./BEvent.fPulses/BEvent.fPulses.fTime"
+  channel:   "BEvent./BEvent.fPulses/BEvent.fPulses.fChannelID"
+  pulse_n:   "BEvent./BEvent.fPulseN"
+  geometry:  "BGeomTel./BGeomTel.BGeomTel/BGeomTel.BGeomTel.fOMs/BGeomTel.BGeomTel.fOMs.fPosition"
+  header:
+    eventid_wr: "BJointHeader./BJointHeader.fEventIDWR"
+    eventid_cc: "BJointHeader./BJointHeader.fEventIDCC"
+    time_sec:   "BJointHeader./BJointHeader.fTimeCC/BJointHeader.fTimeCC.fSec"
+    time_nsec:  "BJointHeader./BJointHeader.fTimeCC/BJointHeader.fTimeCC.fNanoSec"
+    season:     "BJointHeader./BJointHeader.fSeason"
+    cluster:    "BJointHeader./BJointHeader.fCluster"
+    run:        "BJointHeader./BJointHeader.fRun"

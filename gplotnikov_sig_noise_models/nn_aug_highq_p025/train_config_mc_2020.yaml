@@ -1,0 +1,68 @@
+train_type:
+  name: noise_sig_original_labels_da
+  is_graph: false
+  domain_adaptation_loss_k: 0.0001
+  label_dataset_name: mc_2020
+model:
+  type: encoder_domain_adaptation
+  params:
+    in_features: 5
+    hidden_size: 128
+    num_layers: 5
+    dim_feedforward_size: 512
+    n_heads: 1
+    out_size: 2
+    dropout_p: 0.0
+    num_domains: 2
+    domain_classifier_hidden_size: 128
+    domain_classifier_layers: 2
+    gradient_reversal_alpha: 1.0
+    aggregate_output: false
+data:
+  datasets:
+  - name: mc_2020
+    path_to_data: /home2/ivkhar/Baikal/data/normed/baikal_2020_sig-noise_mid-eq_normed.h5
+    val_subset_cut: 1
+    val_path: /home/plotnikovgp/baikal/Baikal-ML/pytorch_training/data/baikal_2020_balanced_val_2k_each.h5
+  - name: exp_data
+    path_to_data: /home/plotnikovgp/baikal/Baikal-ML/pytorch_training/data/baikal_exp_filtered_norm_w_model_enc_v2_fix_q.h5
+    val_subset_cut: 10
+    preprocessor: no_labels_per_hit
+    DatasetType: no_labels
+    renorm_to: /home2/ivkhar/Baikal/data/normed/baikal_2020_sig-noise_mid-eq_normed.h5
+  weights:
+  - 0.5
+  - 0.5
+  val_subset_cut: 3
+  events_amount: null
+  set_tres_stats: false
+  cache_datasets: false
+  num_workers: 4
+  prefetch_factor: 4
+  persistent_workers: true
+  pin_memory: true
+exp_project: noise_sig_experiments
+exp_name: k_nsol_labelneq0_da_hs128_k0p0001
+training:
+  lr: 0.001
+  batch_size: 128
+  warmup_steps: 100
+  num_train_steps_per_validation: 500
+  grad_clip_value: null
+  accumulate_grad_steps: 1
+  scheduler_patience: 1000
+  min_recall: 0.9
+  valid_main_metric: loss
+  save_best_per_dataset: false
+val_mode: false
+from_checkpoint: null
+random_seed: 42
+use_clearml: false
+monitoring:
+  tensorboard: true
+perf:
+  detect_anomaly: false
+  deterministic: false
+  allow_tf32: true
+  matmul_precision: high
+  fused_adamw: false

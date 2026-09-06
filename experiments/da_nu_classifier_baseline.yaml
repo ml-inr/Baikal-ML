@@ -1,0 +1,152 @@
+# Domain Adaptation Configuration for Nu-Classifier
+# MC → Exp Transfer Learning using DANN
+#
+# Source: memory-mapped NPY arrays from nu_classifier_ds_builder
+#   - Hard labels: neutrino events = 1.0, muatm events = 0.0
+#   - Class balancing: 2n muatm vs n nuatm + n nue2
+#   - Features: sig-noise-filtered hits (prob > 0.5)
+#
+# Target: memory-mapped NPY arrays from nu_classifier_ds_builder/exp_builder
+#   - Same sig-noise filtering applied to exp.h5
+#   - No labels
+#
+# Usage:
+#   python src/training/da_nu_classifier_trainer.py \
+#       --config experiments/da_nu_classifier_baseline.yaml [--debug]
+
+experiment:
+  name: "260503_1103_da_nu_classifier_h5s0_lambda0.001_drout0.3"
+  description: "Nu-classifier DA: sig-noise-filtered MC source + filtered exp target"
+  seed: 42
+
+reproducibility:
+  deterministic: true
+  benchmark: false
+
+# Data configuration
+data:
+  device: "cuda:4"
+  max_hits: 500
+
+  normalization:
+    enabled: true
+    # Uses data_manager/stats_dict/default_mc.yaml
+
+  # Set to true to append sig-noise prob as 6th feature per hit.
+  # Also requires: model.feature_extractor.input_dim: 6
+  #                dataloader.augmentation.noise_std: 6 elements (last = 0.0)
+  # Normalization for the 6th feature (mean=0.75, std=0.25) is added automatically.
+  include_probs: false
+
+  # Source domain (MC) — sig-noise-filtered NPY from nu_classifier_ds_builder
+  source_domain:
+    npy_dir: "data_manager/datasets/nu_classifier_dataset_h5s0_thr0.5"
+    max_events: 1000000        # null = use all events
+    train_split: 0.9
+
+  # Target domain (Exp) — sig-noise-filtered NPY from exp_builder
+  target_domain:
+    npy_dir: "data_manager/datasets/nu_classifier_dataset_h5s0_thr0.5"
+    max_events: null        # null = use all events
+    train_split: 0.8
+
+# Model architecture (same as prefilter)
+model:
+  type: "numu"
+  amp_clip: 100             # raw amplitude (PE); normalized in trainer
+
+  feature_extractor:
+    input_dim: 5            # [amplitude, time, x, y, z]
+    d_model: 128
+    num_heads: 4
+    num_layers: 4
+    dim_feedforward: 128
+    dropout: 0.3
+    pooling: "cls"
+    use_positional_encoding: true
+    max_seq_len: 1000
+
+  classifier:
+    hidden_dims: [32, 16]
+    dropout: 0.3
+    use_batch_norm: false
+
+# Domain adaptation
+domain_adaptation:
+  domain_discriminator:
+    hidden_dims: [32, 16]
+    dropout: 0.
+    use_batch_norm: false
+    use_gradient_reversal: true
+    lambda_factor: 0.
+
+  lambda_scheduler:
+    schedule_by: "step"
+    type: "progressive"
+    max_lambda: 0.001
+    gamma: 10.0
+
+# Training
+training:
+  epochs: 100
+  source_batch_size: 512
+  target_batch_size: 256
+
+  classification_loss: "focal"
+  focal_gamma: 2.0
+  class_weights: null         # auto-computed from source labels
+
+  feature_optimizer:
+    optimizer: "adamw"
+    learning_rate: 0.001
+    weight_decay: 0.01
+
+  classifier_optimizer:
+    optimizer: "adamw"
+    learning_rate: 0.001
+    weight_decay: 0.01
+
+  discriminator_optimizer:
+    optimizer: "adamw"
+    learning_rate: 0.002
+    weight_decay: 0.01
+
+  scheduler: "plateau"
+  scheduler_params:
+    mode: "min"
+    factor: 0.5
+    patience: 3
+    min_lr: 1.0e-6
+
+  validate_every: 1
+  save_every: 5
+
+  early_stopping:
+    enabled: true
+    monitor: "val_loss"
+    mode: "min"
+    patience: 15
+    min_delta: 0.
+
+# Data loading
+dataloader:
+  num_workers: 0
+  pin_memory: false
+
+  augmentation:
+    noise_std: [0.05, 5.0, 1.0, 1.0, 2.0]
+    rotation_enabled: true
+
+# Logging
+logging:
+  level: "INFO"
+  output_dir: "experiments/numu"
+  log_every: 10
+  tensorboard: true
+  save_config: true
+  save_model_summary: true
+
+# Debug mode
+debug:
+  enabled: false
+  max_batches_per_epoch: 10

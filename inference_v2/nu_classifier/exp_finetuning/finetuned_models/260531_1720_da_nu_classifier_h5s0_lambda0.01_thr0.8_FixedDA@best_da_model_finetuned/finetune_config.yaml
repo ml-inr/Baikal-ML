@@ -1,0 +1,46 @@
+batch_size: 512
+bg_train_split: 0.8
+class_weights: true
+classification_loss: focal
+dataloader:
+  augmentation:
+    noise_std:
+    - 0.05
+    - 5.0
+    - 1.0
+    - 1.0
+    - 2.0
+    rotation_enabled: true
+  num_workers: 0
+  pin_memory: false
+device: cuda:1
+early_stopping:
+  enabled: true
+  min_delta: 0.0001
+  mode: min
+  monitor: loss
+  patience: 8
+epochs: 20
+exp_bg_npy_dir: inference_v2/nu_classifier/exp_finetuning/exp_bg_datasets/260531_1720_da_nu_classifier_h5s0_lambda0.01_thr0.8_FixedDA@best_da_model_lt0p1
+experiment_name: 260531_1720_da_nu_classifier_h5s0_lambda0.01_thr0.8_FixedDA@best_da_model_finetuned
+focal_gamma: 2.0
+learning_rate: 0.0001
+log_every: 50
+max_hits: 500
+mc_npy_dir: data_manager/datasets/nu_classifier_dataset_h5s0_thr0.8
+mc_train_split: 0.9
+output_dir: inference_v2/nu_classifier/exp_finetuning/finetuned_models
+pretrained_checkpoint: experiments/numu/260531_1720_da_nu_classifier_h5s0_lambda0.01_thr0.8_FixedDA/best_da_model.pth
+save_config: true
+save_epoch_checkpoints: true
+save_every: 1
+scheduler: plateau
+scheduler_params:
+  factor: 0.5
+  min_lr: 1.0e-07
+  mode: min
+  patience: 3
+seed: 42
+tensorboard: true
+validate_every: 1
+weight_decay: 0.01

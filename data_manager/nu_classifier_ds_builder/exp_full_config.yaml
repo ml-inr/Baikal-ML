@@ -1,0 +1,50 @@
+# Build the nu-classifier exp NPY target from FULL-STATISTICS exp_full.h5.
+#
+# Differs from the legacy exp.h5 build:
+#   - reads top-group "exp_full" (~133M events across 27 clean runs c02-c07)
+#   - excludes the two bad runs with the t_max>1500 late-hit artefact
+#   - caps events PER PART (parts hold millions of events) → coverage of all runs
+#   - writes exp_h5_part_keys / exp_h5_local_event_ids back-links for
+#     train/test separation at inference
+#
+# Usage (from project root, inside conda env baikal25):
+#   nohup python data_manager/build_exp_nu_classifier_dataset.py \
+#       --config data_manager/nu_classifier_ds_builder/exp_full_config.yaml \
+#       > data_manager/nu_classifier_ds_builder/build_exp_full.log 2>&1 &
+
+h5_path_exp: "data_manager/data/h5datasets/exp_full.h5"
+h5_group: "exp_full"
+
+# Bad runs (cluster 2) with the t_max>1500 hardware/calibration artefact.
+exclude_parts:
+  - "part_s2020_c02_r0020"
+  - "part_s2020_c02_r0249"
+
+# Cap per part (post-cut, random subsample). ~200k * 27 parts -> ~5M target,
+# balanced across all runs/clusters. Set null for all events.
+max_events_per_part: 200000
+
+output_dir: "data_manager/datasets/nu_classifier_dataset_exp_full_thr0.8"
+
+sig_noise_threshold: 0.8
+event_cuts:
+  min_hits: 5        # matches the h5s0 source dataset
+  min_strings: 0
+
+# Precomputed sig-noise probs (predict_exp_h5.py) — builder reads them instead
+# of running the model (fast I/O, no GPU). Build this file first:
+#   python gplotnikov_sig_noise_models/k_nsol_labelneq0_da_hs128_k0p0001/predict_exp_h5.py \
+#       --input data_manager/data/h5datasets/exp_full.h5 --device cuda:0
+probs_h5: "data_manager/data/h5datasets/exp_full_probs_k_nsol_labelneq0_da_hs128_k0p0001.h5"
+probs_group: "exp_full"
+
+sig_noise_model:
+  device: "cuda:0"
+  # Must match the MC source dataset (256). The sig-noise model passes a float padding
+  # mask, so batch size decides which hits pass the threshold; a different value here
+  # means the DA source and target domains are selected differently.
+  # Only used when probs_h5 is absent — otherwise the batch size is the one baked into
+  # that file. See doc/sig_noise_batch_size.md.
+  batch_size: 256
+
+seed: 42

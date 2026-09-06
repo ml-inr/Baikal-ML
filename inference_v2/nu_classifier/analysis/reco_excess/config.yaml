@@ -1,0 +1,51 @@
+# Every path, threshold and seed used in the reco-excess analysis.
+
+paths:
+  root: ../../../..
+  h5:
+    mc_reco: data_manager/data/h5datasets/baikal_mc_reco.h5
+    exp_reco: data_manager/data/h5datasets/exp_reco.h5
+  probs:
+    mc_reco: data_manager/data/h5datasets/baikal_mc_reco_probs_k_nsol_labelneq0_da_hs128_k0p0001.h5
+    exp_reco: data_manager/data/h5datasets/exp_reco_probs_k_nsol_labelneq0_da_hs128_k0p0001.h5
+  catalog: data_manager/catalog_v2.duckdb
+  preds: inference_v2/nu_classifier/preds
+
+model: 260816_2250_da_nu_classifier_exp_full_E1_lambda0.01_FIXED_sn256@best_da_model
+
+sig_noise_threshold: 0.8
+sig_noise_batch_size: 256      # defines the hit selection, not a speed knob
+quality_cut: "n_sn_hits >= 8 AND n_sn_strings >= 3"
+
+# group names differ from mc_merged: no year suffix, and the atmospheric neutrinos
+# are split into conventional and prompt
+mc_reco_groups: [muatm, nuatm_conv, nuatm_prompt, nue2]
+exp_reco_group: exp_reco
+
+# --- stage 00: verify every input before anything is built on it -------------
+stage00:
+  # A probs run over baikal_mc_reco.h5 once wrote a 6 kB file and exited 0,
+  # because its group names did not match a hardcoded list.  Nothing here is
+  # assumed to have worked because a script said "Done".
+  parts_checked: 40            # parts per group given the full byte-level check
+  events_sampled: 2000         # events per group for the recomputation check
+
+# --- stage 02: the event table the analysis is built on ----------------------
+stage02:
+  # max charge per event is needed because the prefilter work found events with
+  # absurd charges in exp_reco ("Bad Qmax"); it can only come from the raw hits
+  workers: 12
+
+# --- stage 04: the excess on reconstructed events ----------------------------
+stage04:
+  # Exclusions, each justified by a measurement in stage 03 rather than inherited:
+  #   cluster 1 of exp_reco accepts 6.9% of its h8s3 events against 0.94-1.18%
+  #     for every other cluster, and only 30% of it survives preselection at all;
+  #   max charge above 1e4 p.e. is the "Bad Qmax" fault of the prefilter work;
+  #   mc_reco fragments with few true signal hits carry the reconstruction of a
+  #     whole multi-cluster event beside the hits of one piece of it.
+  exclude_exp_clusters: [1]
+  max_charge: 10000.0
+  min_gt_sig_hits: 5
+  bands: [[0.0, 0.01], [0.01, 0.1], [0.1, 0.3], [0.3, 0.5], [0.5, 0.7],
+          [0.7, 0.9], [0.9, 1.01]]

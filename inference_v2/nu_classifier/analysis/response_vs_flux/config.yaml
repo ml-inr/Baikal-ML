@@ -1,0 +1,123 @@
+# Every path, threshold, binning and seed used anywhere in this analysis.
+# Stages read this file and nothing else; no constant is defined in a script.
+
+paths:
+  root: ../../../..
+  h5:
+    mc: data_manager/data/h5datasets/baikal_mc_merged.h5
+    exp: data_manager/data/h5datasets/exp_full.h5
+  probs:                       # sig-noise hit probabilities, batch-size 256 build
+    mc: data_manager/data/h5datasets/baikal_mc_merged_probs_k_nsol_labelneq0_da_hs128_k0p0001.h5
+    exp: data_manager/data/h5datasets/exp_full_probs_k_nsol_labelneq0_da_hs128_k0p0001.h5
+  catalog: data_manager/catalog_v2.duckdb
+  preds: inference_v2/nu_classifier/preds
+  # feature table carried over from analysis/excess_mechanism, rebuildable by stage 01
+  legacy_features: inference_v2/nu_classifier/analysis/excess_mechanism
+
+model: 260816_2250_da_nu_classifier_exp_full_E1_lambda0.01_FIXED_sn256@best_da_model
+
+# --- physics / pipeline conventions, fixed by the upstream pipeline -----------
+sig_noise_threshold: 0.8       # hit kept if p_signal > this
+quality_cut: "n_sn_hits >= 8 AND n_sn_strings >= 3"
+xi: 0.8                        # classifier score defining "accepted"
+refractive_index: 1.37         # water; K = sqrt(n^2 - 1) = 0.9364
+c_m_per_ns: 0.299792458
+
+mc_classes: [muatm_2020, nuatm_2020, nue2_2020]
+
+# --- stage 00: index and cross-cluster feasibility ---------------------------
+stage00:
+  # nearest-neighbour dt scan between clusters; log bins in nanoseconds
+  dt_scan_max_ns: 100_000      # +/- 100 us search window
+  dt_bins_ns: [10, 30, 100, 300, 1_000, 3_000, 10_000, 30_000, 100_000]
+  mc_parts_probed: 12          # parts per MC class for the multi-cluster census
+  smoke_parts: 2
+  # coincidence-search sensitivity calibration: fake coincidences
+  # copied A -> B at +137 ms and searched for blind
+  inject_levels: [50_000, 10_000, 6_000]
+  # a detection must beat the empirical trials distribution, which sits at
+  # 5.1-6.2 sigma across 20 signal-free pairs; injection says 6,000 fake
+  # coincidences give 7.6 sigma, so 7.0 separates the two
+  trials_sigma: 7.0
+
+seed: 20260826
+
+# --- stage 30: test 1, leave-one-out response comparison ---------------------
+stage30:
+  # The original plan split the strings of a cluster in two.  Accepted events
+  # have a median of three strings, so only 216 of 7,752 accepted MC events and
+  # 146 of 3,220 accepted experimental events survive a six-string requirement:
+  # the split cannot reach the population that carries the excess.  Withholding
+  # one hit at a time reaches all of it.
+  held_out_per_event: 3
+  min_hits: 8                  # 7 fitting hits against 5 free parameters
+  # score bands sampled; the accepted ones are taken exhaustively
+  bands: [[0.0, 0.01], [0.1, 0.3], [0.5, 0.8], [0.8, 0.9], [0.9, 1.01]]
+  sample_per_band: 8000        # per band per source; accepted bands take all
+  workers: 16
+
+# --- stage 40: test 3, reproduce the excess by perturbing the response -------
+stage40:
+  checkpoint: experiments/numu/260816_2250_da_nu_classifier_exp_full_E1_lambda0.01_FIXED_sn256/best_da_model.pth
+  # Stage 31 measured how much extra timing spread MC lacks: 28.7 ns median over
+  # matched cells.  The scan brackets it instead of assuming it.
+  jitter_sigma_ns: [0.0, 15.0, 25.0, 30.0, 40.0]
+  mc_parts: 300
+  sn_batch_size: 256      # the convention; batch size defines the hit selection
+  batch_size: 512
+  # Indices here are nvidia-smi indices: the stage pins CUDA_DEVICE_ORDER to
+  # PCI_BUS_ID, because PyTorch's default "fastest first" order does not match
+  # nvidia-smi and silently put an earlier run on another user's card.
+  # cuda:0 was named earlier in the session but is now busy (24 GB, 33%); this
+  # takes the idle A100.  Change here, nowhere else.
+  device: cuda:5
+
+# --- stage 41: does jittered MC actually look like the data? -----------------
+stage41:
+  # Closing the loop.  The 28.5 ns was measured on hits that had already passed
+  # the sig-noise filter; the jitter in stage 40 is applied to raw hits, and the
+  # filter then removes some of what was smeared.  So the post-filter width of
+  # jittered MC has to be measured, not assumed equal to the input sigma.
+  sigmas_ns: [0.0, 30.0]
+  mc_parts: 8
+  max_events: 7000
+  workers: 16
+
+# --- stage 50: features for the whole xi > 0.5 population, no sampling weights
+stage50:
+  # The cut separates muatm that fools the classifier from muatm that does not.
+  # Both classes are the same particles from the same generator, so what the cut
+  # learns is *confusability*, not "muon versus neutrino" -- which is what the
+  # classifier already does and would tell us nothing new.
+  #
+  # muatm above the threshold is the target and exp is the blind test: both taken
+  # whole (34,382 and 10,896).  The uniform muatm sample serves twice -- as the
+  # negative class (97.6% of it sits below 0.01) and as the denominator for "how
+  # much muatm survives in general".  Neutrinos never enter the design, so their
+  # retention is a prediction; only fractions of them are reported, which a
+  # uniform subsample estimates without bias.  Nothing here is reweighted.
+  score_min: 0.5                # defines the false-positive sample
+  score_clean: 0.01             # below this the classifier is confidently right
+  # Large enough that the negative class can be drawn as several *disjoint*
+  # replicates: overlapping draws share events and would make a cut look stabler
+  # than it is.
+  muatm_reference: 250000       # uniform over ALL quality muatm
+  # Symmetric to the muatm reference, and the control that matters: the cut is
+  # trained on MC, so applied to experiment it might remove events simply because
+  # experiment differs from MC globally (a domain classifier reaches AUC 0.78 at
+  # every score).  Without a low-score experimental control, "the cut removed
+  # confusable muons" cannot be told apart from "the cut removes exp events".
+  exp_reference: 150000         # uniform over ALL quality exp
+  neutrino_sample: 150000       # per class
+  n_replicates: 5               # disjoint draws of the negative class
+  workers: 12
+
+# --- stage 51: the cut search itself ----------------------------------------
+stage51:
+  # Operating points are defined by how much of the false-positive sample the cut
+  # removes.  The threshold is fixed on the design half of the MC parts and then
+  # frozen; everything else is measured with it unchanged.
+  removal_targets: [0.90, 0.99]
+  threshold_steps: 200          # quantile grid per feature for single cuts
+  tree_depths: [2, 3]
+  min_leaf: 200

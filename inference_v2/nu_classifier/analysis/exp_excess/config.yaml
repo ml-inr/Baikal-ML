@@ -1,0 +1,67 @@
+# Every parameter the excess analysis depends on. Scripts read this; nothing is hard-coded
+# in the notebook.
+
+model_name: 260816_2250_da_nu_classifier_exp_full_E1_lambda0.01_FIXED_sn256@best_da_model
+
+predictions:
+  mc:  inference_v2/nu_classifier/preds/{model_name}/mc_merged_thr0p8.duckdb
+  exp: inference_v2/nu_classifier/preds/{model_name}/exp_full_thr0p8.duckdb
+
+catalog: data_manager/catalog_v2.duckdb
+
+# Events whose labels the model was trained on. Their scores are biased and they are
+# excluded from every measurement.
+mc_training_dataset: data_manager/datasets/nu_classifier_dataset_h5s0_thr0.8
+
+# Experimental events used as the unlabelled domain-adaptation target. Recorded but not
+# excluded: no labels were involved, so their scores are not biased the same way.
+exp_da_target_dataset: data_manager/datasets/nu_classifier_dataset_exp_full_thr0.8
+
+event_selection:
+  min_sig_hits: 8
+  min_sig_strings: 3
+
+# Every exclusion carries the status of its evidence. Entries are never deleted: a refuted
+# one has to stay visible, or it gets reapplied by whoever finds the old note next.
+exclusions:
+  runs:
+    - key: part_s2020_c02_r0020
+      status: verified
+      reason: >
+        Channels 222/224/225/227 (one string of cluster 2) emit up to 3169.8 p.e. against a
+        median hit of 0.97; 36-78% of their hits exceed 100 p.e. where a normal channel sits
+        at 0.0066%. The sig-noise network applies no charge limit, so such a hit arrives as
+        863 sigma and is called signal 100% of the time. Events touching these channels score
+        above 0.8 8.7x more often (0.7164% vs 0.0823% in the same runs).
+    - key: part_s2020_c02_r0249
+      status: verified
+      reason: Same four channels; these are the only two runs where they fire.
+  clusters:
+    - key: 1
+      status: refuted
+      reason: >
+        Excluded in temp_plot_pred.py with no stated mechanism. Cluster 1 is absent from
+        exp_full entirely, so the entry could not be tested here.
+    - key: 4
+      status: refuted
+      reason: >
+        Recorded as "channel 71 broken across cluster 4". Not reproduced: channel 71 in c04
+        is at 0.889 of the cluster median by occupancy and 1.019 by mean charge, and c04 has
+        no anomalous channel at all — the cleanest cluster by both measures. The list likely
+        came from exp_reco, or used global rather than per-cluster channel numbering.
+        NOT APPLIED.
+
+# Fraction of PARTS reserved for the kNN reference manifold, per class. Assigned by a hash of
+# the part name, so the split is stable no matter how many parts a run happens to process.
+# Experimental events are never part of an MC reference, hence zero.
+reference_part_fraction:
+  muatm_2020: 0.05
+  nuatm_2020: 0.10
+  nue2_2020:  0.05
+  exp_full:   0.00
+
+# Class proportions the reference is drawn in, and the ceiling on its total size.
+reference_class_ratio: {muatm_2020: 2, nuatm_2020: 1, nue2_2020: 1}
+reference_max_fraction_of_events: 0.05
+
+random_seed: 42

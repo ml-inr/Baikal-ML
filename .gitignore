@@ -40,7 +40,6 @@ venv.bak/
 # Jupyter Notebooks
 # ============================================================
 .ipynb_checkpoints/
-*.ipynb
 
 # ============================================================
 # Data Files
@@ -114,7 +113,6 @@ mlruns/
 *.conda
 conda-meta/
 environment.lock
-environment.yml
 
 # ============================================================
 # IDE & Editor
@@ -154,7 +152,6 @@ htmlcov/
 nosetests.xml
 coverage.xml
 *.cover
-test*.py
 ManualTests
 
 # ============================================================
@@ -166,17 +163,22 @@ docs/_build/
 # ============================================================
 # Project Assets (configs, scripts, images — tracked selectively)
 # ============================================================
-*.yaml
 *.json
-*.yml
-*.md
 *.txt
 *.csv
 *.png
-*.sh
-*.envrc
 
-archive/
+# Архив: default-deny. По умолчанию НЕ отслеживается ничего —
+# любой файл данных, положенный сюда, останется вне git независимо от
+# расширения. Отслеживаются только исходники, конфиги и документация.
+**/archive/**
+!**/archive/**/
+!**/archive/**/*.py
+!**/archive/**/*.sh
+!**/archive/**/*.yaml
+!**/archive/**/*.yml
+!**/archive/**/*.md
+!**/archive/**/*.ipynb
 Archive/
 scratch/
 temp/
@@ -201,19 +203,23 @@ gplotnikov_sig_noise_models/test.ipynb
 # ============================================================
 # Project-Specific Development Docs
 # ============================================================
-.claude
-CLAUDE.md
-vision.md
-conventions.md
-idea.md
 promts.txt
-PROJECT_STATUS.md
-doc/workflow.md
-doc/tasklist.md
-doc/data_format.md
 Встречи.md
 memory
 my_notes
 
 # Exception: keep this technical reference doc
-!doc/hdf5_format.md
+
+# ── Восстановимость (см. doc/AUDIT.md §0) ─────────────────────────
+# Кэш сессий marimo — регенерируется
+**/__marimo__/
+
+# Исключения из *.json / *.csv: настройки проекта и эталоны верификации
+!.claude/settings.json
+!gplotnikov_sig_noise_models/k_nsol_labelneq0_da_hs128_k0p0001/probs_fingerprint_before.json
+!gplotnikov_sig_noise_models/k_nsol_labelneq0_da_hs128_k0p0001/probs_fingerprint_after.json
+!inference_v2/nu_classifier/preds/prediction_history.csv
+
+# Локальные настройки машины — не общие для проекта.
+# Идёт ПОСЛЕ !.claude/settings.json, иначе исключение перекрыло бы его.
+.claude/settings.local.json

@@ -1,0 +1,33 @@
+# Nu-classifier NPY dataset builder configuration
+#
+# Usage:
+#   python -m data_manager.nu_classifier_ds_builder --config <this_file>
+
+# Source HDF5 file
+h5_path: "data_manager/data/h5datasets/baikal_mc_merged.h5"
+
+# JSON file mapping particle short names → lists of h5 part numbers
+# Keys must be a subset of: muatm, nuatm, nue2
+parts_json: "data_manager/nu_classifier_ds_builder/testds_parts.json"
+
+# Output directory for .npy files (and a copy of this config)
+output_dir: "data_manager/datasets/nu_classifier_TEST_dataset_h5s0_thr0.5"
+
+# Sig-noise model inference
+sig_noise_model:
+  device: "cuda:1"       # "auto" | "cuda" | "cpu"
+  batch_size: 256
+
+# Probability threshold: hits with prob > threshold are considered signal hits
+sig_noise_threshold: 0.5
+
+# Event selection cuts (applied to sig-noise filtered counts)
+event_cuts:
+  min_hits: 5
+  min_strings: 0
+
+# Class balancing: 2n muatm vs n nuatm + n nue2 (n = min of available pools)
+balance: false
+
+# Random seed for balancing and shuffling
+seed: 42

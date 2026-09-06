@@ -1,0 +1,74 @@
+experiment:
+  name: "domain_sep_prefilter_control"
+  seed: 42
+
+data:
+  source_type: "prefilter"
+  control_mode: true          # split MC muatm 50/50 instead of loading Exp
+  device: "cuda:0"
+  max_hits: 500
+  source_domain:
+    npy_dir: "data_manager/datasets/baikal_mc2020_prefilter/hard_nu_labels"
+    max_events: 100000        # ~50k muatm after label=0 filter → ~25k per side
+    train_split: 0.9
+  # target_domain not used in control mode
+
+model:
+  type: "numu"
+  amp_clip: 100
+  feature_extractor:
+    input_dim: 5
+    d_model: 128
+    num_heads: 4
+    num_layers: 4
+    dim_feedforward: 128
+    dropout: 0.
+    pooling: "cls"
+    use_positional_encoding: true
+    max_seq_len: 1000
+  classifier:
+    hidden_dims: [32, 16]
+    dropout: 0.
+    use_batch_norm: false
+  domain_discriminator:
+    hidden_dims: [32, 16]
+    dropout: 0.
+    use_batch_norm: false
+    use_gradient_reversal: false
+
+training:
+  epochs: 100
+  batch_size: 512
+  learning_rate: 3.0e-4
+  weight_decay: 0.01
+  scheduler: "plateau"
+  scheduler_params:
+    mode: "min"
+    patience: 5
+    factor: 0.5
+    min_lr: 1.0e-6
+  validate_every: 1
+  save_every: 5
+  early_stopping:
+    enabled: true
+    monitor: "domain_loss"
+    mode: "min"
+    patience: 15
+    min_delta: 1.0e-4
+
+dataloader:
+  num_workers: 0
+  pin_memory: false
+  augmentation:
+    noise_std: [0.05, 5.0, 1.0, 1.0, 2.0]
+    rotation_enabled: true
+
+logging:
+  output_dir: "experiments/domain_sep_prefilter_control"
+  tensorboard: true
+  log_every: 50
+  save_config: true
+
+debug:
+  enabled: false
+  max_batches_per_epoch: 10

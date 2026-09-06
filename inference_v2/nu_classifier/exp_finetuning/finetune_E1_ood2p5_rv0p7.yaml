@@ -1,0 +1,54 @@
+# Fine-tune E1 on OOD-selected exp background (label 0), MC anchor 1:1:2.
+# Original model:   260705_0702_da_nu_classifier_exp_full_E1_lambda0.01
+# Original ckpt:    da_checkpoint_epoch_010
+# BG selection:     encoder-OOD (kNN>2.5, MC manifold) AND rvert<0.7  (see report 2026-07-07 §6)
+# Goal:             teach the classifier to reject the near-horizontal OOD population it
+#                   over-confidently scores as nu, without hurting MC nu-efficiency.
+pretrained_checkpoint: experiments/numu/260705_0702_da_nu_classifier_exp_full_E1_lambda0.01/da_checkpoint_epoch_010.pth
+mc_npy_dir:    data_manager/datasets/nu_classifier_dataset_h5s0_thr0.8
+exp_bg_npy_dir: inference_v2/nu_classifier/exp_finetuning/exp_bg_datasets/260705_0702_da_nu_classifier_exp_full_E1_lambda0.01@da_checkpoint_epoch_010_ood2p5_rv0p7
+output_dir:    experiments/numu
+experiment_name: 260705_0702_da_nu_classifier_exp_full_E1_lambda0.01@da_checkpoint_epoch_010_ood2p5_rv0p7_finetuned
+device: cuda:1
+
+seed: 42
+max_hits: 500
+mc_train_split: 0.9
+bg_train_split: 0.8
+
+epochs: 15
+batch_size: 512
+validate_every: 1
+save_every: 1
+save_epoch_checkpoints: true
+log_every: 50
+
+learning_rate: 5.0e-5      # gentle — small correction, preserve nu-efficiency
+weight_decay:  0.01
+scheduler: plateau
+scheduler_params:
+  mode: min
+  patience: 3
+  factor: 0.5
+  min_lr: 1.0e-7
+
+classification_loss: focal
+focal_gamma: 2.0
+class_weights: true
+
+early_stopping:
+  enabled: true
+  monitor: loss
+  mode: min
+  patience: 8
+  min_delta: 1.0e-4
+
+tensorboard: true
+save_config: true
+
+dataloader:
+  num_workers: 0
+  pin_memory: false
+  augmentation:
+    rotation_enabled: true
+    noise_std: [0.05, 5.0, 1.0, 1.0, 2.0]

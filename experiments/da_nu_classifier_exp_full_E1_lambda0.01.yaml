@@ -1,0 +1,122 @@
+# DA nu-classifier — exp_full E1 (Option 1 only), lambda=0.01, cuda:0.
+# Frozen per-run copy of experiments/da_nu_classifier_exp_full.yaml.
+# See experiments/numu/exp_full_DA_experiments.md (row 1).
+
+experiment:
+  name: "260705_0702_da_nu_classifier_exp_full_E1_lambda0.01"
+  description: "DA nu-classifier, full-stat exp target (Opt 1 only), lambda 0.01"
+  seed: 42
+
+reproducibility:
+  deterministic: true
+  benchmark: false
+
+data:
+  device: "cuda:0"
+  max_hits: 500
+
+  normalization:
+    enabled: true
+
+  include_probs: false
+
+  source_domain:
+    npy_dir: "data_manager/datasets/nu_classifier_dataset_h5s0_thr0.8"
+    max_events: 5000000
+    train_split: 0.9
+
+  # Option 1: full-statistics exp target (~5M, bad runs excluded).
+  target_domain:
+    npy_dir: "data_manager/datasets/nu_classifier_dataset_exp_full_thr0.8"
+    max_events: 5000000
+    train_split: 0.8
+
+model:
+  type: "numu"
+  amp_clip: 100
+
+  # ── OPTION 2 toggle ── spectral norm on the encoder (fights feature collapse)
+  spectral_norm:
+    enabled: false            # E1: off
+
+  feature_extractor:
+    input_dim: 5
+    d_model: 128
+    num_heads: 4
+    num_layers: 4
+    dim_feedforward: 128
+    dropout: 0.
+    pooling: "cls"
+    use_positional_encoding: true
+    max_seq_len: 1000
+
+  classifier:
+    hidden_dims: [32, 16]
+    dropout: 0.
+    use_batch_norm: false
+
+domain_adaptation:
+  domain_discriminator:
+    hidden_dims: [32, 16]
+    dropout: 0.
+    use_batch_norm: false
+    use_gradient_reversal: true
+    lambda_factor: 0.
+
+  lambda_scheduler:
+    schedule_by: "step"
+    type: "progressive"
+    max_lambda: 0.01          # E1 lambda sweep value
+    gamma: 10.0
+
+training:
+  epochs: 100
+  source_batch_size: 512
+  target_batch_size: 256
+
+  classification_loss: "focal"
+  focal_gamma: 2.0
+  class_weights: null
+
+  feature_optimizer:     {optimizer: "adamw", learning_rate: 0.0001, weight_decay: 0.01}
+  classifier_optimizer:  {optimizer: "adamw", learning_rate: 0.0001, weight_decay: 0.01}
+  discriminator_optimizer: {optimizer: "adamw", learning_rate: 0.0003, weight_decay: 0.01}
+
+  scheduler: "plateau"
+  scheduler_params: {mode: "min", factor: 0.5, patience: 3, min_lr: 1.0e-6}
+
+  validate_every: 1
+  save_every: 5
+
+  early_stopping:
+    enabled: true
+    monitor: "val_loss"
+    mode: "min"
+    patience: 15
+    min_delta: 0.
+
+dataloader:
+  num_workers: 0
+  pin_memory: false
+
+  augmentation:
+    noise_std: [0.05, 5.0, 1.0, 1.0, 2.0]
+    rotation_enabled: true
+
+    # ── OPTION 3 toggle ── synthetic afterpulse into MC source only.
+    afterpulse:
+      enabled: false          # E1: off
+      prob: 0.002
+      q_range: [5.0, 100.0]
+
+logging:
+  level: "INFO"
+  output_dir: "experiments/numu"
+  log_every: 10
+  tensorboard: true
+  save_config: true
+  save_model_summary: true
+
+debug:
+  enabled: false
+  max_batches_per_epoch: 10

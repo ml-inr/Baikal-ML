@@ -1,0 +1,151 @@
+# Domain Adaptation Configuration for Prefilter Neutrino Detection
+# MC → Exp Transfer Learning using DANN
+#
+# Source: memory-mapped NPY arrays (MC, from prefilter_npy_ds_builder, hard labels)
+#   - Hard labels: all neutrino events = 1.0, all muon events = 0.0
+#   - Class balancing: 1:1 nu:mu (2*n_sig_per muons).
+#   - The builder config is saved alongside the data as build_config.yaml.
+#
+# Target: in-memory exp.h5 (~300K events, all background)
+#
+# Usage:
+#   python src/training/da_prefilter_numu_trainer.py \
+#       --config experiments/da_prefilter_numu_hardlabels.yaml [--debug]
+
+experiment:
+  name: "da_prefilter_numu_260430_0846_Qclip_hardlabels_PlateauLR_lambda0.05_MC2M_dmodel128_zflipBothMCExp_FocalLoss"
+  description: "Domain adaptation, hard labels NPY source and exp.h5 target"
+  seed: 42
+
+reproducibility:
+  deterministic: true
+  benchmark: false
+
+# Data configuration
+data:
+  device: "cuda:2"
+  max_hits: 500
+
+  normalization:
+    enabled: true
+    # Uses data_manager/stats_dict/default_mc.yaml
+
+  # Source domain (MC) — hard labels NPY from prefilter_npy_ds_builder
+  source_domain:
+    npy_dir: "/home/albert/Baikal2025/data_manager/datasets/baikal_mc2020_prefilter/hard_nu_labels"
+    max_events: 2000000       # null = use all events from the .npy files
+    train_split: 0.95
+
+  # Target domain (Experimental data) — loaded in-memory from HDF5
+  target_domain:
+    h5_path: "/home/albert/Baikal2025/data_manager/data/h5datasets/exp.h5"
+    max_events: 400000        # subsample from ~650K total
+    train_split: 0.9
+
+# Model architecture
+model:
+  type: "numu"
+  amp_clip: 100                # raw amplitude (PE); normalized in trainer. null = no clipping.
+
+  feature_extractor:
+    input_dim: 5              # [amplitude, time, x, y, z]
+    d_model: 128
+    num_heads: 4
+    num_layers: 4
+    dim_feedforward: 128
+    dropout: 0.
+    pooling: "cls"
+    use_positional_encoding: true
+    max_seq_len: 1000
+
+  classifier:
+    hidden_dims: [32, 16]
+    dropout: 0.
+    use_batch_norm: false
+
+# Domain adaptation
+domain_adaptation:
+  domain_discriminator:
+    hidden_dims: [32, 16]
+    dropout: 0.
+    use_batch_norm: false
+    use_gradient_reversal: true
+    lambda_factor: 0.
+
+  lambda_scheduler:
+    schedule_by: "step"
+    type: "progressive"
+    max_lambda: 0.05
+    gamma: 10.0
+
+# Training
+training:
+  epochs: 100
+  source_batch_size: 512
+  target_batch_size: 256
+
+  classification_loss: "focal"  # "bce" or "focal"
+  focal_gamma: 2.0            # used when classification_loss: focal
+  class_weights: null         # auto-computed from source labels
+
+  feature_optimizer:
+    optimizer: "adamw"
+    learning_rate: 0.001
+    weight_decay: 0.01
+
+  classifier_optimizer:
+    optimizer: "adamw"
+    learning_rate: 0.001
+    weight_decay: 0.01
+
+  discriminator_optimizer:
+    optimizer: "adamw"
+    learning_rate: 0.002
+    weight_decay: 0.01
+
+  # Scheduler options:
+  #   "cosine"  — CosineAnnealingLR:   T_max (int), eta_min (float)
+  #   "step"    — StepLR:              step_size (int), gamma (float)
+  #   "plateau" — ReduceLROnPlateau:   mode ("max"/"min"), factor (float),
+  #                                    patience (int), min_lr (float)
+  #               mode must match early_stopping.monitor direction
+  #               (max for AUC/F1, min for loss)
+  scheduler: "plateau"
+  scheduler_params:
+    mode: "max"       # val_auc is monitored → higher is better
+    factor: 0.5
+    patience: 3
+    min_lr: 1.0e-6
+
+  validate_every: 1
+  save_every: 5
+
+  early_stopping:
+    enabled: true
+    monitor: "val_auc"
+    mode: "max"
+    patience: 15
+    min_delta: 0.0001
+
+# Data loading
+dataloader:
+  num_workers: 0
+  pin_memory: false
+
+  augmentation:
+    noise_std: [0.05, 5.0, 1.0, 1.0, 2.0]
+    rotation_enabled: true
+
+# Logging
+logging:
+  level: "INFO"
+  output_dir: "experiments/numu"
+  log_every: 10
+  tensorboard: true
+  save_config: true
+  save_model_summary: true
+
+# Debug mode
+debug:
+  enabled: false
+  max_batches_per_epoch: 10

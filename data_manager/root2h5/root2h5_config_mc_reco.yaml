@@ -1,0 +1,101 @@
+# Configuration for root2h5_mc_reco.py
+# Processes one particle type per run. Adjust `particle` and `root_dir_path` accordingly.
+# Available particle dirs (relative to project root):
+#   data_manager/data/mc_reco_root/nue2_files/
+#   data_manager/data/mc_reco_root/nuatm_conv_files/
+#   data_manager/data/mc_reco_root/nuatm_prompt_files/
+#   data_manager/data/mc_reco_root/muatm_files/
+
+general:
+  take_single_cluster: true
+  take_clust_num: null
+  split_multi: true
+  shift_coords_to_cl_center: true
+  center_times: true
+  exclude_big_ts: true
+  t_threshold: 1e5
+  coords_are_same: false
+
+multiprocessing:
+  MAX_QUEUE_SIZE: 3
+  NUM_WORKERS: 8
+
+output:
+  h5_name: "baikal_mc_reco.h5"
+  h5_prefix: "/home/albert/Baikal2025/data_manager/data/h5datasets/"
+
+input:
+  particle: "nuatm_conv"
+  root_dir_path: "/home/albert/Baikal2025/data_manager/data/mc_reco_root/nuatm_conv_files"
+
+root_paths:
+  data:
+    - "Events/BEvent./BEvent.fPulses/BEvent.fPulses.fAmplitude"
+    - "Events/BEvent./BEvent.fPulses/BEvent.fPulses.fTime"
+    - "Events/MCEventMask./MCEventMask.BEventMask/MCEventMask.BEventMask.fOrigins/MCEventMask.BEventMask.fOrigins.fFlag"
+    - "Events/BEvent./BEvent.fPulses/BEvent.fPulses.fChannelID"
+
+  primary:
+    - "Events/BMCEvent./BMCEvent.fPrimaryParticleTheta"
+    - "Events/BMCEvent./BMCEvent.fPrimaryParticlePhi"
+    - "Events/BMCEvent./BMCEvent.fPrimaryParticleEnergy"
+    - "Events/BMCEvent./BMCEvent.fNucleonN"
+    - "Events/BMCEvent./BMCEvent.fResponseMuonsN"
+    - "Events/BMCEvent./BMCEvent.fEventWeight"
+
+  resp_muons:
+    - "Events/BMCEvent./BMCEvent.fTracks/BMCEvent.fTracks.fTheta"
+    - "Events/BMCEvent./BMCEvent.fTracks/BMCEvent.fTracks.fPhi"
+    - "Events/BMCEvent.fTracks.fX"
+    - "Events/BMCEvent.fTracks.fY"
+    - "Events/BMCEvent.fTracks.fZ"
+    - "Events/BMCEvent./BMCEvent.fTracks/BMCEvent.fTracks.fDelay"
+    - "Events/BMCEvent./BMCEvent.fTracks/BMCEvent.fTracks.fMuonEnergy"
+
+  mu_scalar:
+    - "Events/BMCEvent./BMCEvent.fFirstMuonTime"
+    - "Events/BMCEvent./BMCEvent.fSumEnergyBundleReg"
+
+  # reco_ev: 25 scalar columns from BRecoMuon — IDENTICAL ordering to exp_reco reco_prty.
+  # Columns 0-24 match EXP_RECO_COL_NAMES in inference/prefilter_model/utils.py.
+  reco_ev:
+    - "Events/BRecoMuon./BRecoMuon.fThetaRec"       # 0  thetaRec
+    - "Events/BRecoMuon./BRecoMuon.fPhiRec"          # 1  phiRec
+    - "Events/BRecoMuon./BRecoMuon.fThetaErr"        # 2  thetaErr
+    - "Events/BRecoMuon./BRecoMuon.fPhiErr"          # 3  phiErr
+    - "Events/BRecoMuon./BRecoMuon.fFuncValue"       # 4  funcValue
+    - "Events/BRecoMuon./BRecoMuon.fTimeChi2"        # 5  timeChi2
+    - "Events/BRecoMuon./BRecoMuon.fChargeTerm"      # 6  chargeTerm
+    - "Events/BRecoMuon./BRecoMuon.fLLFit"           # 7  LLFit
+    - "Events/BRecoMuon./BRecoMuon.fNHits"           # 8  nHits
+    - "Events/BRecoMuon./BRecoMuon.fNStrings"        # 9  nStrings
+    - "Events/BRecoMuon./BRecoMuon.fNOMs"            # 10 nOMs
+    - "Events/BRecoMuon./BRecoMuon.fPathLength"      # 11 pathLength
+    - "Events/BRecoMuon./BRecoMuon.fTimeXYZRec"      # 12 timeXYZRec
+    - "Events/BRecoMuon./BRecoMuon.fCovMatrixStatus" # 13 covMatrixStatus
+    - "Events/BRecoMuon./BRecoMuon.fScfMaxTheta"     # 14 scfMaxTheta
+    - "Events/BRecoMuon./BRecoMuon.fScfMinTheta"     # 15 scfMinTheta
+    - "Events/BRecoMuon./BRecoMuon.fScfTheta"        # 16 scfTheta
+    - "Events/BRecoMuon./BRecoMuon.fScfPhi"          # 17 scfPhi
+    - "Events/BRecoMuon./BRecoMuon.fPHit"            # 18 pHit
+    - "Events/BRecoMuon./BRecoMuon.fEvCenterZ"       # 19 evCenterZ
+    - "Events/BRecoMuon./BRecoMuon.fZDist"           # 20 zDist
+    - "Events/BRecoMuon./BRecoMuon.fNTriplets"       # 21 nTriplets
+    - "Events/BRecoMuon./BRecoMuon.fNCalls"          # 22 nCalls
+    - "Events/BRecoMuon./BRecoMuon.fClassBDT"        # 23 classBDT
+    - "Events/BRecoMuon./BRecoMuon.fClassBDTLowE"    # 24 classBDTLowE
+
+  # reco_vectors: MC-specific 3D reconstruction vectors (6 extra columns appended to reco_prty).
+  # Column names in utils.py MC_RECO_COL_NAMES[25:31]:
+  #   25 xyzRec_x, 26 xyzRec_y, 27 xyzRec_z  (fXYZRec)
+  #   28 dirRec_x, 29 dirRec_y, 30 dirRec_z  (fDirectionRec)
+  reco_vectors:
+    - "Events/BRecoMuon./BRecoMuon.fXYZRec"
+    - "Events/BRecoMuon./BRecoMuon.fDirectionRec"
+
+  # Per-hit reconstruction mask (stored as raw/reco_mask, analogous to exp_reco raw/labels).
+  # != 0 means the hit was selected by the reconstruction algorithm.
+  # A per-event scalar raw/reco_n_sig_hits is also derived and stored.
+  reco_mask: "Events/ScanfitMask./ScanfitMask.fOrigins/ScanfitMask.fOrigins.fFlag"
+
+  geometry: "Events/BGeomTel./BGeomTel.BGeomTel/BGeomTel.BGeomTel.fOMs/BGeomTel.BGeomTel.fOMs.fPosition"
