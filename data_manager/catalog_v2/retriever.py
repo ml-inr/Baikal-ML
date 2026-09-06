@@ -27,6 +27,39 @@ from data_manager.catalog_v2.schema import open_catalog
 
 CATALOG_V2_PATH = Path(__file__).resolve().parents[1] / "catalog_v2.duckdb"
 
+# Имена скалярных колонок reco_prty в exp_reco.h5, по порядку записи конвертером
+# data_manager/root2h5/root2h5_exp_reco.py. Держим здесь, а не импортируем: это
+# часть контракта чтения, и retriever не должен зависеть от чужого модуля.
+# Тот же список продублирован в inference_v2/shared/reco_schema.py как
+# EXP_RECO_COLUMNS — при изменении схемы HDF5 править оба места.
+EXP_RECO_COL_NAMES: tuple[str, ...] = (
+    "thetaRec",         # 0  BRecoMuon.fThetaRec
+    "phiRec",           # 1  BRecoMuon.fPhiRec
+    "thetaErr",         # 2  BRecoMuon.fThetaErr
+    "phiErr",           # 3  BRecoMuon.fPhiErr
+    "funcValue",        # 4  BRecoMuon.fFuncValue
+    "timeChi2",         # 5  BRecoMuon.fTimeChi2
+    "chargeTerm",       # 6  BRecoMuon.fChargeTerm
+    "LLFit",            # 7  BRecoMuon.fLLFit
+    "nHits",            # 8  BRecoMuon.fNHits
+    "nStrings",         # 9  BRecoMuon.fNStrings
+    "nOMs",             # 10 BRecoMuon.fNOMs
+    "pathLength",       # 11 BRecoMuon.fPathLength
+    "timeXYZRec",       # 12 BRecoMuon.fTimeXYZRec
+    "covMatrixStatus",  # 13 BRecoMuon.fCovMatrixStatus
+    "scfMaxTheta",      # 14 BRecoMuon.fScfMaxTheta
+    "scfMinTheta",      # 15 BRecoMuon.fScfMinTheta
+    "scfTheta",         # 16 BRecoMuon.fScfTheta
+    "scfPhi",           # 17 BRecoMuon.fScfPhi
+    "pHit",             # 18 BRecoMuon.fPHit
+    "evCenterZ",        # 19 BRecoMuon.fEvCenterZ
+    "zDist",            # 20 BRecoMuon.fZDist
+    "nTriplets",        # 21 BRecoMuon.fNTriplets
+    "nCalls",           # 22 BRecoMuon.fNCalls
+    "classBDT",         # 23 BRecoMuon.fClassBDT
+    "classBDTLowE",     # 24 BRecoMuon.fClassBDTLowE
+)
+
 
 def _h5_top_key(source: str, data_class: str) -> str:
     if source in ("exp", "exp_reco"):
@@ -73,7 +106,6 @@ class Event:
     def load_reco(self) -> dict[str, float]:
         if self.source != "exp_reco":
             raise ValueError(f"load_reco() only available for 'exp_reco', not {self.source!r}")
-        from inference.shared_utils import EXP_RECO_COL_NAMES
         top = _h5_top_key(self.source, self.data_class)
         with h5py.File(self._h5_path, "r") as f:
             row = f[top]["reco_prty"][self._part_key]["data"][self._local_idx]
