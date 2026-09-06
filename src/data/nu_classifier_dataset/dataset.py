@@ -53,6 +53,11 @@ class NuClassifierNpyDataset(BaseNpyDataset):
         self.n_sig_hits:     np.ndarray = np.load(npy_dir / "n_sig_hits.npy")
         self.n_sig_strings:  np.ndarray = np.load(npy_dir / "n_sig_strings.npy")
         self.particle_types: np.ndarray = np.load(npy_dir / "particle_types.npy")
+        # GT zenith theta (deg) for the horizon-aware loss; optional (may be absent).
+        _theta_path = npy_dir / "theta.npy"
+        self.theta: Optional[np.ndarray] = (
+            np.load(_theta_path) if _theta_path.exists() else None
+        )
 
         self.include_probs = include_probs
         self.probs: Optional[np.ndarray] = (
@@ -88,11 +93,15 @@ class NuClassifierNpyDataset(BaseNpyDataset):
             "signal_hit_count":    int(self.n_sig_hits[real_idx]),
             "signal_string_count": int(self.n_sig_strings[real_idx]),
             "particle_type":       int(self.particle_types[real_idx]),
+            "theta":               torch.tensor(
+                float(self.theta[real_idx]) if self.theta is not None else float("nan"),
+                dtype=torch.float32,
+            ),
         }
 
     def _split_attrs(self) -> List[str]:
         return [
             "features", "offsets", "labels",
-            "n_sig_hits", "n_sig_strings", "particle_types",
+            "n_sig_hits", "n_sig_strings", "particle_types", "theta",
             "max_hits", "include_probs", "probs",
         ]

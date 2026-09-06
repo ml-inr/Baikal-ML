@@ -53,6 +53,8 @@ venv.bak/
 *.parquet
 *.arrow
 *.duckdb
+*.pdf
+*.tex
 
 data/large/
 data/raw/
@@ -64,6 +66,9 @@ datasets/
 /data_manager/catalog_v2.duckdb*
 /data_manager/catalog_v2/logs/
 /data_manager/catalog/logs/
+
+/cern_root
+/bars
 
 # ============================================================
 # ML Artifacts (models, checkpoints, weights)

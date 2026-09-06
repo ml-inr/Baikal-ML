@@ -353,7 +353,13 @@ class NuMuClassifierModel(nn.Module):
             dropout=classifier_config.get('dropout', 0.2),
             use_batch_norm=classifier_config.get('use_batch_norm', True)
         )
-        
+
+        # Spectral normalization of the encoder (fights feature collapse / OOD).
+        # Applied here so both training and inference (create_model from the
+        # stored config) register the same parametrization before load_state_dict.
+        if config.get('spectral_norm', {}).get('enabled', False):
+            apply_spectral_norm_encoder(self.feature_extractor)
+
         logger.info(f"Created StandardNeutrinoModel with {self.count_parameters()} parameters")
     
     def _clip_amplitude(
@@ -418,21 +424,207 @@ class NuMuClassifierModel(nn.Module):
         )
 
 
+def apply_spectral_norm_encoder(fe: "AttentionFeatureExtractor") -> int:
+    """Apply spectral normalization to every linear weight of the transformer
+    encoder — input projection, each layer's attention (combined QKV in_proj +
+    output projection) and feed-forward (linear1, linear2). This bounds the
+    encoder's Lipschitz constant, which fights feature collapse / over-confident
+    mapping of OOD (exp) inputs. Encoder only — the classifier head and domain
+    discriminator are deliberately left unconstrained.
+
+    Returns the number of parametrized weights.
+    """
+    from torch.nn.utils.parametrizations import spectral_norm
+
+    n = 0
+    spectral_norm(fe.input_projection, name="weight"); n += 1
+    for layer in fe.transformer_encoder.layers:
+        attn = layer.self_attn
+        if getattr(attn, "in_proj_weight", None) is not None:
+            spectral_norm(attn, name="in_proj_weight"); n += 1
+        else:  # separate q/k/v projections (kdim/vdim != embed_dim)
+            for pn in ("q_proj_weight", "k_proj_weight", "v_proj_weight"):
+                if getattr(attn, pn, None) is not None:
+                    spectral_norm(attn, name=pn); n += 1
+        spectral_norm(attn.out_proj, name="weight"); n += 1
+        spectral_norm(layer.linear1, name="weight"); n += 1
+        spectral_norm(layer.linear2, name="weight"); n += 1
+    logger.info(f"Spectral norm applied to {n} encoder weights")
+    return n
+
+
+class RandomFeatureGPHead(nn.Module):
+    """SNGP output head: a Random-Fourier-Feature approximation of a GP with a
+    Laplace covariance and mean-field logit adjustment (Liu et al. 2020).
+
+    Distance-aware: inputs far from the training manifold (large embedding
+    distance, enabled by the spectral-normed encoder) get large predictive
+    variance → the mean-field logit ``logit/√(1+λ·var)`` is shrunk toward 0
+    (score → 0.5). This is the principled counterpart to the empirical
+    Mahalanobis OOD score, without its high-dim covariance-inversion instability.
+
+    Interface mirrors ``BinaryClassifier``: ``forward(features) -> logits`` so
+    the inference tooling (feature_extractor -> classifier) works unchanged. In
+    eval mode the returned logits are already mean-field adjusted. The trainer
+    additionally calls ``reset_precision`` / ``update_precision`` /
+    ``update_covariance`` to build the Laplace covariance.
+
+    Args:
+        input_dim: encoder feature dim (d_model).
+        num_rff: number of random Fourier features (GP approximation rank).
+        length_scale: RBF length scale for the random features.
+        ridge: precision-matrix ridge (prior precision), also numerical floor.
+        mean_field_factor: λ in the mean-field logit (π/8 for the probit approx).
+        normalize_input: L2-normalize the encoder features before the RFF map
+            (makes the GP distance cosine-based, robust to feature norm drift).
+    """
+
+    def __init__(
+        self,
+        input_dim: int,
+        num_rff: int = 1024,
+        length_scale: float = 1.0,
+        ridge: float = 1e-3,
+        mean_field_factor: float = math.pi / 8.0,
+        normalize_input: bool = True,
+    ):
+        super().__init__()
+        self.input_dim = input_dim
+        self.num_rff = num_rff
+        self.length_scale = length_scale
+        self.ridge = ridge
+        self.mean_field_factor = mean_field_factor
+        self.normalize_input = normalize_input
+
+        # Fixed random Fourier features: phi(h) = sqrt(2/D) cos(W h + b).
+        self.register_buffer("rff_weight", torch.randn(num_rff, input_dim))
+        self.register_buffer("rff_bias", torch.rand(num_rff) * 2.0 * math.pi)
+
+        # Trainable GP output weights (binary -> 1 output).
+        self.beta = nn.Linear(num_rff, 1, bias=False)
+
+        # Laplace covariance state (buffers -> saved in state_dict).
+        self.register_buffer("precision", ridge * torch.eye(num_rff))
+        self.register_buffer("covariance", torch.eye(num_rff))
+        self.register_buffer("cov_valid", torch.zeros(1))  # 0/1 flag
+
+        logger.info(
+            f"Created RandomFeatureGPHead: {input_dim}->{num_rff} RFF, "
+            f"length_scale={length_scale}, ridge={ridge}, normalize_input={normalize_input}"
+        )
+
+    def _phi(self, h: torch.Tensor) -> torch.Tensor:
+        if self.normalize_input:
+            h = h / (h.norm(dim=-1, keepdim=True) + 1e-8)
+        proj = F.linear(h / self.length_scale, self.rff_weight, self.rff_bias)
+        return math.sqrt(2.0 / self.num_rff) * torch.cos(proj)
+
+    def forward(self, features: torch.Tensor) -> torch.Tensor:
+        """Return logits; mean-field adjusted in eval when covariance is valid."""
+        phi = self._phi(features)
+        logits = self.beta(phi)
+        if (not self.training) and bool(self.cov_valid.item()):
+            var = torch.einsum("bi,ij,bj->b", phi, self.covariance, phi).clamp_min(0.0)
+            logits = logits / torch.sqrt(1.0 + self.mean_field_factor * var).unsqueeze(-1)
+        return logits
+
+    @torch.no_grad()
+    def reset_precision(self) -> None:
+        self.precision.copy_(self.ridge * torch.eye(self.num_rff, device=self.precision.device))
+        self.cov_valid.zero_()
+
+    @torch.no_grad()
+    def update_precision(self, features: torch.Tensor) -> None:
+        """Accumulate the Laplace precision: Σ_i p_i(1-p_i) φ_i φ_iᵀ (+ ridge init)."""
+        phi = self._phi(features)
+        p = torch.sigmoid(self.beta(phi)).squeeze(-1).clamp(1e-4, 1.0 - 1e-4)
+        w = p * (1.0 - p)
+        self.precision.add_(torch.einsum("b,bi,bj->ij", w, phi, phi))
+
+    @torch.no_grad()
+    def update_covariance(self) -> None:
+        """Invert the accumulated precision to get the predictive covariance."""
+        eye = torch.eye(self.num_rff, device=self.precision.device)
+        self.covariance.copy_(torch.linalg.solve(self.precision, eye))
+        self.cov_valid.fill_(1.0)
+
+
+class NuMuSNGPModel(nn.Module):
+    """SNGP nu-classifier: spectral-normed attention encoder + RFF-GP head.
+
+    Same encoder as ``NuMuClassifierModel`` (so weights are transferable), but
+    spectral normalization is ON by default (SNGP needs the bi-Lipschitz encoder
+    for distance-awareness) and the head is a ``RandomFeatureGPHead``. Exposes
+    ``feature_extractor`` and ``classifier`` so the existing inference utilities
+    work; ``encode`` returns the encoder features for the covariance update.
+    """
+
+    def __init__(self, config: Dict):
+        super().__init__()
+        self.config = config
+        self.amp_clip: Optional[float] = config.get("amp_clip", _AMP_CLIP_Q100)
+
+        fe = config.get("feature_extractor", {})
+        self.feature_extractor = AttentionFeatureExtractor(
+            input_dim=fe.get("input_dim", 5),
+            d_model=fe.get("d_model", 128),
+            num_heads=fe.get("num_heads", 8),
+            num_layers=fe.get("num_layers", 4),
+            dim_feedforward=fe.get("dim_feedforward", 512),
+            dropout=fe.get("dropout", 0.1),
+            pooling=fe.get("pooling", "cls"),
+            use_positional_encoding=fe.get("use_positional_encoding", True),
+            max_seq_len=fe.get("max_seq_len", 500),
+        )
+
+        # SNGP requires the spectral-normed (bi-Lipschitz) encoder; default ON.
+        if config.get("spectral_norm", {"enabled": True}).get("enabled", True):
+            apply_spectral_norm_encoder(self.feature_extractor)
+
+        gp = config.get("gp_head", {})
+        self.classifier = RandomFeatureGPHead(
+            input_dim=self.feature_extractor.feature_dim,
+            num_rff=gp.get("num_rff", 1024),
+            length_scale=gp.get("length_scale", 1.0),
+            ridge=gp.get("ridge", 1e-3),
+            mean_field_factor=gp.get("mean_field_factor", math.pi / 8.0),
+            normalize_input=gp.get("normalize_input", True),
+        )
+        logger.info(f"Created NuMuSNGPModel with {self.count_parameters()} parameters")
+
+    # amplitude clip shared with NuMuClassifierModel
+    _clip_amplitude = NuMuClassifierModel._clip_amplitude
+
+    def encode(self, batch: Dict[str, torch.Tensor]) -> torch.Tensor:
+        batch = self._clip_amplitude(batch, self.amp_clip)
+        return self.feature_extractor(
+            sequences=batch["features"], lengths=batch["lengths"], mask=batch["mask"],
+        )
+
+    def forward(self, batch: Dict[str, torch.Tensor]) -> torch.Tensor:
+        return self.classifier(self.encode(batch))
+
+    def count_parameters(self) -> int:
+        return sum(p.numel() for p in self.parameters() if p.requires_grad)
+
+
 def create_model(config: Dict) -> nn.Module:
     """
     Factory function to create models based on configuration.
-    
+
     Args:
         config: Model configuration dict
-        
+
     Returns:
         model: Initialized PyTorch model
     """
     model_type = config.get('type', 'numu')
-    
+
     if model_type == 'numu':
         model = NuMuClassifierModel(config)
+    elif model_type == 'numu_sngp':
+        model = NuMuSNGPModel(config)
     else:
         raise ValueError(f"Unknown model type: {model_type}")
-    
+
     return model

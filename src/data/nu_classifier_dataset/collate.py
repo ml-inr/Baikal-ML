@@ -49,6 +49,55 @@ def nu_classifier_collate_fn(
     particle_types       = torch.tensor(
         [item["particle_type"] for item in batch], dtype=torch.long
     )
+    # GT zenith theta (deg) for the horizon-aware loss; present only for datasets
+    # that carry theta.npy (MC source). NaN elsewhere → horizon weight w=0.
+    # Per-item (not just batch[0]): fine-tuning mixes MC items (with theta) and
+    # exp-BG items (without) in one batch, so fall back to NaN per missing item.
+    theta                = torch.stack([
+        item["theta"] if "theta" in item
+        else torch.tensor(float("nan"), dtype=torch.float32)
+        for item in batch
+    ])
+
+    # --- Afterpulse injection (before padding; source-only via aug config) ---
+    # Simulates spurious hardware afterpulses that leaked through the sig-noise
+    # filter into the signal-hit set: extra hit(s) at a random OM, random time,
+    # charge Q~U(q_lo, q_hi). MC has no afterpulses; exp does — so this is passed
+    # only to the MC (source) loader. Injected here so lengths/mask/sort account
+    # for it downstream.
+    #
+    # Per-EVENT sequential draw of 1..max_afterpulses: roll for the 1st (prob p);
+    # only if it fired, roll for the 2nd; etc. So P(n hits)=p^n·(1-p) (capped),
+    # giving P(1)>P(2)>P(3) — brighter multi-afterpulse events are rarer.
+    _ap = (augmentation_config or {}).get("afterpulse")
+    if _ap and _ap.get("enabled", False) and _ap.get("om_pool") is not None:
+        _prob = float(_ap.get("prob", 0.0))
+        _max_ap = int(_ap.get("max_afterpulses", 3))
+        _q_lo, _q_hi = _ap.get("q_range", [5.0, 100.0])
+        _om = np.asarray(_ap["om_pool"], dtype=np.float32)
+        if _prob > 0.0 and _max_ap > 0 and len(_om) > 0:
+            _new = []
+            for feat in features_list:
+                # sequential rolls: stop at first miss or when max reached
+                n_ap = 0
+                while n_ap < _max_ap and feat.shape[0] > 0 and np.random.random() < _prob:
+                    n_ap += 1
+                if n_ap > 0:
+                    fd  = feat.shape[1]
+                    t   = feat[:, 1]
+                    tlo, thi = float(t.min()), float(t.max())
+                    aps = torch.zeros(n_ap, fd, dtype=feat.dtype)
+                    for j in range(n_ap):
+                        aps[j, 0] = float(np.random.uniform(_q_lo, _q_hi))    # Q
+                        aps[j, 1] = float(np.random.uniform(tlo, thi)) if thi > tlo else tlo
+                        aps[j, 2:5] = torch.from_numpy(_om[np.random.randint(len(_om))])
+                        if fd >= 6:
+                            aps[j, 5] = 1.0    # sig-noise prob: afterpulse "passed"
+                    feat = torch.cat([feat, aps], dim=0)
+                _new.append(feat)
+            features_list = _new
+            # lengths must include the injected hit(s) (was n_hits from the dataset)
+            lengths = torch.tensor([f.shape[0] for f in features_list], dtype=torch.long)
 
     batch_size  = len(features_list)
     max_len     = int(lengths.max().item())
@@ -69,6 +118,7 @@ def nu_classifier_collate_fn(
     signal_hit_counts    = signal_hit_counts.to(device)
     signal_string_counts = signal_string_counts.to(device)
     particle_types       = particle_types.to(device)
+    theta                = theta.to(device)
 
     # --- Augmentation ---
     if augmentation_config is not None:
@@ -120,4 +170,5 @@ def nu_classifier_collate_fn(
         "signal_hit_counts":   signal_hit_counts,
         "signal_string_counts": signal_string_counts,
         "particle_types":      particle_types,
+        "theta":               theta,
     }

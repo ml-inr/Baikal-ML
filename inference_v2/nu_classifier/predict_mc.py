@@ -50,9 +50,16 @@ from inference_v2.shared.catalog_query import (
     MC_RECO_PTYPE_TO_DATA_CLASS,
 )
 from inference_v2.shared.history import append_history_row
+from inference_v2.shared.run_info import probs_batch_size, write_run_info
 from data_manager.nu_classifier_ds_builder.io import _count_sig_hits_strings
 
 logger = logging.getLogger(__name__)
+
+# The sig-noise model passes a float padding mask, so its output depends on how much padding
+# shares a batch: batch size decides which hits pass the threshold. It must match the MC
+# probs file (256) and must NOT be tied to the nu-classifier's batch size, which is a pure
+# speed knob. See doc/sig_noise_batch_size.md.
+SN_BATCH_SIZE = 256
 
 # mc_merged h5 group names are already the full data_class names
 MC_MERGED_PTYPES = ["muatm_2020", "nuatm_2020", "nue2_2020"]
@@ -67,12 +74,6 @@ def _ptype_to_data_class(ptype: str, source: str) -> str:
     if source == "mc_reco":
         return MC_RECO_PTYPE_TO_DATA_CLASS.get(ptype, ptype)
     return ptype  # mc_merged ptypes already are data_class names
-
-
-def _update_run_info(path: Path, **kwargs) -> None:
-    info = json.loads(path.read_text()) if path.exists() else {}
-    info.update(kwargs)
-    path.write_text(json.dumps(info, indent=2))
 
 
 def _get_done_parts(conn, catalog_path: str, source: str) -> dict:
@@ -145,6 +146,8 @@ def predict_mc(
     check_existing: bool = False,
     save_embeddings: bool = False,
     checkpoint_name: Optional[str] = None,
+    probs_h5: Optional[str] = None,
+    sn_batch_size: int = SN_BATCH_SIZE,
 ) -> None:
     t_start = datetime.now()
     dev = _resolve_device(device)
@@ -180,7 +183,14 @@ def predict_mc(
     try:
         model, norm_config, train_config = load_model(checkpoint, device=dev)
         with_probs = train_config.get("model", {}).get("input_dim", 5) == 6
-        sn_model, _, sn_dev = load_sn_model(device=device)
+        # Precomputed SN probs (per-ptype groups): skip the on-the-fly sig-noise model.
+        _probs_ctx = (h5py.File(probs_h5, "r", rdcc_nbytes=64*1024*1024, rdcc_nslots=1_000_003)
+                      if probs_h5 else None)
+        if _probs_ctx is not None:
+            sn_model, sn_dev = None, None
+            logger.info(f"Using precomputed SN probs: {probs_h5}; SN model not loaded")
+        else:
+            sn_model, _, sn_dev = load_sn_model(device=device)
 
         if npy_dir_to_exclude is not None:
             training_parts, npy_source = _load_npy_training_parts(npy_dir_to_exclude)
@@ -222,8 +232,15 @@ def predict_mc(
                 data_class = _ptype_to_data_class(ptype, source)
                 season     = int(data_class.rsplit("_", 1)[-1]) if "_" in data_class else 0
 
+                # precomputed-probs group for this ptype (parts without probs are skipped)
+                probs_grp = _probs_ctx[ptype] if (_probs_ctx is not None and ptype in _probs_ctx) else None
                 all_parts  = sorted(grp["raw"]["data"].keys())
                 sel_parts  = [p for p in all_parts if parts is None or p in parts]
+                if _probs_ctx is not None:
+                    have = set(probs_grp["probs"].keys()) if probs_grp is not None else set()
+                    n_pre = len(sel_parts)
+                    sel_parts = [p for p in sel_parts if p in have]
+                    logger.info(f"{ptype}: {len(sel_parts)}/{n_pre} parts have precomputed probs")
 
                 train_excl = training_parts.get(ptype, set())
                 done_excl  = done_parts.get(data_class, set())
@@ -268,7 +285,8 @@ def predict_mc(
                     global_ev_starts = [0]
                     ev_part_of:  list = []   # buf_parts index per global event
                     ev_local_of: list = []   # local event index within its part
-                    for bi, (_, _, _, ev_starts, n_ev) in enumerate(buf_parts):
+                    for bi, b in enumerate(buf_parts):
+                        ev_starts, n_ev = b[3], b[4]
                         for j in range(n_ev):
                             global_ev_starts.append(
                                 global_ev_starts[-1] + int(ev_starts[j + 1] - ev_starts[j])
@@ -278,9 +296,13 @@ def predict_mc(
                     global_ev_starts = np.array(global_ev_starts, dtype=np.int64)
                     n_buf = len(ev_part_of)
 
-                    # Sig-noise pass over entire buffer
-                    probs    = predict_flat(sn_model, all_data, global_ev_starts,
-                                            batch_size=batch_size, device=sn_dev, normalize=True)
+                    # Sig-noise probs: precomputed (concatenate per-part) or on-the-fly
+                    if buf_parts[0][5] is not None:
+                        probs = np.concatenate([b[5] for b in buf_parts]).astype(np.float32)
+                    else:
+                        probs = predict_flat(sn_model, all_data, global_ev_starts,
+                                             batch_size=sn_batch_size, device=sn_dev,
+                                             normalize=True)
                     sig_mask = probs > threshold
 
                     n_hits_arr = (global_ev_starts[1:] - global_ev_starts[:-1]).astype(np.int32)
@@ -375,8 +397,10 @@ def predict_mc(
                     hit_end  = int(ev_starts[-1])
                     data_raw = grp[f"raw/data/{pk}/data"][:hit_end].astype(np.float32)
                     channels = grp[f"raw/channels/{pk}/data"][:hit_end].astype(np.int32)
+                    probs_raw = (probs_grp[f"probs/{pk}/data"][:hit_end].astype(np.float32)
+                                 if probs_grp is not None else None)
 
-                    buf_parts.append((pk, data_raw, channels, ev_starts, n_events))
+                    buf_parts.append((pk, data_raw, channels, ev_starts, n_events, probs_raw))
                     buf_events += n_events
 
                     # Flush when buffer has enough events or this is the last part
@@ -421,15 +445,21 @@ def predict_mc(
         logger.info(f"\nDone: {n_inserted:,} inserted  {n_skipped:,} skipped  "
                     f"total in DB: {total_in_db:,}")
 
-        _update_run_info(
+        # Keyed by source: this directory holds one DuckDB per source, and each run must
+        # leave its own record instead of overwriting the previous one.
+        write_run_info(
             checkpoint_dir / "run_info.json",
-            checkpoint=checkpoint,
             source=source,
+            checkpoint=checkpoint,
             h5_path=mc_h5,
             threshold=threshold,
             min_hits=min_hits,
             min_strings=min_strings,
             n_events_total=total_in_db,
+            # How the hits were selected. When probs are precomputed, the batch that
+            # matters is the one that file was written with, not this run's setting.
+            sn_probs_source=probs_h5 or "on-the-fly",
+            sn_batch_size=probs_batch_size(probs_h5) if probs_h5 else sn_batch_size,
         )
 
     except Exception as exc:
@@ -480,7 +510,12 @@ def main() -> None:
     parser.add_argument("--threshold",      type=float, default=0.8)
     parser.add_argument("--min-hits",       type=int,   default=8)
     parser.add_argument("--min-strings",    type=int,   default=2)
-    parser.add_argument("--batch-size",       type=int,   default=512)
+    parser.add_argument("--batch-size",       type=int,   default=512,
+                        help="Nu-classifier batch size (speed only)")
+    parser.add_argument("--sn-batch-size",    type=int,   default=SN_BATCH_SIZE,
+                        help="Sig-noise batch size for on-the-fly probs. Changes which "
+                             "hits pass the threshold; must match the MC probs file "
+                             "(256). Ignored when --probs-h5 is given.")
     parser.add_argument("--min-batch-events", type=int,   default=2048,
                         help="Accumulate parts until this many events before running GPU inference "
                              "(avoids tiny GPU launches for sources with small parts, e.g. mc_reco)")
@@ -493,6 +528,9 @@ def main() -> None:
     parser.add_argument("--check-existing",  action="store_true")
     parser.add_argument("--save-embeddings", action="store_true", default=False,
                         help="Also store encoder-level 128-dim feature vectors in an embeddings table")
+    parser.add_argument("--probs-h5", default=None,
+                        help="Precomputed SN probs h5 (per-ptype groups {ptype}/probs/{part}/data); "
+                             "skips the on-the-fly sig-noise model. Only parts present get scored.")
     args = parser.parse_args()
 
     predict_mc(
@@ -515,6 +553,8 @@ def main() -> None:
         check_existing=args.check_existing,
         save_embeddings=args.save_embeddings,
         checkpoint_name=args.checkpoint_name,
+        probs_h5=args.probs_h5,
+        sn_batch_size=args.sn_batch_size,
     )
 
 

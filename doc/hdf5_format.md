@@ -24,6 +24,19 @@ The HDF5 files are created using ROOT files, obtained with BARS. All ROOT files 
 Experimental ROOT files named indicating the season, cluster and run numbers in format: `s{year}_c{cluster}_r{run}`.  For example: s2020_c07_r0041.  
 By september 2025, only runs for the 2020 season have been uploaded, being evenly distributed throughout the year, and each .root file contains only the first 25,000 events of the run.
 
+**Full-statistics experimental data (`exp_full.h5`)**  
+As of June 2026, complete (un-capped) 2020 runs were downloaded to `data_manager/data/exp_root/`
+(up to ~11 M events per file) and converted by `root2h5/root2h5_exp_full.py` into
+`data_manager/data/h5datasets/exp_full.h5` (top group `exp_full`, ~133 M events, 29 runs,
+clusters c02–c07). Differences from `exp.h5`:
+- **Chunked, streaming conversion** — scales to multi-GB runs.
+- **`header_prty` is present** (see below) — events carry a *physical* identity, so the
+  catalog uses a real `event_id` instead of a positional index.
+- Coordinates/times use the same cluster-centred, per-event time-zeroed representation as
+  `exp.h5` (verified: x/y/z/amplitude/channels match the old pipeline exactly).
+- Five c01 runs (r0027/0050/0106/0151/0206) were **excluded** for a hit-time calibration
+  bug (spurious early hits inflating the per-event time spread); the other 29 runs are clean.
+
 ## File Structure
 
 ### Base Structure (Both Experimental & Monte Carlo)
@@ -49,6 +62,18 @@ By september 2025, only runs for the 2020 season have been uploaded, being evenl
     └── t_res/                       # Time residuals (MC only)
         └── part_{filename}/data     # [shape: (n_hits,)]
 ```
+
+### Additional Structure for `exp_full` (and `exp_reco`)
+```
+{particle}/
+└── header_prty/                     # Physical event identity **[exp_full / exp_reco]**
+    └── part_{filename}/data         # [shape: (n_events, n_cols)] int64
+```
+Column 3 (`header_prty[:, 3]`) is the physical `event_id` consumed by `catalog_v2.build_exp`:
+- **exp_full**: `[season, cluster, run, event_id, sec, nsec]` where `event_id = sec*1e9 + nsec`
+  (the BJointHeader CC timestamp — unique + monotonic per run). `fEventIDWR` is unreliable
+  (zero for some runs) and is **not** used; `fEventIDCC` is merely positional.
+- **exp_reco**: `[season, cluster, run, event_id_in_run]` (reco physics id).
 
 ### Additional Monte Carlo Structure
 ```
@@ -173,3 +198,54 @@ Based on `root2h5_exp.py` configuration:
 4. **Cluster Processing**: `take_single_cluster: true`, `split_multi: true`
    - Single-cluster events extracted
    - Multi-cluster events split into individual clusters
+---
+
+## Companion Files
+
+Some derived truth and model output lives in **separate HDF5 files next to the main one**,
+rather than inside it. HDF5 does not reclaim space when a group is deleted, so adding an
+experimental branch to a multi-hundred-gigabyte file is effectively irreversible. Each
+companion mirrors the main file's `{ptype}/{group}/{part}/data` layout and carries its own
+copies of the keys needed to use it standalone.
+
+| file | contents |
+|---|---|
+| `baikal_mc_merged_probs_*.h5` | per-hit signal probabilities from the noise-suppression model, plus `channels`, `ev_starts` and hit/string counts at thresholds 0.5 and 0.8 |
+| `baikal_mc_merged_energy_truth.h5` | muon energy truth: the stochastic interaction chain and the energy targets derived from it |
+
+### Energy Truth: `baikal_mc_merged_energy_truth.h5`
+
+Muon energy truth: the stochastic energy losses along every simulated muon, plus the muon
+kinematics needed to use them. Rows correspond one-to-one with the main file, including the
+duplication of multi-cluster events, so `ev_ids` matches row by row.
+
+**Fully documented in [hdf5_energy_truth.md](hdf5_energy_truth.md)** — read that before using
+it, in particular section 2, which lists the four conventions that differ from the main file
+(global coordinates rather than cluster-centred, the muon clock rather than the event clock,
+GeV, radians).
+
+```
+{ptype}/                                   nuatm_2020 | nue2_2020 | muatm_2020
+├── ev_ids, mu_starts                       copies of the main file, for asserting alignment
+├── shower_starts, showers                  the energy-loss chain, in ROOT order
+├── n_muons_lighting_cluster                how many of the row's muons lit this cluster
+├── ref_xyz, direction, e_ref               copied from muons_prty/individ
+└── s_track_start, e_at_entry, e_at_entry_status
+```
+
+Indexing is two-level, following `muons_prty/mu_starts`:
+
+```
+row ──mu_starts──▶ muons ──shower_starts──▶ showers (flat)
+```
+
+Built by `data_manager/energy_truth/` (`read_root.py` on cluster62, then `build_h5.py`
+locally); `truth.py` holds the geometry and the propagation model and is shared with analysis.
+Contents as of the 2026-08-21 build: 651,308,713 rows, 2,428,151,130 muons, 1,836,182,299
+showers, 163 GB. The 2019 groups of the main file are deliberately not built.
+
+The previous version of this file stored precomputed targets alongside the truth; it was
+replaced because that froze the cylinder radius, the propagation model and the shower order
+into the file. `data_manager/root2h5/create_energy_h5.py` and
+`root2h5/energy_truth/validate_targets.py` belong to that superseded pipeline and no longer
+match this file's schema.

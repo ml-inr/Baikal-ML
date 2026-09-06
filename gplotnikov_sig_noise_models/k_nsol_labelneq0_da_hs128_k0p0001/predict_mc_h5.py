@@ -58,13 +58,27 @@ def predict_h5(
     input_path: str,
     device: str = "auto",
     batch_size: int = 256,
+    ptypes: Optional[List[str]] = None,
     parts_json: Optional[str] = None,
+    append: bool = False,
 ) -> str:
     input_path  = Path(input_path).resolve()
     output_path = input_path.parent / (input_path.stem + f"_probs_{MODEL_TAG}.h5")
 
     logger.info(f"Input:  {input_path}")
     logger.info(f"Output: {output_path}")
+
+    # "w" truncates: a plain re-run would destroy an existing 140 GB file that took hours
+    # to produce. Appending is opt-in, and refuses to start if the file is missing.
+    mode = "a" if append else "w"
+    if append:
+        if not output_path.exists():
+            raise SystemExit(f"--append given but {output_path} does not exist")
+        logger.info("APPEND mode: existing parts are kept and skipped")
+    elif output_path.exists():
+        raise SystemExit(
+            f"{output_path} already exists ({output_path.stat().st_size/2**30:.1f} GB).\n"
+            f"Refusing to truncate it. Pass --append to add the missing parts instead.")
 
     parts_filter: Optional[Dict[str, List[str]]] = None
     if parts_json:
@@ -77,11 +91,32 @@ def predict_h5(
 
     t_total = time.time()
 
-    with h5py.File(input_path, "r") as src, h5py.File(output_path, "w") as dst:
-        for ptype in (parts_filter.keys() if parts_filter else PARTICLE_SHORT.values()):
+    with h5py.File(input_path, "r") as src, h5py.File(output_path, mode) as dst:
+        # Appending with a different batch size would mix two hit selections in one file.
+        # The sig-noise model's float padding mask makes batch size part of the selection;
+        # see doc/sig_noise_batch_size.md.
+        stored_bs = dst.attrs.get("sig_noise_batch_size")
+        if stored_bs is not None and int(stored_bs) != batch_size:
+            raise SystemExit(
+                f"{output_path.name} was written with batch_size={int(stored_bs)}, "
+                f"but this run uses {batch_size}. Resume with the stored value.")
+        dst.attrs["sig_noise_batch_size"] = batch_size
+        dst.attrs["sig_noise_model"] = MODEL_TAG
+
+        src_keys = list(src.keys())
+        if parts_filter:
+            wanted = list(parts_filter.keys())
+        elif ptypes:
+            wanted = list(ptypes)
+        else:
+            wanted = list(PARTICLE_SHORT.values())
+
+        processed = []
+        for ptype in wanted:
             if ptype not in src:
                 logger.warning(f"  {ptype} not found in source — skipping")
                 continue
+            processed.append(ptype)
 
             grp_src = src[ptype]["raw"]
             if parts_filter:
@@ -105,7 +140,11 @@ def predict_h5(
             }
 
             t0 = time.time()
+            n_skipped = 0
             for i, pk in enumerate(part_keys):
+                if f"{pk}/data" in dst_probs:      # already computed in an earlier run
+                    n_skipped += 1
+                    continue
                 ev_starts = grp_src[f"ev_starts/{pk}/data"][:].astype(np.int64)
                 if len(ev_starts) < 2:
                     continue
@@ -147,14 +186,26 @@ def predict_h5(
 
                 if (i + 1) % 20 == 0 or i == n_parts - 1:
                     elapsed = time.time() - t0
-                    rate    = (i + 1) / max(elapsed, 1e-3)
+                    n_done  = i + 1 - n_skipped
+                    rate    = max(n_done, 1) / max(elapsed, 1e-3)
                     eta     = (n_parts - i - 1) / rate
                     logger.info(
                         f"  [{i+1}/{n_parts}] {pk} "
-                        f"({elapsed:.0f}s elapsed, ETA {eta:.0f}s)"
+                        f"({elapsed:.0f}s elapsed, ETA {eta:.0f}s, skipped {n_skipped})"
                     )
+            if n_skipped:
+                logger.info(f"  {ptype}: {n_skipped} parts already present, skipped")
 
-    logger.info(f"\nDone in {time.time() - t_total:.0f}s → {output_path}")
+    if not processed:
+        # An empty output reported as success is worse than a crash: a run of
+        # baikal_mc_reco.h5 wrote a 6 kB file and exited 0, because its groups are
+        # named muatm / nuatm_conv / nuatm_prompt / nue2 while the default list
+        # carries the mc_merged names.  Fail where the mistake happened.
+        raise SystemExit(
+            f"nothing was processed: none of {wanted} exists in {input_path.name}. "
+            f"Available groups: {sorted(src_keys)}. Pass --ptypes explicitly.")
+    logger.info(f"\nDone in {time.time() - t_total:.0f}s → {output_path} "
+                f"({len(processed)} groups: {processed})")
     return str(output_path)
 
 
@@ -166,11 +217,20 @@ def main() -> None:
         "--input", default="data_manager/data/h5datasets/baikal_mc_merged.h5",
     )
     parser.add_argument("--device",     default="auto")
+    parser.add_argument("--ptypes", default=None,
+                        help="comma-separated top-level groups to process. Default "
+                             "is the mc_merged 2020 set; baikal_mc_reco.h5 needs "
+                             "muatm,nuatm_conv,nuatm_prompt,nue2")
     parser.add_argument("--batch-size", type=int, default=256)
     parser.add_argument(
         "--parts-json", default=None,
         help="Optional path to parts JSON (e.g. testds_parts.json). "
              "If given, only those parts are processed.",
+    )
+    parser.add_argument(
+        "--append", action="store_true",
+        help="Add missing parts to an existing output file instead of truncating it. "
+             "Parts already present are skipped, so the run is resumable.",
     )
     args = parser.parse_args()
 
@@ -181,10 +241,12 @@ def main() -> None:
         handlers=[logging.StreamHandler(sys.stdout)],
     )
     predict_h5(
+        ptypes=[p.strip() for p in args.ptypes.split(",")] if args.ptypes else None,
         input_path=args.input,
         device=args.device,
         batch_size=args.batch_size,
         parts_json=args.parts_json,
+        append=args.append,
     )
 
 

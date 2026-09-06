@@ -207,11 +207,15 @@ class NuClassifierDomainAdaptationTrainer:
         nw     = dl_cfg.get("num_workers", 0)
         pm     = dl_cfg.get("pin_memory", False)
         aug    = dl_cfg.get("augmentation")
+        # Afterpulse is injected ONLY into the MC source (exp already has real
+        # afterpulses). Build the OM-position pool from the source features and
+        # attach it to the source aug; strip afterpulse from the target aug.
+        aug_source, aug_target = self._build_train_augs(aug, source_cfg["npy_dir"], seed)
 
         self.source_train_loader = create_nu_classifier_dataloader(
             source_train_ds, src_bs, shuffle=True,
             normalization_config=self.normalization_config_collate,
-            augmentation_config=aug, shuffle_batch=True,
+            augmentation_config=aug_source, shuffle_batch=True,
             device=str(self.device), num_workers=nw, pin_memory=pm,
         )
         self.source_val_loader = create_nu_classifier_dataloader(
@@ -223,7 +227,7 @@ class NuClassifierDomainAdaptationTrainer:
         self.target_train_loader = create_nu_classifier_dataloader(
             target_train_ds, tgt_bs, shuffle=True,
             normalization_config=self.normalization_config_collate,
-            augmentation_config=aug, shuffle_batch=True,
+            augmentation_config=aug_target, shuffle_batch=True,
             device=str(self.device), num_workers=nw, pin_memory=pm,
         )
         self.target_val_loader = create_nu_classifier_dataloader(
@@ -233,6 +237,45 @@ class NuClassifierDomainAdaptationTrainer:
             device=str(self.device), num_workers=nw, pin_memory=pm,
         )
         logger.info("Data preparation complete")
+
+    @staticmethod
+    def _build_om_pool(
+        npy_dir: str, seed: int, n_sample: int = 1_000_000, round_to: float = 2.0,
+    ) -> np.ndarray:
+        """Unique OM (x, y, z) positions sampled from the source hit features.
+
+        Deduped on a coarse grid so afterpulse positions are ~uniform over OMs
+        (no bias toward frequently-hit modules).
+        """
+        feats = np.load(Path(npy_dir) / "features.npy", mmap_mode="r")
+        n   = len(feats)
+        rng = np.random.default_rng(seed)
+        idx = np.sort(rng.choice(n, size=min(n_sample, n), replace=False))
+        xyz = np.asarray(feats[idx, 2:5], dtype=np.float32)
+        pool = np.unique(np.round(xyz / round_to) * round_to, axis=0).astype(np.float32)
+        logger.info(
+            f"OM pool for afterpulse: {len(pool):,} unique positions "
+            f"(from {len(idx):,} sampled hits)"
+        )
+        return pool
+
+    def _build_train_augs(self, aug, source_npy_dir: str, seed: int):
+        """Split the train augmentation into (source, target).
+
+        Afterpulse is injected ONLY into the MC source; the (expensive) OM pool
+        is built only when afterpulse is enabled. Target keeps rotation/noise.
+        """
+        if aug is None:
+            return None, None
+        ap = aug.get("afterpulse")
+        aug_target = {k: v for k, v in aug.items() if k != "afterpulse"}
+        if ap and ap.get("enabled", False):
+            pool = self._build_om_pool(source_npy_dir, seed)
+            aug_source = dict(aug)
+            aug_source["afterpulse"] = {**ap, "om_pool": pool}
+        else:
+            aug_source = aug_target
+        return aug_source, aug_target
 
     def _calculate_class_weights(self, dataset) -> torch.Tensor:
         logger.info("Calculating class weights from source training data …")
@@ -380,6 +423,7 @@ class NuClassifierDomainAdaptationTrainer:
 
     def _calculate_classification_loss(
         self, logits: torch.Tensor, labels: torch.Tensor,
+        theta: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         tcfg = self.config["training"]
         pos_weight = None
@@ -389,6 +433,21 @@ class NuClassifierDomainAdaptationTrainer:
             else:
                 w = self.class_weights.to(self.device)
             pos_weight = w[1] / w[0]
+
+        # Horizon-aware soft labels: near true zenith θ=90° the up/down cue (which
+        # separates ν from μ in MC) degenerates, so pull the target toward 0.5 there
+        # — teach the net to abstain where direction is unknowable. Source-only (θ is
+        # NaN → weight 0 for datasets without GT theta). σ from the muatm FP falloff
+        # (≈10.5°); see experiments/numu/horizon_loss_design.md.
+        hcfg = tcfg.get("horizon_loss", {})
+        if hcfg.get("enabled", False) and theta is not None:
+            sigma    = float(hcfg.get("sigma_deg", 10.5))
+            max_soft = float(hcfg.get("max_soften", 1.0))
+            w_h = max_soft * torch.exp(-((theta - 90.0) ** 2) / (2.0 * sigma ** 2))
+            w_h = torch.nan_to_num(w_h, nan=0.0)      # no GT θ → no softening
+            soft_labels = labels * (1.0 - w_h) + 0.5 * w_h
+            gamma = float(tcfg.get("focal_gamma", 2.0))
+            return soft_focal_loss_with_logits(logits, soft_labels, gamma, pos_weight)
 
         loss_fn = tcfg.get("classification_loss", "bce")
         if loss_fn == "bce":
@@ -541,6 +600,7 @@ class NuClassifierDomainAdaptationTrainer:
 
             classification_loss = self._calculate_classification_loss(
                 source_class_logits, source_labels,
+                theta=source_batch.get("theta"),
             )
 
             self.optimizer_feature.zero_grad()
