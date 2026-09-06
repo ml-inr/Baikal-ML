@@ -12,7 +12,7 @@ import sys, duckdb, h5py, numpy as np, pandas as pd, matplotlib.pyplot as plt
 import torch
 
 ROOT = Path(__file__).resolve().parents[4]; sys.path.insert(0, str(ROOT))
-from inference_v2.shared.model_utils import load_model
+from inference.shared.model_utils import load_model
 PREDS = ROOT/'inference_v2/nu_classifier/preds'; CAT = ROOT/'data_manager/catalog_v2.duckdb'
 E1='260705_0702_da_nu_classifier_exp_full_E1_lambda0.01@da_checkpoint_epoch_010'
 SNGP_CKPT=ROOT/'experiments/numu/sngp_nu_classifier_baseline/best_sngp_model.pth'

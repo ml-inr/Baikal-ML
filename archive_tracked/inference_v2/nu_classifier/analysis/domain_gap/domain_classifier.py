@@ -42,7 +42,7 @@ def _():
 
     import archive_tracked.inference_v2.nu_classifier.analysis.domain_gap._common as C
     import archive_tracked.inference_v2.nu_classifier.analysis.domain_gap._features as F
-    from inference_v2.shared.model_utils import load_sn_model
+    from inference.shared.model_utils import load_sn_model
     from gplotnikov_sig_noise_models.k_nsol_labelneq0_da_hs128_k0p0001.sig_noise_model_v3 import (
         predict_flat as sn_predict_flat,
     )

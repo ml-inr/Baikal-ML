@@ -20,7 +20,7 @@ from sklearn.neighbors import NearestNeighbors
 
 HERE = Path(__file__).resolve().parent; ROOT = HERE.parents[3]
 sys.path.insert(0, str(ROOT))
-from inference_v2.shared.model_utils import load_model, predict_scores_and_embeddings
+from inference.shared.model_utils import load_model, predict_scores_and_embeddings
 from archive_tracked.inference_v2.nu_classifier.exp_finetuning.build_exp_bg_ood import (
     read_filtered, MCH5, EXH5, MCPROBS, EXPROBS, CAT)
 

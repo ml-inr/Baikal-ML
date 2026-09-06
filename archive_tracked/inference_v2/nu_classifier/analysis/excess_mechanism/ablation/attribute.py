@@ -22,7 +22,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 ROOT = HERE.parents[4]
 sys.path.insert(0, str(ROOT))
-from inference_v2.shared.model_utils import load_model            # noqa: E402
+from inference.shared.model_utils import load_model            # noqa: E402
 from archive_tracked.inference_v2.nu_classifier.analysis.excess_mechanism.ablation.ablate import CKPT, SRC, pick_parts, load_domain, QUALITY    # noqa: E402
 
 CHANNELS = ["заряд", "время", "x", "y", "z"]

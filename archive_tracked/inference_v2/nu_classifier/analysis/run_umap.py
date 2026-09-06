@@ -91,7 +91,7 @@ def main() -> None:
     logger.info(f"Device: {dev}")
 
     # ── Load models ───────────────────────────────────────────────────────────
-    from inference_v2.shared.model_utils import load_model, load_sn_model
+    from inference.shared.model_utils import load_model, load_sn_model
 
     logger.info("Loading nu-classifier model...")
     model, norm_config, train_config = load_model(args.checkpoint, device=dev)

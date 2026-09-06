@@ -51,7 +51,7 @@ data_manager/              всё, что превращает ROOT в обуч�
   energy_truth/            сборка и валидация энергетического компаньона
   data/, datasets/         сами файлы (вне git)
 
-inference_v2/              предсказания и чтение
+inference/                 предсказания и чтение
   nu_classifier/           predict_{npy,mc,exp}.py + обёртки run_*.sh
   prefilter/               predict_{mc,exp}.py + обёртки
   shared/                  model_utils, catalog_query, reco_schema, run_info, history
@@ -102,7 +102,7 @@ baikal_mc_merged.h5
 
 Canonical run: `da_prefilter_numu_260429_0155_Qclip_softlabels_PlateauLR_lambda0.05_MC2M_dmodel128_zflipBothMCExp_SoftFocalLoss`.
 
-Inference: `inference_v2/prefilter/predict_{mc,exp}.py` — **all raw hits, no sig-noise
+Inference: `inference/prefilter/predict_{mc,exp}.py` — **all raw hits, no sig-noise
 step** → `preds/<run>@<ckpt>/{mc_merged,exp_reco}_allhits.duckdb`.
 
 Note the prefilter has no way to exclude its own training events at inference: its NPY
@@ -121,7 +121,7 @@ baikal_mc_merged.h5  +  …_probs_k_nsol_labelneq0_da_hs128_k0p0001.h5
 
 Canonical run: `260508_1724_da_nu_classifier_h5s0_lambda0.01_thr0.8_seed32`.
 
-Inference: `inference_v2/nu_classifier/predict_{npy,mc,exp}.py` →
+Inference: `inference/nu_classifier/predict_{npy,mc,exp}.py` →
 `preds/<run>@<ckpt>/{mc_merged,exp_reco,exp_full}_thr0p8.duckdb`.
 
 **Sig-noise batch size is part of the hit selection, not a speed knob.** The model takes a
@@ -136,8 +136,8 @@ External dependency: `gplotnikov_sig_noise_models/k_nsol_labelneq0_da_hs128_k0p0
 `data_manager/catalog_v2.duckdb` (132 GB) maps every event to an `event_fk`, the key all
 prediction tables reference. Built by `data_manager/catalog_v2/build_{mc,mc_reco,exp}.py`.
 
-`inference_v2/reader/` is the newest and intended way to read sources and predictions
-without materialising anything; see `inference_v2/reader/tutorial.ipynb`.
+`inference/reader/` is the newest and intended way to read sources and predictions
+without materialising anything; see `inference/reader/tutorial.ipynb`.
 
 ## Data
 
@@ -240,17 +240,17 @@ bash scripts/train_da_prefilter_soft_in_bg.sh
 bash scripts/train_da_nuclassifier_in_bg.sh
 
 # предсказания
-bash inference_v2/nu_classifier/run_predict_mc.sh
-bash inference_v2/prefilter/run_predict_exp.sh
+bash inference/nu_classifier/run_predict_mc.sh
+bash inference/prefilter/run_predict_exp.sh
 
 # самопроверяющиеся скрипты
-python inference_v2/reader/tests/test_reader.py       # 23 assert
-python inference_v2/test_run_info.py                  # 14 assert
+python inference/reader/tests/test_reader.py       # 23 assert
+python inference/test_run_info.py                  # 14 assert
 python data_manager/energy_truth/test_truth.py        # аналитика + регрессия
 python data_manager/root2h5/energy_truth/test_targets_vec.py
 
 # сравнить два прогона предсказаний (эталон поведения)
-python inference_v2/test_scoring_equivalence.py --baseline <dir> --candidate <dir>
+python inference/test_scoring_equivalence.py --baseline <dir> --candidate <dir>
 
 # tensorboard
 bash scripts/tb.sh classifier/260508_1724_da_nu_classifier_h5s0_lambda0.01_thr0.8_seed32
@@ -262,7 +262,7 @@ everything. The scripts above are what exists.
 ## State as of 2026-09-06
 
 Both pipelines are trained and operational; predictions for the canonical checkpoints are
-in `inference_v2/*/preds/`. `inference_v2/reader/` is new and intended to replace the older
+in `inference/*/preds/`. `inference/reader/` is new and intended to replace the older
 per-analysis loading code, which has been archived.
 
 Known open points, all recorded in `doc/AUDIT.md`:

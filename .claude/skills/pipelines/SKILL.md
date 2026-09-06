@@ -39,27 +39,27 @@ python -m data_manager.test_npy_retrieval --n-events 100000
 ls -la data_manager/data/h5datasets/baikal_mc_merged.h5
 ```
 
-### Running Inference (inference_v2/)
+### Running Inference (inference/)
 ```bash
 # Batch predictions across the checkpoints listed in MODELS=() inside the script
 # (4 steps: npy / mc_merged / mc_reco / exp)
-bash inference_v2/nu_classifier/run_batch_predict.sh [npy|mc_merged|mc_reco|exp|all]
+bash inference/nu_classifier/run_batch_predict.sh [npy|mc_merged|mc_reco|exp|all]
 
 # Single-model shortcut (edit script to change checkpoint/device)
-bash inference_v2/nu_classifier/run_predict_mc.sh    # MC predictions
-bash inference_v2/nu_classifier/run_predict_exp.sh   # Exp predictions
-bash inference_v2/prefilter/run_predict_mc.sh        # Prefilter MC
-bash inference_v2/prefilter/run_predict_exp.sh       # Prefilter exp
+bash inference/nu_classifier/run_predict_mc.sh    # MC predictions
+bash inference/nu_classifier/run_predict_exp.sh   # Exp predictions
+bash inference/prefilter/run_predict_mc.sh        # Prefilter MC
+bash inference/prefilter/run_predict_exp.sh       # Prefilter exp
 ```
 
 ### Reading sources and predictions
 
-`inference_v2/reader/` is the intended way to read any source joined with any checkpoint's
+`inference/reader/` is the intended way to read any source joined with any checkpoint's
 predictions, streaming rather than materialising. Worked examples in
-`inference_v2/reader/tutorial.ipynb`.
+`inference/reader/tutorial.ipynb`.
 
 ```python
-from inference_v2 import reader
+from inference import reader
 reader.checkpoints()                       # which scored checkpoints exist
 r = reader.open("exp_reco", checkpoint="260816_2250_..._FIXED_sn256@best_da_model")
 ev = r.events(where=[reader.H8S3])

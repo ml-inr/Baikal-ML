@@ -52,7 +52,7 @@
 | [horizon_loss_design.md](horizon_loss_design.md) | обоснование горизонтного члена в лоссе; на него ссылается `da_nu_classifier_trainer.py` |
 
 Отчёты об исследованиях лежат не здесь, а рядом с кодом, который их породил:
-`inference_v2/nu_classifier/reports/<дата>/`.
+`inference/nu_classifier/reports/<дата>/`.
 
 ---
 

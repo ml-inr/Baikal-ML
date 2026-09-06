@@ -23,7 +23,7 @@ import duckdb, h5py, numpy as np, torch
 
 ROOT = Path(__file__).resolve().parents[5]
 sys.path.insert(0, str(ROOT))
-from inference_v2.shared.model_utils import load_model, predict_scores   # noqa: E402
+from inference.shared.model_utils import load_model, predict_scores   # noqa: E402
 
 CKPT = ROOT / ("experiments/numu/260816_2250_da_nu_classifier_exp_full_E1_lambda0.01_"
                "FIXED_sn256/best_da_model.pth")

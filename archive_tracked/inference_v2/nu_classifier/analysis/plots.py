@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import roc_curve
 
-from inference_v2.shared.metrics import efficiency_rejection_curve
+from inference.shared.metrics import efficiency_rejection_curve
 
 
 def plot_score_dist(
@@ -202,7 +202,7 @@ def plot_suppression_vs_efficiency(
     Background = rows with data_class in bg_classes.
     Quality cut is baked into each df; this function sweeps the score threshold.
     """
-    from inference_v2.shared.metrics import efficiency_rejection_curve
+    from inference.shared.metrics import efficiency_rejection_curve
 
     fig, ax = plt.subplots(figsize=(8, 6))
 

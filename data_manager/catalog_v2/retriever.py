@@ -30,7 +30,7 @@ CATALOG_V2_PATH = Path(__file__).resolve().parents[1] / "catalog_v2.duckdb"
 # Имена скалярных колонок reco_prty в exp_reco.h5, по порядку записи конвертером
 # data_manager/root2h5/root2h5_exp_reco.py. Держим здесь, а не импортируем: это
 # часть контракта чтения, и retriever не должен зависеть от чужого модуля.
-# Тот же список продублирован в inference_v2/shared/reco_schema.py как
+# Тот же список продублирован в inference/shared/reco_schema.py как
 # EXP_RECO_COLUMNS — при изменении схемы HDF5 править оба места.
 EXP_RECO_COL_NAMES: tuple[str, ...] = (
     "thetaRec",         # 0  BRecoMuon.fThetaRec

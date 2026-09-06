@@ -8,7 +8,7 @@ from typing import Any, Dict, Optional, Tuple
 import numpy as np
 import pandas as pd
 
-from inference_v2.shared.metrics import (
+from inference.shared.metrics import (
     auc_score as _auc,
     at_threshold as _at_thr,
     efficiency_rejection_curve as _eff_rej,

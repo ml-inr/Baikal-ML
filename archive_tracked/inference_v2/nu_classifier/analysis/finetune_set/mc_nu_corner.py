@@ -22,7 +22,7 @@ import duckdb, h5py, numpy as np, pandas as pd
 
 HERE = Path(__file__).resolve().parent; ROOT = HERE.parents[4]
 sys.path.insert(0, str(ROOT))
-from inference_v2.shared.model_utils import load_model, predict_scores_and_embeddings
+from inference.shared.model_utils import load_model, predict_scores_and_embeddings
 
 CAT = ROOT/'data_manager/catalog_v2.duckdb'
 E1_PRED = ROOT/'inference_v2/nu_classifier/preds/260705_0702_da_nu_classifier_exp_full_E1_lambda0.01@da_checkpoint_epoch_010'
@@ -41,7 +41,7 @@ def _sn():
     """Lazily load the canonical sig-noise model for on-the-fly filtering."""
     global _SN
     if _SN is None:
-        from inference_v2.shared.model_utils import load_sn_model
+        from inference.shared.model_utils import load_sn_model
         from gplotnikov_sig_noise_models.k_nsol_labelneq0_da_hs128_k0p0001.sig_noise_model_v3 import predict_flat
         m,_,dev=load_sn_model(device=DEV); _SN=(m,dev,predict_flat)
     return _SN

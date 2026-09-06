@@ -1,7 +1,7 @@
 """Memory-mapped NPY dataset for the experimental target domain.
 
 Reads pre-built .npy files produced by ``nu_classifier_ds_builder/exp_builder.py``
-or ``inference_v2/nu_classifier/exp_finetuning/build_exp_bg.py``.
+or ``inference/nu_classifier/exp_finetuning/build_exp_bg.py``.
 The sig-noise model has already been applied — only signal-hit-filtered events
 and their filtered features are stored.
 

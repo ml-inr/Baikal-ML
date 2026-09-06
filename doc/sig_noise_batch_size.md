@@ -66,7 +66,7 @@ reference, which is a different comparison.)
 * The **May runs are clean**, including the canonical
   `260508_1724_..._seed32`: their DA target is the legacy `exp.h5` population inside
   `nu_classifier_dataset_h5s0_thr0.8`, built on the fly at 256 (`default_config.yaml`).
-* `inference_v2/nu_classifier/preds/` — **do not rescore exp alone.** See the section below;
+* `inference/nu_classifier/preds/` — **do not rescore exp alone.** See the section below;
   the stored predictions do not come from the probs files at all.
 * The fine-tuning background selection and the fine-tuned model — deferred until the excess
   has been re-measured with the base model, since fine-tuning is the mitigation for it.

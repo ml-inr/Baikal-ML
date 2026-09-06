@@ -93,7 +93,7 @@ def _infer_embeddings_batched(
     """Return (scores, embeddings) via predict_scores_and_embeddings."""
     import sys
     sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
-    from inference_v2.shared.model_utils import predict_scores_and_embeddings
+    from inference.shared.model_utils import predict_scores_and_embeddings
 
     if not features_list:
         d = model.classifier.in_features if hasattr(model.classifier, "in_features") else 128
@@ -135,7 +135,7 @@ def load_mc_embeddings_from_h5(
 
     Returns DataFrame with columns: data_class, score, embedding (ndarray).
     """
-    from inference_v2.shared.model_utils import load_model  # noqa: F401 (ensure path)
+    from inference.shared.model_utils import load_model  # noqa: F401 (ensure path)
 
     npy_path = Path(npy_dir)
     part_keys_arr = np.load(npy_path / "h5_part_keys.npy", allow_pickle=True)

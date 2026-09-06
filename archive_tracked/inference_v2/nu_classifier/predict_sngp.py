@@ -54,9 +54,9 @@ import torch
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from inference_v2.shared.model_utils import load_model, load_sn_model
-from inference_v2.shared.catalog_query import get_event_fks_mc, get_event_fks_exp
-from inference_v2.shared.history import append_history_row
+from inference.shared.model_utils import load_model, load_sn_model
+from inference.shared.catalog_query import get_event_fks_mc, get_event_fks_exp
+from inference.shared.history import append_history_row
 from data_manager.nu_classifier_ds_builder.io import _count_sig_hits_strings
 
 logger = logging.getLogger(__name__)

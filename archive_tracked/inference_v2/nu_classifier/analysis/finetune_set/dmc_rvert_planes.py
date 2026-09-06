@@ -48,7 +48,7 @@ from matplotlib.colors import LogNorm
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[4]
 sys.path.insert(0, str(ROOT))
-from inference_v2.shared.model_utils import load_model, predict_scores_and_embeddings
+from inference.shared.model_utils import load_model, predict_scores_and_embeddings
 
 DEV = "cuda:0"
 CKPT = (ROOT / "experiments/numu/260705_0702_da_nu_classifier_exp_full_E1_lambda0.01"

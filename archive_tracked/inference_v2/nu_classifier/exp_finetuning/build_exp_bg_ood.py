@@ -43,7 +43,7 @@ import duckdb, h5py, numpy as np
 
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT))
-from inference_v2.shared.model_utils import load_model, predict_scores_and_embeddings
+from inference.shared.model_utils import load_model, predict_scores_and_embeddings
 
 CAT = ROOT / "data_manager/catalog_v2.duckdb"
 MCH5 = ROOT / "data_manager/data/h5datasets/baikal_mc_merged.h5"

@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 
 HERE = Path(__file__).resolve().parent; ROOT = HERE.parents[3]
 sys.path.insert(0, str(ROOT))
-from inference_v2.shared.model_utils import load_model, predict_scores
+from inference.shared.model_utils import load_model, predict_scores
 
 PREDS = ROOT/'inference_v2/nu_classifier/preds'; CAT = ROOT/'data_manager/catalog_v2.duckdb'
 FT_DIR='260705_0702_da_nu_classifier_exp_full_E1_lambda0.01@da_checkpoint_epoch_010_ood2p5_rv0p7_finetuned@best_finetuned_model'

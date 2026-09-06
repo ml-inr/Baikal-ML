@@ -270,12 +270,12 @@ from src.training.metrics import MetricsTracker, BinaryClassificationMetrics
 - `energy_truth/` — energy-truth companion: build and validate
 - `stats_dict/` — normalization statistics YAML files for training
 
-**inference_v2:**
+**inference:**
 - Load models in eval mode
 - Batch predictions efficiently
 - Predictions go to per-checkpoint DuckDB under `preds/<run>@<ckpt>/`, keyed by
   `event_fk` from `catalog_v2.duckdb`; every run appends to `prediction_history.csv`
-- Use `inference_v2/reader/` to read sources and predictions
+- Use `inference/reader/` to read sources and predictions
 
 ## Performance Guidelines
 

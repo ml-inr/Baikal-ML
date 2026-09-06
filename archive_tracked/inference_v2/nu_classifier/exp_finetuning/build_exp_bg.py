@@ -244,7 +244,7 @@ def main() -> None:
 
     df["part_key"] = df.apply(_part_key, axis=1)
 
-    from inference_v2.shared.model_utils import load_sn_model
+    from inference.shared.model_utils import load_sn_model
     sn_model, _, sn_dev = load_sn_model(device=args.device)
     logger.info(f"Sig-noise model loaded (device={sn_dev})")
 

@@ -234,7 +234,7 @@ my_notes
 !.claude/settings.json
 !gplotnikov_sig_noise_models/k_nsol_labelneq0_da_hs128_k0p0001/probs_fingerprint_before.json
 !gplotnikov_sig_noise_models/k_nsol_labelneq0_da_hs128_k0p0001/probs_fingerprint_after.json
-!inference_v2/nu_classifier/preds/prediction_history.csv
+!inference/nu_classifier/preds/prediction_history.csv
 
 # Локальные настройки машины — не общие для проекта.
 # Идёт ПОСЛЕ !.claude/settings.json, иначе исключение перекрыло бы его.

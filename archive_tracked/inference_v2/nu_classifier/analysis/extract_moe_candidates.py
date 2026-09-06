@@ -215,7 +215,7 @@ def main() -> None:
         return
 
     # ── Load sig-noise model ──────────────────────────────────────────────────
-    from inference_v2.shared.model_utils import load_sn_model
+    from inference.shared.model_utils import load_sn_model
     from gplotnikov_sig_noise_models.k_nsol_labelneq0_da_hs128_k0p0001.sig_noise_model_v3 import (
         predict_flat,
     )

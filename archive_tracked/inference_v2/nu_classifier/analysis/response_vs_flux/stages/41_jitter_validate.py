@@ -146,7 +146,7 @@ def main() -> None:
     cfg = h5io.load_config(HERE)
     data_dir, config_path = HERE / "data", HERE / "config.yaml"
 
-    from inference_v2.shared.model_utils import load_sn_model
+    from inference.shared.model_utils import load_sn_model
     from gplotnikov_sig_noise_models.k_nsol_labelneq0_da_hs128_k0p0001.sig_noise_model_v3 import (  # noqa: E501
         predict_flat)
     from data_manager.nu_classifier_ds_builder.io import _count_sig_hits_strings
