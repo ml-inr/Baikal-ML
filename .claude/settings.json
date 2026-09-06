@@ -4,9 +4,9 @@
   },
   "permissions": {
     "allow": [
-      "Bash(python -m data_manager.catalog.build_exp *)",
+      "Bash(python -m data_manager.catalog_v2.build_exp *)",
       "Bash(python -m data_manager.test_npy_retrieval *)",
-      "Bash(python3 -m data_manager.catalog.build_exp *)",
+      "Bash(python3 -m data_manager.catalog_v2.build_exp *)",
       "Bash(python3 -m data_manager.test_npy_retrieval *)",
       "Bash",
       "Edit",

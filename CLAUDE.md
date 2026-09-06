@@ -177,7 +177,7 @@ python src/training/da_numu_trainer.py --config experiments/da_neutrino_baseline
 ## Key Data Information
 
 ### Data Location
-- **Main MC Data**: `/net/62/home3/ivkhar/Baikal/data/h5s/baikal_mc_merged.h5`
+- **Main MC Data**: `data_manager/data/h5datasets/baikal_mc_merged.h5`
 - **Experimental Data**: `data_manager/data/h5datasets/exp.h5` (top-level group: `"exp"`, legacy 25k-capped, ~650K events)
 - **Full-Stat Exp Data**: `data_manager/data/h5datasets/exp_full.h5` (top-level group: `"exp_full"`, ~133M events, 29 clean runs c02–c07, has `header_prty` with physical event_id = CC timestamp)
 - **Exp Reco Data**: `data_manager/data/h5datasets/exp_reco.h5` (top-level group: `"exp_reco"`)

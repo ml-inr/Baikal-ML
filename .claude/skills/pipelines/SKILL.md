@@ -36,7 +36,7 @@ nohup python -u -m data_manager.nu_classifier_ds_builder \
 python -m data_manager.test_npy_retrieval --n-events 100000
 
 # Check data file existence
-ls -la /net/62/home3/ivkhar/Baikal/data/h5s/baikal_mc_merged.h5
+ls -la data_manager/data/h5datasets/baikal_mc_merged.h5
 ```
 
 ### Running Inference (inference_v2/)
