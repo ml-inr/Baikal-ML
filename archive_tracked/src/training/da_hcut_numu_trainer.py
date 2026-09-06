@@ -23,13 +23,13 @@ import yaml
 import numpy as np
 
 # Add project root to path for imports
-project_root = Path(__file__).parent.parent.parent
+project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from src.models.base_models import create_model
 from src.utils.training import set_reproducible_seeds
 from src.models.domain_discriminator import create_da_model
-from src.data.hcut_numu_dataset import HCutNuMuDataset, create_hcut_numu_dataloader_from_ds
+from archive_tracked.src.data.hcut_numu_dataset import HCutNuMuDataset, create_hcut_numu_dataloader_from_ds
 from src.training.metrics import MetricsTracker, calculate_class_weights, binary_cross_entropy_with_logits_weighted
 
 logger = logging.getLogger(__name__)

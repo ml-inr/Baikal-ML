@@ -11,7 +11,7 @@ import torch
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent / 'src'))
 
-from src.data.hcut_numu_dataset import HCutNuMuDataset, create_signal_numu_dataloader
+from archive_tracked.src.data.hcut_numu_dataset import HCutNuMuDataset, create_signal_numu_dataloader
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')

@@ -8,4 +8,4 @@
 # prefilter variants and gave no clear gain. There is no current replacement;
 # this wrapper exists only to reproduce the historical runs.
 
-nohup python src/training/archive/da_hcut_numu_trainer.py --config experiments/da_hcut_numu_baseline.yaml > experiments/logs/DA_HCUT_train_$(date +'%Y%m%d_%H%M%S').log &
+nohup python archive_tracked/src/training/da_hcut_numu_trainer.py --config archive_tracked/experiments/da_hcut_numu_baseline.yaml > experiments/logs/DA_HCUT_train_$(date +'%Y%m%d_%H%M%S').log &
