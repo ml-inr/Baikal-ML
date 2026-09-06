@@ -179,6 +179,19 @@ docs/_build/
 !**/archive/**/*.yml
 !**/archive/**/*.md
 !**/archive/**/*.ipynb
+
+# Отслеживаемый архив: код, выведенный из активного дерева, но сохраняемый
+# в истории (см. doc/AUDIT.md §8.2). Тот же default-deny, что и для archive/:
+# данные сюда не попадут даже при расширении, для которого нет отдельного
+# правила (.dat, .wout, .tar, .bin). Без ведущего **/ — это один каталог в корне.
+archive_tracked/**
+!archive_tracked/**/
+!archive_tracked/**/*.py
+!archive_tracked/**/*.sh
+!archive_tracked/**/*.yaml
+!archive_tracked/**/*.yml
+!archive_tracked/**/*.md
+!archive_tracked/**/*.ipynb
 Archive/
 scratch/
 temp/
