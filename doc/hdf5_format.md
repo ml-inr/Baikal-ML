@@ -1,6 +1,9 @@
 # HDF5 Data Format Documentation
 
-> **Note**: This file documents the HDF5 internal structure only. For the full data pipeline documentation (HDF5 + Parquet catalogs + root2df + constants), see [data_format.md](data_format.md).
+> **Note**: This file documents the HDF5 internal structure only. For the pipeline that
+> produces these files, see [../CLAUDE.md](../CLAUDE.md). The older `data_format.md`, which
+> also covered the Parquet catalogues, `root2df` and `constants.py`, is archived at
+> `archive_tracked/doc/data_format.md` — all three were retired in the 2026-09 cleanup.
 
 *Generated from analysis of `exp.h5` and `example_mc_5_muatm_files.h5` created by `data_manager/root2h5/` scripts*
 

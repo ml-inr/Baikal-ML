@@ -12,36 +12,35 @@ inference_v2/
 │   ├── predict_npy.py      # Fast: reads pre-built NPY dataset
 │   ├── predict_mc.py       # Arbitrary MC events from h5 (on-the-fly sig-noise)
 │   ├── predict_exp.py      # Exp data from h5 (on-the-fly sig-noise)
-│   ├── run_predict_npy.sh
-│   ├── run_predict_mc.sh
-│   ├── run_predict_exp.sh
-│   ├── analysis/           # Importable API for notebooks and research scripts
-│   │   ├── load.py         # load_preds(), compare_checkpoints(), load_history()
-│   │   ├── metrics.py      # auc(), at_threshold(), efficiency_rejection_curve()
-│   │   └── plots.py        # plot_score_dist(), plot_efficiency_rejection(), plot_roc()
+│   ├── compute_scalars.py  # Per-event scalars derived from stored predictions
+│   ├── run_predict_*.sh    # Wrappers; edit the variables at the top
+│   ├── run_batch_predict.sh# npy / mc_merged / mc_reco / exp across several checkpoints
+│   ├── analysis/           # Only HIGH_SCORE_EXCESS/ remains; see "Analysis" below
+│   ├── reports/<date>/     # Frozen research reports with their generating scripts
 │   └── preds/
 │       ├── prediction_history.csv        # append-only run log
-│       └── {experiment_dir}@{checkpoint_stem}/   # e.g. 260509_1015_...seed27_lr1e4@best_da_model
-│           ├── mc_merged_thr0p8.duckdb   # predictions table
+│       └── {run}@{checkpoint_stem}/      # e.g. 260816_2250_..._FIXED_sn256@best_da_model
+│           ├── mc_merged_thr0p8.duckdb
 │           ├── exp_reco_thr0p8.duckdb
 │           └── run_info.json
 │
 ├── prefilter/              # Background prefilter (all raw hits, no sig-noise step)
 │   ├── predict_mc.py
 │   ├── predict_exp.py
-│   ├── run_predict_mc.sh
-│   ├── run_predict_exp.sh
-│   ├── analysis/
-│   └── preds/
-│       └── {experiment_dir}@{checkpoint_stem}/
-│           ├── mc_merged_allhits.duckdb
-│           ├── exp_reco_allhits.duckdb
-│           └── run_info.json
+│   ├── run_predict_{mc,exp}.sh
+│   ├── analysis/           # load.py, metrics.py, plots.py
+│   └── preds/{run}@{checkpoint_stem}/{mc_merged,exp_reco}_allhits.duckdb
+│
+├── reader/                 # Streaming access to sources and predictions — start here
+│   ├── tutorial.ipynb
+│   └── tests/test_reader.py
 │
 └── shared/                 # Utilities shared across tasks
     ├── model_utils.py      # load_model(), load_sn_model(), predict_scores()
     ├── catalog_query.py    # DuckDB catalog JOINs, append_predictions_*()
     ├── history.py          # prediction_history.csv writer
+    ├── run_info.py         # run_info.json reader/writer
+    ├── reco_schema.py      # reco_prty column names and converter configs
     └── metrics.py          # auc_score(), at_threshold(), efficiency_rejection_curve()
 ```
 
@@ -100,10 +99,10 @@ bash inference_v2/prefilter/run_predict_exp.sh
 
 The preds output directory is derived automatically from the checkpoint path:
 ```
-experiments/numu/260509_1015_..._seed27_lr1e4/best_da_model.pth
+trained_models/classifier/260509_1015_..._seed27_lr1e4/best_da_model.pth
   → preds/260509_1015_..._seed27_lr1e4@best_da_model/
 
-experiments/numu/260509_1015_..._seed27_lr1e4/da_checkpoint_epoch_045.pth
+trained_models/classifier/260509_1015_..._seed27_lr1e4/da_checkpoint_epoch_045.pth
   → preds/260509_1015_..._seed27_lr1e4@da_checkpoint_epoch_045/
 ```
 
@@ -132,49 +131,47 @@ Every script invocation appends a row to `preds/prediction_history.csv`:
 Failed runs still get a row, so the history is a full audit trail.
 
 ```python
-from inference_v2.nu_classifier.analysis import load_history
-df = load_history("inference_v2/nu_classifier/preds")
+import pandas as pd
+df = pd.read_csv("inference_v2/nu_classifier/preds/prediction_history.csv")
 ```
+
+The writer is `inference_v2/shared/history.py:append_history_row`; there is no reader
+helper — it is a plain CSV on purpose.
 
 ---
 
-## Analysis in notebooks
+## Analysis
+
+Use **`inference_v2/reader/`**. It streams events and hits from any source joined with any
+checkpoint's predictions, without materialising anything:
 
 ```python
-from inference_v2.nu_classifier.analysis import load_preds, compare_checkpoints
-from inference_v2.nu_classifier.analysis.plots import plot_efficiency_rejection, plot_roc
+from inference_v2 import reader
 
-PREDS = "inference_v2/nu_classifier/preds"
+reader.checkpoints()                       # which scored checkpoints exist
+r = reader.open("exp_reco", checkpoint="260816_2250_..._FIXED_sn256@best_da_model")
 
-# Load predictions for one checkpoint, joined with catalog metadata
-df = load_preds(
-    f"{PREDS}/260509_1015_da_nu_classifier_h5s0_lambda0.01_thr0.8_seed27_lr1e4@best_da_model",
-    source="mc_merged",
-    thr=0.8,
-    catalog_path="data_manager/catalog_v2.duckdb",
-    cuts={"min_sn_hits": 8, "min_sn_strings": 2},
-)
-# df columns: event_fk, score, n_sn_hits, n_sn_strings, data_class, season, cluster, run, event_id
-
-# Compare best model vs a specific epoch checkpoint
-df_all = compare_checkpoints(
-    [
-        f"{PREDS}/260509_1015_..._seed27_lr1e4@best_da_model",
-        f"{PREDS}/260509_1015_..._seed27_lr1e4@da_checkpoint_epoch_045",
-    ],
-    source="mc_merged", thr=0.8,
-)
-# df_all has an extra 'checkpoint' column
-
-# Physics properties (theta, energy) are NOT in the catalog.
-# Retrieve them from baikal_mc_merged.h5 via h5_locations if needed.
+ev = r.events(where=[reader.H8S3])         # event table; no hit is read
+for chunk in r.stream(where=[reader.H8S3], budget_mb=512):
+    chunk.events, chunk.hits, chunk.parts, chunk.meta
 ```
 
-Drop new research scripts directly into `analysis/`:
+Predicates compose: `H8S3`, `NOT_TRAINED`, `NOT_DA_TARGET`, `NOT_EXCLUDED`, or raw
+`Sql(...)`. `reader.sources()` prints every known source with the evidence behind its
+exclusions. Worked examples: `reader/tutorial.ipynb`.
+
+The run log is read with:
+
+```python
+from inference_v2.shared.history import ...      # writer lives here
 ```
-nu_classifier/analysis/compare_seasons.py
-nu_classifier/analysis/energy_threshold_study.py
-```
+
+> **A note on where analysis code goes.** An earlier version of this file advised dropping
+> research scripts straight into `analysis/`. That produced 113 files in 17 subdirectories,
+> most of them unreachable from any entry point — see `doc/AUDIT.md` §1.9 and §2. They have
+> been archived. Prefer `reader/` plus a dated directory under `reports/` that contains both
+> the script and its output, so a number in a report can always be traced to the code that
+> produced it.
 
 ---
 

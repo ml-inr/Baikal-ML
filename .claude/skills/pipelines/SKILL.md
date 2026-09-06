@@ -41,7 +41,8 @@ ls -la data_manager/data/h5datasets/baikal_mc_merged.h5
 
 ### Running Inference (inference_v2/)
 ```bash
-# Batch predictions across all 8 nu-classifier checkpoints (4 steps: npy/mc_merged/mc_reco/exp)
+# Batch predictions across the checkpoints listed in MODELS=() inside the script
+# (4 steps: npy / mc_merged / mc_reco / exp)
 bash inference_v2/nu_classifier/run_batch_predict.sh [npy|mc_merged|mc_reco|exp|all]
 
 # Single-model shortcut (edit script to change checkpoint/device)
@@ -49,15 +50,21 @@ bash inference_v2/nu_classifier/run_predict_mc.sh    # MC predictions
 bash inference_v2/nu_classifier/run_predict_exp.sh   # Exp predictions
 bash inference_v2/prefilter/run_predict_mc.sh        # Prefilter MC
 bash inference_v2/prefilter/run_predict_exp.sh       # Prefilter exp
-
-# UMAP embedding analysis (out-of-training MC + exp split by score bucket)
-python inference_v2/nu_classifier/analysis/run_umap.py \
-    --checkpoint experiments/numu/260508_1724_...seed32/best_da_model.pth \
-    --npy-dir    data_manager/datasets/nu_classifier_dataset_h5s0_thr0.8 \
-    --mc-h5      data_manager/data/h5datasets/baikal_mc_merged.h5 \
-    --exp-h5     data_manager/data/h5datasets/exp.h5 \
-    --preds-dir  inference_v2/nu_classifier/preds \
-    --device cuda:0
-# Outputs: preds/{checkpoint_name}/analysis/umap_nmc10000/umap_2d.html, umap_3d.html
 ```
+
+### Reading sources and predictions
+
+`inference_v2/reader/` is the intended way to read any source joined with any checkpoint's
+predictions, streaming rather than materialising. Worked examples in
+`inference_v2/reader/tutorial.ipynb`.
+
+```python
+from inference_v2 import reader
+reader.checkpoints()                       # which scored checkpoints exist
+r = reader.open("exp_reco", checkpoint="260816_2250_..._FIXED_sn256@best_da_model")
+ev = r.events(where=[reader.H8S3])
+```
+
+The UMAP tooling that used to live at `analysis/run_umap.py` was archived in the 2026-09
+cleanup; see `archive_tracked/inference_v2/nu_classifier/analysis/`.
 

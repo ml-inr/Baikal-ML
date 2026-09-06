@@ -1,10 +1,11 @@
 # Code Development Conventions
 
-*This document defines coding rules for our neural network research project. See [vision.md](vision.md) for technical architecture and development principles.*
+*This document defines coding rules for the project. See [CLAUDE.md](CLAUDE.md) for the
+pipeline map, data locations and working rules.*
 
 ## Core Principles
 
-Follow KISS, YAGNI, MVP, and Fail Fast principles from vision.md in all code:
+Follow KISS, YAGNI, MVP, and Fail Fast principles in all code:
 - Start with simplest working implementation
 - Add features only when validated need exists
 - Prioritize readability over cleverness
@@ -188,8 +189,8 @@ writer.close()
 
 **Metrics Logging:**
 - Log scalars every epoch: loss, AUC, F1, accuracy
-- TensorBoard logs stored under `experiments/<name>/tensorboard/`
-- View with: `tensorboard --logdir experiments/`
+- TensorBoard logs stored under `trained_models/<task>/<run>/tensorboard/`
+- View with: `bash scripts/tb.sh <task>/<run>`
 
 ## Documentation Standards
 
@@ -216,7 +217,7 @@ def process_data(input_path: Path, config: dict) -> Path:
 **Module Documentation:**
 - Include brief module purpose in docstring
 - Document key classes and their relationships
-- Keep README files minimal (reference vision.md)
+- Keep README files minimal (reference CLAUDE.md)
 
 ## Module-Specific Conventions
 
@@ -235,9 +236,10 @@ from src.models.base_models import NuMuClassifierModel, create_model
 - Advanced collate functions with data augmentation and preprocessing
 - Data loading utilities with preset normalization support
 ```python
-# Example: src/data/numu_dataset.py
-from torch.utils.data import Dataset
-from src.data.numu_dataset import NuMuDataset, create_from_ds_numu_dataloader
+# Example: src/data/nu_classifier_dataset/
+from src.data.nu_classifier_dataset import (
+    NuClassifierNpyDataset, create_nu_classifier_dataloader,
+)
 ```
 
 **src/training:**
@@ -248,7 +250,7 @@ from src.data.numu_dataset import NuMuDataset, create_from_ds_numu_dataloader
 - TensorBoard integration for experiment tracking and visualization
 - Support for preset normalization and data augmentation
 ```python
-# Example: src/training/standard_numu_trainer.py
+# Example: src/training/da_nu_classifier_trainer.py
 from src.training.metrics import MetricsTracker, BinaryClassificationMetrics
 ```
 
@@ -262,18 +264,18 @@ from src.training.metrics import MetricsTracker, BinaryClassificationMetrics
 - Return Path objects for file outputs
 - Handle missing files gracefully
 - Log processing statistics
-- `root2h5/` — multiprocessing ROOT→HDF5 converters (MC, Exp, Reco variants), YAML-driven
-- `root2df/` — Polars-based ROOT reader using uproot, dataclass path configs
-- `build_catalog_*.py` — Parquet catalog builders (MC merged, MC normed, Exp, Exp reco)
-- `h5_catalogs/` — output Parquet catalogs with per-event metadata
-- `constants.py` — physics/detector constants (refractive index, channel/string divisors)
+- `root2h5/` — multiprocessing ROOT→HDF5 converters (MC, exp, exp_full, reco), YAML-driven
+- `nu_classifier_ds_builder/`, `prefilter_npy_ds_builder/` — HDF5 → memory-mapped NPY
+- `catalog_v2/` — builders for `catalog_v2.duckdb`, the event catalogue
+- `energy_truth/` — energy-truth companion: build and validate
 - `stats_dict/` — normalization statistics YAML files for training
 
-**inference:**
+**inference_v2:**
 - Load models in eval mode
 - Batch predictions efficiently
-- Save predictions in standard format (.npz, .csv)
-- Include confidence scores when available
+- Predictions go to per-checkpoint DuckDB under `preds/<run>@<ckpt>/`, keyed by
+  `event_fk` from `catalog_v2.duckdb`; every run appends to `prediction_history.csv`
+- Use `inference_v2/reader/` to read sources and predictions
 
 ## Performance Guidelines
 

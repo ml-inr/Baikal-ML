@@ -1,241 +1,278 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code working in this repository. Describes the state as of
+**2026-09-06**, after the cleanup recorded in `doc/AUDIT.md`.
 
-*This file serves as the central hub for all development guidelines for the Baikal Neutrino Detection Neural Network Research Project.*
+## What this project is
 
-## Project Guidelines Overview
+Neutrino detection for **Baikal-GVD**, an underwater Cherenkov telescope. The task is
+binary classification of detector events: neutrino signal against a vastly larger
+atmospheric-muon background. An event is a variable-length sequence of hits, each hit a
+5-vector `[Q, t, x, y, z]` — charge, time, and cluster-centred coordinates. Typical
+event: 35–200+ hits.
 
-This project follows KISS (Keep It Simple, Stupid) principles for neural network research focused on binary classification of time-series data. All code generation and development decisions should reference these core documents:
+Selection runs in **two stages**, trained separately:
 
-### 📋 Core Documentation
+| Stage | Input | Purpose |
+|---|---|---|
+| **prefilter** | all raw hits | cuts EAS background ×10–20 |
+| **nu-classifier** | hits passing the sig-noise model (thr 0.8) | high-purity neutrino selection |
 
-**[vision.md](vision.md)** - Technical Architecture & Principles
-- Technologies and development stack
-- Project architecture and data pipeline
-- Configuration management approach
-- Experiment management strategy
-- Primary reference for all technical decisions
+Both are transformer encoders trained with **domain adaptation** (DANN: gradient reversal
++ domain discriminator), because the model must transfer from Monte Carlo to real data.
 
-**[conventions.md](conventions.md)** - Coding Standards
-- Python and PyTorch coding patterns
-- Data handling and configuration conventions
-- Testing approaches for ML components
-- Documentation and logging standards
-- Follow these rules for all generated code
+## Environment
 
-**[doc/workflow.md](doc/workflow.md)** - Development Process
-- Iteration execution workflow
-- Code review and validation checkpoints
-- Version control and reproducibility practices
-- Research experiment cycles
-- Must follow this process for all development
+```bash
+conda activate baikal25
+python -c "import torch, numpy, h5py, duckdb; print('OK')"
+```
 
-**[doc/tasklist.md](doc/tasklist.md)** - Development Plan
-- 8-iteration development roadmap
-- Progress tracking and task management
-- Testing requirements for each iteration
-- Current project status and next steps
+Python 3.10+, PyTorch, h5py, uproot/awkward (ROOT reading), DuckDB (event catalogue and
+prediction storage), NumPy, PyYAML. Environment file: `environment.yml`.
 
-### 📦 Data Reference
+Training logs go to Python `logging` and TensorBoard simultaneously:
+`trained_models/<task>/<run>/tensorboard/`, viewed with `bash scripts/tb.sh <task>/<run>`.
 
-**[doc/hdf5_format.md](doc/hdf5_format.md)** - layout of every HDF5 file (sources, inference
-outputs, energy-truth companion)
+## Live tree
 
-**[doc/mc_provenance.md](doc/mc_provenance.md)** - where the MC comes from: production chain
-(generator → `.dat` → `mcread` → `.wout` → `bexport-mc` → ROOT → h5), upstream file locations
-on EOS, which production maps to which detector season, and how to match an event across the
-chain. Read this before trusting any field's units — BARS comments disagree with the data.
+```
+src/                       модели, датасеты, тренеры, конфиги обучения
+  models/                  base_models.py (трансформер), domain_discriminator.py (GRL)
+  data/                    nu_classifier_dataset/, prefilter_npy_dataset/ — memmap NPY
+  training/                da_nu_classifier_trainer.py, da_prefilter_numu_trainer.py
+    configs/{prefilter,classifier,track_energy_reconstruction}/   шаблоны запуска
 
-**[doc/mc_binary_formats.md](doc/mc_binary_formats.md)** - exact word layout of the upstream
-`.dat` / `.wout`, verified against ROOT; reader is
-`data_manager/root2h5/energy_truth/read_wout.py`
+data_manager/              всё, что превращает ROOT в обучаемые массивы
+  root2h5/                 ROOT → HDF5 (MC, exp, exp_full, reco); + energy_truth/
+  nu_classifier_ds_builder/  HDF5 → NPY для классификатора
+  prefilter_npy_ds_builder/  HDF5 → NPY для префильтра
+  catalog_v2/              сборка catalog_v2.duckdb
+  energy_truth/            сборка и валидация энергетического компаньона
+  data/, datasets/         сами файлы (вне git)
 
-**[doc/mc_energy_truth.md](doc/mc_energy_truth.md)** - what energy ground truth actually
-exists: the three cases of `fMuonEnergy`, the targets built from the interaction chain, and
-the limits of the propagation
+inference_v2/              предсказания и чтение
+  nu_classifier/           predict_{npy,mc,exp}.py + обёртки run_*.sh
+  prefilter/               predict_{mc,exp}.py + обёртки
+  shared/                  model_utils, catalog_query, reco_schema, run_info, history
+  reader/                  единый потоковый доступ к источникам и предсказаниям
 
-**[doc/reco_quality_cuts.md](doc/reco_quality_cuts.md)** - the recommended BARS quality cuts
-for reco events: where each quantity lives, mixed units, unfilled fields, measured pass rates
-in both samples, and the known faults (cluster 1, bad charges, multi-cluster fragments)
+trained_models/            результаты обучения (вне git, кроме снимков конфигов)
+  prefilter/<run>/         best_da_model.pth, da_config.yaml, tensorboard/, logs/
+  classifier/<run>/        то же
+  track_energy_reconstruction/   пустая, задел под будущую задачу
 
-**[doc/claims_log.md](doc/claims_log.md)** - every factual claim the project relies on, with
-its evidence and status (`verified` / `consistent` / `assumed` / `refuted`). Check here before
-relying on a statement, and update it when a claim's status changes.
+gplotnikov_sig_noise_models/   внешняя модель сигнал/шум (не наша)
+doc/                       справочники по данным и журнал утверждений
+scripts/                   обёртки запуска обучения
+```
 
-## Verifying Claims
+## Two archives — the difference matters
 
-Research claims here have repeatedly been documented as established and turned out wrong. Every
-one of those failures shared a cause: the check tested **internal consistency** — one field
-against another from the same file, or a pattern against an already-formed hypothesis — instead
-of anchoring to something outside the data. More checking does not fix this; different checking
-does.
+| | `archive/` | `archive_tracked/` |
+|---|---|---|
+| Under git | no | **yes** |
+| What | старые черновики и эксперименты | код, снятый с эксплуатации по решениям `doc/AUDIT.md` §8.2 |
 
-**Before writing a factual claim into `doc/`:**
+Both are **default-deny** in `.gitignore`: only `.py`, `.sh`, `.yaml`, `.yml`, `.md`,
+`.ipynb` are tracked. A data file dropped into either stays out of git regardless of
+extension — including `.dat`, `.wout`, `.tar`, `.bin`, which have no rule of their own.
 
-- **Anchor externally.** A claim about units or semantics is not established until it is checked
-  against something outside the dataset: physics that holds independently, a production whose
-  name states its range, an independent implementation, or the code that writes/reads the
+Check what a path would do before relying on it, and judge by the **exit code**, not by
+whether `-v` printed something (it prints negating rules too):
+
+```bash
+git check-ignore -q --no-index <path> && echo IGNORED || echo TRACKED
+```
+
+## The two pipelines
+
+### Prefilter
+
+```
+baikal_mc_merged.h5
+  └─ data_manager/prefilter_npy_ds_builder/build.py
+       labels from MC truth: raw/labels != 0 → n_signal_hits → soft label
+       min(1, n_sig/h_saturate) for neutrinos, 0 for muons
+  └─ data_manager/datasets/baikal_mc2020_prefilter/{hard_nu_labels,soft_nu_labels_hsat9}/
+  └─ src/data/prefilter_npy_dataset/   source = NPY, target = exp.h5 (all labels 0)
+  └─ src/training/da_prefilter_numu_trainer.py --config src/training/configs/prefilter/…
+  └─ trained_models/prefilter/<run>/
+```
+
+Canonical run: `da_prefilter_numu_260429_0155_Qclip_softlabels_PlateauLR_lambda0.05_MC2M_dmodel128_zflipBothMCExp_SoftFocalLoss`.
+
+Inference: `inference_v2/prefilter/predict_{mc,exp}.py` — **all raw hits, no sig-noise
+step** → `preds/<run>@<ckpt>/{mc_merged,exp_reco}_allhits.duckdb`.
+
+Note the prefilter has no way to exclude its own training events at inference: its NPY
+dataset carries no h5 back-links (the nu-classifier's does, via `h5_part_keys.npy`).
+
+### Nu-classifier
+
+```
+baikal_mc_merged.h5  +  …_probs_k_nsol_labelneq0_da_hs128_k0p0001.h5
+  └─ data_manager/nu_classifier_ds_builder/   hits with sig-noise prob > 0.8
+  └─ data_manager/datasets/nu_classifier_dataset_h5s0_thr0.8/
+  └─ src/data/nu_classifier_dataset/
+  └─ src/training/da_nu_classifier_trainer.py --config src/training/configs/classifier/…
+  └─ trained_models/classifier/<run>/
+```
+
+Canonical run: `260508_1724_da_nu_classifier_h5s0_lambda0.01_thr0.8_seed32`.
+
+Inference: `inference_v2/nu_classifier/predict_{npy,mc,exp}.py` →
+`preds/<run>@<ckpt>/{mc_merged,exp_reco,exp_full}_thr0p8.duckdb`.
+
+**Sig-noise batch size is part of the hit selection, not a speed knob.** The model takes a
+float padding mask, so batch size changes which hits pass the threshold. `--sn-batch-size`
+is a separate parameter, default **256**, applied independently of `--batch-size` (which
+only affects the classifier). See `doc/sig_noise_batch_size.md`.
+
+External dependency: `gplotnikov_sig_noise_models/k_nsol_labelneq0_da_hs128_k0p0001/sig_noise_model_v3.py`.
+
+### Shared
+
+`data_manager/catalog_v2.duckdb` (132 GB) maps every event to an `event_fk`, the key all
+prediction tables reference. Built by `data_manager/catalog_v2/build_{mc,mc_reco,exp}.py`.
+
+`inference_v2/reader/` is the newest and intended way to read sources and predictions
+without materialising anything; see `inference_v2/reader/tutorial.ipynb`.
+
+## Data
+
+All under `data_manager/`, none in git.
+
+| Path | Size | What |
+|---|---|---|
+| `data/h5datasets/baikal_mc_merged.h5` | 956 GB | MC: `muatm_2020`, `nuatm_2020`, `nue2_2020` |
+| `data/h5datasets/…_probs_k_nsol…k0p0001.h5` | 189 GB | per-hit sig-noise probabilities for the above |
+| `data/h5datasets/baikal_mc_merged_energy_truth.h5` | 163 GB | energy-truth companion |
+| `data/h5datasets/exp_full.h5` | 136 GB | full-stat exp, has `header_prty` with physical event ids |
+| `data/h5datasets/exp_reco_full_2020.h5` | 113 GB | exp with reconstruction |
+| `data/h5datasets/exp_reco.h5` | 22 GB | exp with reconstruction, smaller sample |
+| `data/h5datasets/exp.h5` | 0.66 GB | legacy exp, ~650K events — the DA target domain |
+| `catalog_v2.duckdb` | 132 GB | event catalogue |
+| `datasets/` | 59 GB | memory-mapped NPY training sets |
+
+`nue2` is **astrophysical ν_μ with an E⁻² spectrum**, not electron neutrinos — the name
+misleads and older comments in the repo get this wrong.
+
+## Reference documentation
+
+These describe **data**, not code layout, and stay valid across refactors:
+
+- `doc/hdf5_format.md` — layout of every HDF5 file
+- `doc/mc_provenance.md` — where the MC comes from, generator → `.dat` → `.wout` → ROOT → h5.
+  Read before trusting any field's units; BARS comments disagree with the data.
+- `doc/mc_binary_formats.md` — word layout of `.dat`/`.wout`, verified against ROOT
+- `doc/mc_energy_truth.md`, `doc/hdf5_energy_truth.md`, `doc/energy_twin_plan.md` — what
+  energy ground truth exists and how the companion file is built
+- `doc/reco_quality_cuts.md` — BARS quality cuts, mixed units, known faults
+- `doc/sig_noise_batch_size.md` — why batch size defines the hit selection
+- `doc/claims_log.md` — every factual claim with its evidence and status
+  (`verified` / `consistent` / `assumed` / `refuted`)
+- `doc/AUDIT.md` — map of the repository **before** the 2026-09 cleanup, plus the
+  decisions that drove it. Historical: its paths no longer resolve.
+
+## Verifying claims
+
+Research claims here have repeatedly been documented as established and turned out wrong.
+Every one of those failures shared a cause: the check tested **internal consistency** — one
+field against another from the same file, or a pattern against an already-formed
+hypothesis — instead of anchoring to something outside the data. More checking does not fix
+this; different checking does.
+
+Before writing a factual claim into `doc/`:
+
+- **Anchor externally.** A claim about units or semantics is not established until checked
+  against something outside the dataset: physics that holds independently, a production
+  whose name states its range, an independent implementation, or the code that writes the
   format. Comparing two fields of the same file is `consistent`, never `verified`.
-- **Read the specification before decoding data.** If a parser, writer or schema exists, read it
-  first. Reverse-engineering a format by pattern-matching is a last resort, and it produced a
-  day of wrong conclusions when `Task_MAIN.cpp` was two steps away.
-- **Separate "consistent with" from "proves".** State explicitly which rival hypotheses a test
-  can and cannot distinguish. `Reg ≤ E_primary` proves the two share a unit, not which unit.
-- **Name the falsifying observation before collecting evidence.** "If this is true, X; if I see
-  Y, it is dead." Skipping this is what turns a search into a search for confirmation.
-- **Isolate before editing code.** Reproduce the failure in the smallest setting that shows it
-  (one element vs a batch, one file vs a run) rather than guessing at a fix; guessing has twice
-  made things worse here.
-- **Mark confidence in the text.** Write `verified` / `consistent` / `assumed` where a reader
-  would otherwise have to trust the tone, and log the claim in
-  [doc/claims_log.md](doc/claims_log.md).
-- **Record refutations, don't overwrite them.** When a claim flips, say so in place and add the
-  bad argument to the log — the failure modes repeat.
+- **Read the specification before decoding data.** If a parser, writer or schema exists,
+  read it first. Reverse-engineering by pattern-matching is a last resort, and it produced
+  a day of wrong conclusions when `Task_MAIN.cpp` was two steps away.
+- **Separate "consistent with" from "proves".** State which rival hypotheses a test can and
+  cannot distinguish. `Reg ≤ E_primary` proves the two share a unit, not which unit.
+- **Name the falsifying observation before collecting evidence.** "If this is true, X; if I
+  see Y, it is dead." Skipping this turns a search into a search for confirmation.
+- **Isolate before editing code.** Reproduce the failure in the smallest setting that shows
+  it — one element vs a batch, one file vs a run — rather than guessing at a fix.
+- **Mark confidence in the text.** Write `verified` / `consistent` / `assumed` where a
+  reader would otherwise have to trust the tone, and log it in `doc/claims_log.md`.
+- **Record refutations, don't overwrite them.** When a claim flips, say so in place and add
+  the bad argument to the log — the failure modes repeat.
 
 **Confidence is part of the answer.** Reporting a result without saying how well it is
 established is an incomplete report, not a concise one.
 
-## Code Generation Rules
+## Working rules
 
-**ALWAYS follow these guidelines when generating code:**
+Coding standards are in `conventions.md`: Python 3.10+, PEP 8 at 88 columns, type hints on
+signatures, config from YAML, seeds set explicitly, device handled explicitly.
 
-### 🏗️ Technical Requirements (from conventions.md)
-- Use Python 3.10+ with PyTorch
-- Follow PEP 8 with 88-character line limit
-- Type hints for all function signatures
-- Config-driven everything (YAML files)
-- Reproducible experiments (seed management)
-- Modular design with clear separation
+Two rules specific to how this repository has gone wrong before:
 
-### 🔄 Development Process (from doc/workflow.md)
-1. **Plan Phase**: Propose solution with code snippets
-2. **Wait for Agreement**: Never implement without approval
-3. **Implementation**: Follow conventions.md standards
-4. **Validation**: Test according to iteration requirements
-5. **Wait for Confirmation**: Get user approval before proceeding
-6. **Progress Update**: Mark tasks complete in tasklist.md
-7. **Commit**: Save working state with descriptive message
+**Do not create variant-named files.** No `_v2`, `_new`, `_fixed`, `_final`, `_OLD`,
+`copy`. Edit the existing file. If a genuinely separate version is needed, ask first —
+`doc/AUDIT.md` §3 catalogues what happens otherwise: seven near-identical copies of one
+sig-noise model, two byte-identical predict scripts wired to the wrong checkpoint, and
+`_OLD`/`_OLDNewer` HDF5 pairs nobody can now tell apart.
 
-### 🧪 Research Focus
-- **Primary Task**: Binary classification on time-series data
-- **Data Flow**: ROOT files → HDF5 → PyTorch → trained models → predictions
-- **Tracking**: TensorBoard experiment tracking from day 1
-- **Reproducibility**: Same config → same results
+**Every figure or number that reaches a paper or a report must have a generating script in
+the repository and a provenance record.** `doc/AUDIT.md` Q8/Q9 records the cost of skipping
+this: for the figures currently in `papers/` it is no longer possible to say which script
+produced them, and the reports of 2026-07-08 and 2026-07-09 contain no code at all. A
+provenance helper exists as a model:
+`archive_tracked/inference_v2/nu_classifier/analysis/reco_excess/src/provenance.py`.
 
-## Key Reminders
+Never do without asking: implement a solution, make an architectural decision, add
+complexity, or move to the next stage of work.
 
-**Never do without user approval:**
-- Implement code solutions
-- Move to next development iteration
-- Make architectural decisions
-- Add complexity or features
+## Commands
 
-**Always include:**
-- Type hints and docstrings
-- Error handling and logging
-- Configuration loading from YAML
-- Device handling (CPU/GPU)
-- Reproducibility features (seeds, deterministic)
+Detailed pipeline commands live in the `pipelines` skill (`.claude/skills/pipelines/`),
+loaded on demand. The essentials:
 
-**Research-specific requirements:**
-- Handle variable-length time series
-- Binary classification metrics (AUC, F1, precision, recall)
-- Model checkpointing and best model saving
-- TensorBoard experiment tracking
-- Separate train/val/test HDF5 files
-
-## Common Development Commands
-
-### Environment Setup
 ```bash
-# Activate conda environment
-conda activate baikal25
+# обучение (правьте переменные в шапке обёртки)
+bash scripts/train_da_prefilter_soft_in_bg.sh
+bash scripts/train_da_nuclassifier_in_bg.sh
 
-# Verify environment works
-python -c "import torch, numpy, h5py; print('Environment OK')"
+# предсказания
+bash inference_v2/nu_classifier/run_predict_mc.sh
+bash inference_v2/prefilter/run_predict_exp.sh
+
+# самопроверяющиеся скрипты
+python inference_v2/reader/tests/test_reader.py       # 23 assert
+python inference_v2/test_run_info.py                  # 14 assert
+python data_manager/energy_truth/test_truth.py        # аналитика + регрессия
+python data_manager/root2h5/energy_truth/test_targets_vec.py
+
+# сравнить два прогона предсказаний (эталон поведения)
+python inference_v2/test_scoring_equivalence.py --baseline <dir> --candidate <dir>
+
+# tensorboard
+bash scripts/tb.sh classifier/260508_1724_da_nu_classifier_h5s0_lambda0.01_thr0.8_seed32
 ```
 
-### Running Tests  
-```bash
-# Test the PyTorch dataset
-cd src/data && python test_numu_dataset.py
+There is no automated test suite: no `pytest`, no CI, no single command that checks
+everything. The scripts above are what exists.
 
-# Run basic dataset verification
-python -c "from src.data.numu_dataset import NuMuDataset; print('Dataset import OK')"
+## State as of 2026-09-06
 
-# Test training pipeline
-python src/training/standard_numu_trainer.py --config experiments/standard_neutrino_baseline.yaml --debug
+Both pipelines are trained and operational; predictions for the canonical checkpoints are
+in `inference_v2/*/preds/`. `inference_v2/reader/` is new and intended to replace the older
+per-analysis loading code, which has been archived.
 
-# Test domain adaptation pipeline
-python test_da_training.py
+Known open points, all recorded in `doc/AUDIT.md`:
 
-# Train domain adaptation model
-python src/training/da_numu_trainer.py --config experiments/da_neutrino_baseline.yaml --debug
-```
-
-## Key Data Information
-
-### Data Location
-- **Main MC Data**: `data_manager/data/h5datasets/baikal_mc_merged.h5`
-- **Experimental Data**: `data_manager/data/h5datasets/exp.h5` (top-level group: `"exp"`, legacy 25k-capped, ~650K events)
-- **Full-Stat Exp Data**: `data_manager/data/h5datasets/exp_full.h5` (top-level group: `"exp_full"`, ~133M events, 29 clean runs c02–c07, has `header_prty` with physical event_id = CC timestamp)
-- **Exp Reco Data**: `data_manager/data/h5datasets/exp_reco.h5` (top-level group: `"exp_reco"`)
-- **Precomputed Probs**: `data_manager/data/h5datasets/baikal_mc_merged_probs_k_nsol_labelneq0_da_hs128_k0p0001.h5`
-- **NPY Datasets**: `data_manager/datasets/nu_classifier_dataset_h5s0_thr0.8/`
-- **Parquet Catalogs**: `data_manager/h5_catalogs/`
-- **Data Format**: HDF5 files with variable-length time series
-- **Features**: 5D hit data [amplitude, time, x, y, z coordinates]
-- **Task**: Binary classification (neutrino=True vs muon=False events)
-
-### Data Characteristics
-- Variable sequence lengths: 35-200+ hits per event
-- Time-series data with temporal ordering
-- 3D spatial coordinates (cluster-centered)
-- Multiple particle types: `muatm_2020`, `nue2_2020`, `nuatm_2020`
-
-## Architecture Guidelines
-
-### Two-Stage Detection Pipeline
-
-1. **Prefilter** (`inference/prefilter_model/`) — input: all raw hits (5D). Reduces EAS background ×10–20.
-   Trainer: `src/training/da_prefilter_numu_trainer.py`
-   Canonical model: `experiments/numu/da_prefilter_numu_260429_0155_..._SoftFocalLoss/`
-
-2. **Nu-classifier** (`inference/nu_classifier_model/`) — input: sig-noise-filtered hits (thr=0.8). High-purity neutrino selection.
-   Trainer: `src/training/da_nu_classifier_trainer.py`
-   Canonical model: `experiments/numu/260508_1724_da_nu_classifier_h5s0_lambda0.01_thr0.8_seed32/`
-
-**External dependency**: `gplotnikov_sig_noise_models/k_nsol_labelneq0_da_hs128_k0p0001/sig_noise_model_v3.py`
-**NPY dataset builder**: `data_manager/nu_classifier_ds_builder/` (HDF5 → memory-mapped NPY arrays for training)
-
-### Current Implementation Status
-- ✅ **Data Pipeline**: ROOT → HDF5 → NPY datasets → PyTorch training
-- ✅ **Variable Sequences**: Proper handling with padding/masking
-- ✅ **Binary Classification**: Neutrino detection ready
-- ✅ **Domain Adaptation**: DANN trainer with GRL (prefilter + nu-classifier)
-- ✅ **inference_v2/**: Clean predict scripts (npy/mc/exp), incremental DuckDB output, batch runner, UMAP analysis
-- ✅ **Batch Predictions**: 8 nu-classifier checkpoints being scored across mc_merged/mc_reco/exp sources
-- ⏳ **Next**: UMAP analysis, further representation-space studies, model comparison on exp data
-
-### Key Design Patterns
-- **Config-driven everything**: All behavior controlled by YAML files
-- **Variable-length sequences**: Custom collate functions for batching
-- **Memory efficiency**: Lazy loading with `max_events` limits
-- **Physics-informed**: Leverage 3D spatial and temporal structure
-
-### Testing Strategy
-- Integration tests for data loading pipeline
-- Unit tests for individual components  
-- Validation against known physics properties
-- Reproducibility tests with fixed seeds
-
-## Current Status
-
-Check [doc/tasklist.md](doc/tasklist.md) for current iteration progress and next steps in the development plan.
-
-**Current**: Iterations 1–7 complete. `inference_v2/` pipeline fully operational — 8-model batch predictions running across mc_merged/mc_reco/exp/npy sources, UMAP analysis tooling built. Next: representation-space analysis and model comparison on experimental data.
-
----
-
-*Follow these guidelines consistently to maintain code quality, research reproducibility, and project coherence.*
+- the experimental excess above MC at high classifier score is not closed;
+  `doc/claims_log.md` carries the current status of each claim about it
+- `src/training/domain_sep_trainer.py` remains live while all four of its configs and all
+  its runs are archived
+- SNGP classes (`RandomFeatureGPHead`, `NuMuSNGPModel`) remain in
+  `src/models/base_models.py` though the SNGP line is archived; they are inert unless
+  `model_type: numu_sngp` is used
+- `src/data/test_numu_dataset.py` imports `data_manager.h5datasets.paths2h5`, which does
+  not resolve — the file is at `data_manager/data/h5datasets/paths2h5.py`
