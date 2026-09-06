@@ -46,7 +46,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 
 HERE = Path(__file__).resolve().parent
-ROOT = HERE.parents[3]
+ROOT = HERE.parents[4]
 sys.path.insert(0, str(ROOT))
 from inference_v2.shared.model_utils import load_model, predict_scores_and_embeddings
 

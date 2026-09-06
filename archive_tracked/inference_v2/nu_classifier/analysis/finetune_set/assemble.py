@@ -20,7 +20,7 @@ from pathlib import Path
 import duckdb, h5py, numpy as np, pandas as pd
 import matplotlib.pyplot as plt
 
-HERE = Path(__file__).resolve().parent; ROOT = HERE.parents[3]
+HERE = Path(__file__).resolve().parent; ROOT = HERE.parents[4]
 sys.path.insert(0, str(ROOT))
 from inference_v2.shared.model_utils import load_model, predict_scores_and_embeddings
 

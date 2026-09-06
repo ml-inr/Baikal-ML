@@ -15,7 +15,7 @@ from pathlib import Path
 
 import yaml
 
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
+PROJECT_ROOT = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 
@@ -45,7 +45,7 @@ def main() -> None:
         handlers=[logging.StreamHandler(sys.stdout)],
     )
 
-    from src.training.exp_finetuning_trainer import ExpFineTuningTrainer
+    from archive_tracked.src.training.exp_finetuning_trainer import ExpFineTuningTrainer
 
     with ExpFineTuningTrainer(config) as trainer:
         trainer.train()

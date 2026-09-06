@@ -32,7 +32,7 @@ import numpy as np
 import pandas as pd
 
 HERE = Path(__file__).resolve().parent
-ROOT = HERE.parents[3]
+ROOT = HERE.parents[4]
 CSV = HERE / "tables/nue2_safety.csv"
 MCH5 = ROOT / "data_manager/data/h5datasets/baikal_mc_merged.h5"
 OUT = HERE / "tables/captured_nu_truth.csv"

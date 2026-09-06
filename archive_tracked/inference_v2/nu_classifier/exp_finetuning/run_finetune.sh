@@ -21,7 +21,7 @@ OUTPUT_DIR="inference_v2/nu_classifier/exp_finetuning/finetuned_models"
 EXP_NAME="${CHECKPOINT}_finetuned"
 DEVICE="cuda:2"
 
-CONFIG_PATH="inference_v2/nu_classifier/exp_finetuning/finetune.yaml"
+CONFIG_PATH="archive_tracked/inference_v2/nu_classifier/exp_finetuning/finetune.yaml"
 
 # ── Write config ──────────────────────────────────────────────────────────────
 
@@ -80,6 +80,6 @@ echo "Config written to ${CONFIG_PATH}"
 
 # ── Launch ────────────────────────────────────────────────────────────────────
 
-python inference_v2/nu_classifier/exp_finetuning/run_finetune.py \
+python archive_tracked/inference_v2/nu_classifier/exp_finetuning/run_finetune.py \
     --config "$CONFIG_PATH" \
     "$@"
