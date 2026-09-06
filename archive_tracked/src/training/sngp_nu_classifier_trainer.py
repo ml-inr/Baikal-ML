@@ -16,8 +16,8 @@ and are flagged uncertain rather than confidently ν. The main DA trainer is
 untouched.
 
 Usage:
-    python src/training/sngp_nu_classifier_trainer.py \
-        --config experiments/sngp_nu_classifier_baseline.yaml [--debug]
+    python archive_tracked/src/training/sngp_nu_classifier_trainer.py \
+        --config archive_tracked/experiments/sngp_nu_classifier_baseline.yaml [--debug]
 """
 
 import argparse

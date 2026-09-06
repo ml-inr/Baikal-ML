@@ -26,8 +26,8 @@ Schema: predictions(event_fk BIGINT PK, score FLOAT, gp_var FLOAT,
 Incremental: INSERT OR IGNORE, safe to re-run on further parts.
 
 Usage (from project root):
-    python inference_v2/nu_classifier/predict_sngp.py \\
-        --checkpoint trained_models/classifier/sngp_nu_classifier_baseline/best_sngp_model.pth \\
+    python archive_tracked/inference_v2/nu_classifier/predict_sngp.py \\
+        --checkpoint archive_tracked/trained_models/classifier/sngp_nu_classifier_baseline/best_sngp_model.pth \\
         --source mc_merged \\
         --h5 data_manager/data/h5datasets/baikal_mc_merged.h5 \\
         --probs-h5 data_manager/data/h5datasets/baikal_mc_merged_probs_k_nsol_labelneq0_da_hs128_k0p0001.h5 \\
