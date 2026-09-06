@@ -14,8 +14,8 @@ MC_TRAIN_NPY="data_manager/datasets/nu_classifier_dataset_h5s0_thr0.8"
 EXP_TRAIN_NPY="data_manager/datasets/nu_classifier_dataset_exp_full_thr0.8"
 EXP_PROBS_H5="data_manager/data/h5datasets/exp_full_probs_k_nsol_labelneq0_da_hs128_k0p0001.h5"
 THR=0.8; MINH=5; MINS=0; MC_PER_PTYPE=700000; EXP_PER_PART=70000
-E5=experiments/numu/260707_0226_da_nu_classifier_exp_full_E5_horizon_lambda0.01
-E1=experiments/numu/260705_0702_da_nu_classifier_exp_full_E1_lambda0.01
+E5=trained_models/classifier/260707_0226_da_nu_classifier_exp_full_E5_horizon_lambda0.01
+E1=trained_models/classifier/260705_0702_da_nu_classifier_exp_full_E1_lambda0.01
 CKPTS=("$E5/da_checkpoint_epoch_005.pth" "$E1/da_checkpoint_epoch_005.pth" "$E1/da_checkpoint_epoch_001.pth")
 
 for CKPT in "${CKPTS[@]}"; do

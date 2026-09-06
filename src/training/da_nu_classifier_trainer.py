@@ -8,7 +8,7 @@ Both domains use sig-noise-filtered hits.  The MC source has hard labels
 
 Usage:
     python src/training/da_nu_classifier_trainer.py \
-        --config experiments/da_nu_classifier_baseline.yaml [--debug]
+        --config src/training/configs/classifier/da_nu_classifier_baseline.yaml [--debug]
 """
 
 import argparse
@@ -438,7 +438,7 @@ class NuClassifierDomainAdaptationTrainer:
         # separates ν from μ in MC) degenerates, so pull the target toward 0.5 there
         # — teach the net to abstain where direction is unknowable. Source-only (θ is
         # NaN → weight 0 for datasets without GT theta). σ from the muatm FP falloff
-        # (≈10.5°); see experiments/numu/horizon_loss_design.md.
+        # (≈10.5°); see doc/horizon_loss_design.md.
         hcfg = tcfg.get("horizon_loss", {})
         if hcfg.get("enabled", False) and theta is not None:
             sigma    = float(hcfg.get("sigma_deg", 10.5))

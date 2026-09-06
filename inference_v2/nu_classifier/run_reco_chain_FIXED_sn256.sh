@@ -27,7 +27,7 @@ DEVICE="cuda:5"
 PY=/home/albert/miniconda3/envs/baikal25/bin/python
 SN=gplotnikov_sig_noise_models/k_nsol_labelneq0_da_hs128_k0p0001
 
-CHECKPOINT="experiments/numu/260816_2250_da_nu_classifier_exp_full_E1_lambda0.01_FIXED_sn256/best_da_model.pth"
+CHECKPOINT="trained_models/classifier/260816_2250_da_nu_classifier_exp_full_E1_lambda0.01_FIXED_sn256/best_da_model.pth"
 H5DIR=data_manager/data/h5datasets
 MC_RECO_H5="$H5DIR/baikal_mc_reco.h5"
 EXP_RECO_H5="$H5DIR/exp_reco.h5"

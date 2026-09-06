@@ -25,7 +25,7 @@ from inference_v2.shared.model_utils import load_model, predict_scores_and_embed
 
 CAT = ROOT/'data_manager/catalog_v2.duckdb'
 PRED = ROOT/'inference_v2/nu_classifier/preds/260705_0702_da_nu_classifier_exp_full_E1_lambda0.01@da_checkpoint_epoch_010'
-CKPT = ROOT/'experiments/numu/260705_0702_da_nu_classifier_exp_full_E1_lambda0.01/da_checkpoint_epoch_010.pth'
+CKPT = ROOT/'trained_models/classifier/260705_0702_da_nu_classifier_exp_full_E1_lambda0.01/da_checkpoint_epoch_010.pth'
 MCH5 = ROOT/'data_manager/data/h5datasets/baikal_mc_merged.h5'
 EXH5 = ROOT/'data_manager/data/h5datasets/exp_full.h5'
 MCPROBS = ROOT/'data_manager/data/h5datasets/baikal_mc_merged_probs_k_nsol_labelneq0_da_hs128_k0p0001.h5'

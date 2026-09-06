@@ -7,4 +7,4 @@
 # Status: superseded by src/training/da_prefilter_numu_trainer.py.
 # For new work use scripts/train_da_prefilter_hard_in_bg.sh.
 
-nohup python archive/260524/da_prefilter_numu_trainer_upsample.py --config experiments/da_prefilter_numu_hardlabels.yaml > experiments/logs/DA_PREFILTER_train_$(date +'%Y%m%d_%H%M%S').log &
+nohup python archive/260524/da_prefilter_numu_trainer_upsample.py --config src/training/configs/prefilter/da_prefilter_numu_hardlabels.yaml > trained_models/prefilter/logs/DA_PREFILTER_train_$(date +'%Y%m%d_%H%M%S').log &

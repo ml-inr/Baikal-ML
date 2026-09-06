@@ -10,7 +10,7 @@
 set -euo pipefail
 cd /home/albert/Baikal2025
 
-CHECKPOINT="experiments/numu/260816_2250_da_nu_classifier_exp_full_E1_lambda0.01_FIXED_sn256/best_da_model.pth"
+CHECKPOINT="trained_models/classifier/260816_2250_da_nu_classifier_exp_full_E1_lambda0.01_FIXED_sn256/best_da_model.pth"
 EXP_H5="data_manager/data/h5datasets/exp_full.h5"
 PROBS_H5="data_manager/data/h5datasets/exp_full_probs_k_nsol_labelneq0_da_hs128_k0p0001.h5"
 

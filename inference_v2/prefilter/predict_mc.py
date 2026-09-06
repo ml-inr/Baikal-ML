@@ -10,7 +10,7 @@ Incremental: safe to re-run on different part subsets — INSERT OR IGNORE.
 
 Usage (from project root):
     python inference_v2/prefilter/predict_mc.py \\
-        --checkpoint experiments/numu/da_prefilter_numu_260429_.../best_da_model.pth \\
+        --checkpoint trained_models/prefilter/da_prefilter_numu_260429_.../best_da_model.pth \\
         --mc-h5 /net/62/home3/ivkhar/Baikal/data/h5s/baikal_mc_merged.h5 \\
         [--source mc_merged] \\
         [--ptypes muatm_2020,nuatm_2020,nue2_2020] \\

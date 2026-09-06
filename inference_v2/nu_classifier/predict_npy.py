@@ -10,7 +10,7 @@ Incremental: INSERT OR IGNORE — safe to re-run on overlapping subsets.
 
 Usage (from project root):
     python inference_v2/nu_classifier/predict_npy.py \\
-        --checkpoint experiments/numu/260508_1724_.../best.pt \\
+        --checkpoint trained_models/classifier/260508_1724_.../best.pt \\
         --npy-dir data_manager/datasets/nu_classifier_dataset_h5s0_thr0.8 \\
         [--min-hits 8] [--min-strings 2] \\
         [--batch-size 512] [--device auto] \\

@@ -107,7 +107,7 @@ run_npy() {
     for entry in "${MODELS[@]}"; do
         local exp_dir thr
         read -r exp_dir thr <<< "$entry"
-        local ckpt="experiments/numu/${exp_dir}/best_da_model.pth"
+        local ckpt="trained_models/classifier/${exp_dir}/best_da_model.pth"
         local tag="[$((i+1))/$N_MOD] $exp_dir"
         if [[ ! -f "$ckpt" ]]; then
             log "$tag — SKIP: checkpoint not found"
@@ -147,7 +147,7 @@ run_mc_merged() {
     for entry in "${MODELS[@]}"; do
         local exp_dir thr
         read -r exp_dir thr <<< "$entry"
-        local ckpt="experiments/numu/${exp_dir}/best_da_model.pth"
+        local ckpt="trained_models/classifier/${exp_dir}/best_da_model.pth"
         local tag="[$((i+1))/$N_MOD] $exp_dir"
         if [[ ! -f "$ckpt" ]]; then
             log "$tag — SKIP: checkpoint not found"
@@ -203,7 +203,7 @@ run_mc_reco() {
     for entry in "${MODELS[@]}"; do
         local exp_dir thr
         read -r exp_dir thr <<< "$entry"
-        local ckpt="experiments/numu/${exp_dir}/best_da_model.pth"
+        local ckpt="trained_models/classifier/${exp_dir}/best_da_model.pth"
         local tag="[$((i+1))/$N_MOD] $exp_dir"
         if [[ ! -f "$ckpt" ]]; then
             log "$tag — SKIP: checkpoint not found"
@@ -256,7 +256,7 @@ run_exp() {
         for entry in "${MODELS[@]}"; do
             local exp_dir thr
             read -r exp_dir thr <<< "$entry"
-            local ckpt="experiments/numu/${exp_dir}/best_da_model.pth"
+            local ckpt="trained_models/classifier/${exp_dir}/best_da_model.pth"
             local tag="  [$((i+1))/$N_MOD] $exp_dir"
             if [[ ! -f "$ckpt" ]]; then
                 log "$tag — SKIP: checkpoint not found"

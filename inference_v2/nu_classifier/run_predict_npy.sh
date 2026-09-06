@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-CHECKPOINT="experiments/numu/260508_1724_da_nu_classifier_h5s0_lambda0.01_thr0.8_seed32/best_da_model.pth"
+CHECKPOINT="trained_models/classifier/260508_1724_da_nu_classifier_h5s0_lambda0.01_thr0.8_seed32/best_da_model.pth"
 NPY_DIR="data_manager/datasets/nu_classifier_dataset_h5s0_thr0.8"
 MIN_HITS=5
 MIN_STRINGS=0

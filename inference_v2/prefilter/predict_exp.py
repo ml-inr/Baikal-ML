@@ -13,7 +13,7 @@ Incremental: safe to re-run on different part subsets — INSERT OR IGNORE.
 
 Usage (from project root):
     python inference_v2/prefilter/predict_exp.py \\
-        --checkpoint experiments/numu/da_prefilter_numu_260429_.../best_da_model.pth \\
+        --checkpoint trained_models/prefilter/da_prefilter_numu_260429_.../best_da_model.pth \\
         --exp-h5 data_manager/data/h5datasets/exp_reco.h5 \\
         [--batch-size 512] [--device auto] \\
         [--output-dir inference_v2/prefilter/preds] \\

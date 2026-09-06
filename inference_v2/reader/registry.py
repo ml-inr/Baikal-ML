@@ -14,7 +14,7 @@ The important job here is resolving a run back to the datasets its model was tra
 on, because that is what lets an analysis drop biased events without depending on any
 table someone wrote after the fact.  The chain is
 
-    preds/<dir>/run_info.json -> "checkpoint" -> experiments/.../da_config.yaml
+    preds/<dir>/run_info.json -> "checkpoint" -> trained_models/<задача>/<прогон>/da_config.yaml
         -> data.source_domain.npy_dir   (labelled MC)
         -> data.target_domain.npy_dir   (unlabelled DA target)
         -> max_events, train_split, experiment.seed

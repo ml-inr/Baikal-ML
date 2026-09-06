@@ -14,7 +14,7 @@ Incremental: safe to re-run on different part subsets — INSERT OR IGNORE.
 
 Usage (from project root):
     python inference_v2/nu_classifier/predict_exp.py \\
-        --checkpoint experiments/numu/260508_1724_.../best.pt \\
+        --checkpoint trained_models/classifier/260508_1724_.../best.pt \\
         --exp-h5 data_manager/data/h5datasets/exp_reco.h5 \\
         [--threshold 0.8] [--min-hits 8] [--min-strings 2] \\
         [--batch-size 512] [--device auto] \\

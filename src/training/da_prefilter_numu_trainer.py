@@ -7,7 +7,7 @@ Soft labels in [0, 1]; background defined as label < 0.5.
 
 Usage:
     python src/training/da_prefilter_numu_trainer.py \
-        --config experiments/da_prefilter_numu_baseline.yaml [--debug]
+        --config src/training/configs/prefilter/da_prefilter_numu_baseline.yaml [--debug]
 """
 
 import argparse

@@ -85,12 +85,15 @@ datasets/
 # ============================================================
 # Experiments & Results
 # ============================================================
-experiments/*/checkpoints/
-experiments/*/logs/
-experiments/*/results/
-experiments/*/*.csv
-experiments/*/*.pth
-experiments/*/*.pkl
+# Результаты обучения: trained_models/<задача>/<прогон>/
+# Веса, логи и tensorboard не версионируются; снимки конфигов (da_config.yaml,
+# normalization_config.yaml, da_training_summary.yaml) — версионируются, это
+# провенанс модели.
+trained_models/*/*/checkpoints/
+trained_models/*/logs/
+trained_models/*/*/*.csv
+trained_models/*/*/*.pth
+trained_models/*/*/*.pkl
 results/
 outputs/
 checkpoints/
@@ -193,7 +196,6 @@ archive_tracked/**
 !archive_tracked/**/*.yml
 !archive_tracked/**/*.md
 !archive_tracked/**/*.ipynb
-Archive/
 scratch/
 temp/
 tmp/

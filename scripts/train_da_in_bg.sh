@@ -8,4 +8,4 @@
 # For new work use scripts/train_da_prefilter_hard_in_bg.sh or
 # scripts/train_da_nuclassifier_in_bg.sh.
 
-nohup python src/training/archive/da_numu_trainer.py --config experiments/da_numu_baseline.yaml > experiments/logs/DA_train_$(date +'%Y%m%d_%H%M%S').log &
+nohup python src/training/archive/da_numu_trainer.py --config src/training/configs/classifier/da_numu_baseline.yaml > trained_models/classifier/logs/DA_train_$(date +'%Y%m%d_%H%M%S').log &

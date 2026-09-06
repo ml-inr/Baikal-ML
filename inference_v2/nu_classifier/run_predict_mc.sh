@@ -3,7 +3,7 @@
 
 set -euo pipefail
 
-CHECKPOINT="experiments/numu/260531_1720_da_nu_classifier_h5s0_lambda0.01_thr0.8_FixedDA/best_da_model.pth"
+CHECKPOINT="trained_models/classifier/260531_1720_da_nu_classifier_h5s0_lambda0.01_thr0.8_FixedDA/best_da_model.pth"
 MC_H5="data_manager/data/h5datasets/baikal_mc_merged.h5"
 SOURCE="mc_merged"
 #MC_H5="data_manager/data/h5datasets/baikal_mc_reco.h5"

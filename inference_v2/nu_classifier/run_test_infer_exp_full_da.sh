@@ -25,7 +25,7 @@ RUNS=(
 )
 
 for run in "${RUNS[@]}"; do
-  CKPT="experiments/numu/${run}/best_da_model.pth"
+  CKPT="trained_models/classifier/${run}/best_da_model.pth"
   echo "###################################################################"
   echo "### $run  (device=$DEVICE)"
   echo "###################################################################"

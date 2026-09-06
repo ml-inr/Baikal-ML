@@ -12,7 +12,7 @@ Incremental: safe to re-run on different part subsets — INSERT OR IGNORE.
 
 Usage (from project root):
     python inference_v2/nu_classifier/predict_mc.py \\
-        --checkpoint experiments/numu/260508_1724_.../best.pt \\
+        --checkpoint trained_models/classifier/260508_1724_.../best.pt \\
         --mc-h5 /net/62/home3/ivkhar/Baikal/data/h5s/baikal_mc_merged.h5 \\
         [--source mc_merged] \\
         [--ptypes muatm_2020,nuatm_2020,nue2_2020] \\

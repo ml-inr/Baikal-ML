@@ -8,4 +8,4 @@
 # Differs from the non-_big wrapper only in the config
 # (da_prefilter_numu_hardlabels_big.yaml).
 
-nohup python archive/260524/da_prefilter_numu_trainer_upsample.py --config experiments/da_prefilter_numu_hardlabels_big.yaml > experiments/logs/DA_PREFILTER_train_$(date +'%Y%m%d_%H%M%S').log &
+nohup python archive/260524/da_prefilter_numu_trainer_upsample.py --config src/training/configs/prefilter/da_prefilter_numu_hardlabels_big.yaml > trained_models/prefilter/logs/DA_PREFILTER_train_$(date +'%Y%m%d_%H%M%S').log &

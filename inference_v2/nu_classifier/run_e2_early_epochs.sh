@@ -23,7 +23,7 @@ MC_PER_PTYPE=700000
 EXP_PER_PART=70000
 
 for ep in 001 003 005 010; do
-  CKPT="experiments/numu/${RUN}/da_checkpoint_epoch_${ep}.pth"
+  CKPT="trained_models/classifier/${RUN}/da_checkpoint_epoch_${ep}.pth"
   [[ -f "$CKPT" ]] || { echo "MISSING $CKPT"; continue; }
   echo "###################################################################"
   echo "### $RUN  epoch $ep  (device=$DEVICE)"

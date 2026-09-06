@@ -3,7 +3,7 @@
 
 set -euo pipefail
 
-CHECKPOINT="experiments/numu/260508_1724_da_nu_classifier_h5s0_lambda0.01_thr0.8_seed32/best_da_model.pth"
+CHECKPOINT="trained_models/classifier/260508_1724_da_nu_classifier_h5s0_lambda0.01_thr0.8_seed32/best_da_model.pth"
 #EXP_H5="data_manager/data/h5datasets/exp_reco.h5"
 #EXP_H5="data_manager/data/h5datasets/exp.h5"
 EXP_H5="data_manager/data/h5datasets/exp_full.h5"

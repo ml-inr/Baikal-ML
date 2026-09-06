@@ -31,7 +31,7 @@ JOBS=(
 
 for job in "${JOBS[@]}"; do
   run="${job%%:*}"; ep="${job##*:}"
-  CKPT="experiments/numu/${run}/da_checkpoint_epoch_${ep}.pth"
+  CKPT="trained_models/classifier/${run}/da_checkpoint_epoch_${ep}.pth"
   [[ -f "$CKPT" ]] || { echo "MISSING $CKPT"; continue; }
   echo "###################################################################"
   echo "### $run  epoch $ep  (device=$DEVICE)"
