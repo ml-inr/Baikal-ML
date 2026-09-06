@@ -12,7 +12,7 @@ plt.rcParams.update({"font.size":20, "axes.labelsize":20, "axes.titlesize":18,
                      "legend.fontsize":15, "xtick.labelsize":16, "ytick.labelsize":16, "figure.dpi":120})
 PTYPE = {"muatm_2020":"steelblue", "nuatm_2020":"forestgreen", "nue2_2020":"darkorange", "exp_reco":"crimson"}
 
-HERE = Path(__file__).resolve().parent; ROOT = HERE.parents[3]
+HERE = Path(__file__).resolve().parent; ROOT = HERE.parents[4]
 PREDS = ROOT/'inference_v2/nu_classifier/preds'; CAT = ROOT/'data_manager/catalog_v2.duckdb'
 CUT='pr.n_sn_hits>=8 AND pr.n_sn_strings>=3'
 MODELS={'base':'260705_0702_da_nu_classifier_exp_full_E1_lambda0.01@da_checkpoint_epoch_010',

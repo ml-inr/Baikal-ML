@@ -24,7 +24,7 @@ plt.rcParams.update({"font.size": 20, "axes.labelsize": 20, "axes.titlesize": 20
                      "legend.fontsize": 15, "xtick.labelsize": 16,
                      "ytick.labelsize": 16, "figure.dpi": 120})
 HERE = Path(__file__).resolve().parent
-ROOT = HERE.parents[3]
+ROOT = HERE.parents[4]
 PREDS = ROOT / "inference_v2/nu_classifier/preds"
 CAT = ROOT / "data_manager/catalog_v2.duckdb"
 MCH5 = ROOT / "data_manager/data/h5datasets/baikal_mc_merged.h5"

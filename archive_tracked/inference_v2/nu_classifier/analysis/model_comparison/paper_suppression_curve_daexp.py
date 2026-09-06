@@ -18,7 +18,7 @@ from pathlib import Path
 import duckdb, numpy as np, pandas as pd
 import matplotlib.pyplot as plt
 
-HERE = Path(__file__).resolve().parent; ROOT = HERE.parents[3]
+HERE = Path(__file__).resolve().parent; ROOT = HERE.parents[4]
 PREDS = ROOT/'inference_v2/nu_classifier/preds'
 CAT = ROOT/'data_manager/catalog_v2.duckdb'
 MC_TRAIN_NPY = ROOT/'data_manager/datasets/nu_classifier_dataset_h5s0_thr0.8'

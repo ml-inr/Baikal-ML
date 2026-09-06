@@ -8,7 +8,7 @@ Outputs figures/bimodality_full.png + tables/bimodality_full.csv."""
 from pathlib import Path
 import duckdb, numpy as np, pandas as pd, matplotlib.pyplot as plt
 
-HERE = Path(__file__).resolve().parent; ROOT = HERE.parents[3]
+HERE = Path(__file__).resolve().parent; ROOT = HERE.parents[4]
 PREDS = ROOT/'inference_v2/nu_classifier/preds'; CAT = ROOT/'data_manager/catalog_v2.duckdb'
 FT='260705_0702_da_nu_classifier_exp_full_E1_lambda0.01@da_checkpoint_epoch_010_ood2p5_rv0p7_finetuned@best_finetuned_model'
 E1='260705_0702_da_nu_classifier_exp_full_E1_lambda0.01@da_checkpoint_epoch_010'
