@@ -16,6 +16,50 @@ Output file is written next to the input:
     baikal_mc_merged_probs_k_nsol_labelneq0_da_hs128_k0p0001.h5
 """
 
+# ==============================================================================
+#  DISABLED ON PURPOSE — this script would overwrite the canonical probs file.
+#  See doc/AUDIT.md §3.1 and question Q1.
+#
+#  This file is a byte-for-byte copy of
+#      gplotnikov_sig_noise_models/k_nsol_labelneq0_da_hs128_k0p0001/predict_mc_h5.py
+#  that was never adapted to the model living in this directory:
+#
+#    * it imports load_model from ...k0p0001.sig_noise_model_v3 and calls it
+#      without checkpoint_path, so it scores with the k0p0001 checkpoint —
+#      not with best_aug_p*.ckpt sitting next to this file;
+#    * MODEL_TAG is still "k_nsol_labelneq0_da_hs128_k0p0001", and the output
+#      name is built from it, so a run would write over
+#          data_manager/data/h5datasets/
+#              baikal_mc_merged_probs_k_nsol_labelneq0_da_hs128_k0p0001.h5
+#      — the canonical 189 GB probs file that the whole nu-classifier chain
+#      reads.
+#
+#  The directory is inconsistent beyond this script, so there is no one-line
+#  fix: train_config_mc_2020.yaml here is a copy of the hidden_size=128 config,
+#  while best_aug_p*.ckpt has first_layer.weight of shape (512, 5) with no
+#  "encoder." prefix (63 tensors). The local model_simplified.py is likewise a
+#  copy of the hidden_size=128 flavour. A shape-compatible module set lives in
+#  gplotnikov_sig_noise_models/k_nsol_labelneq0_hs512_dff512/.
+#
+#  Per the owner (Q1) the aug_highq checkpoints were never used and the probs
+#  file was produced by k0p0001, so no existing artifact is affected. This
+#  guard exists so that a future run cannot affect one either.
+#
+#  To actually score with an augmented checkpoint, fix the module set and the
+#  config first, and give the output a MODEL_TAG of its own.
+# ==============================================================================
+if __name__ == "__main__":
+    raise SystemExit(
+        "REFUSING TO RUN: this copy is not wired to the checkpoint in its own "
+        "directory.\n"
+        "It would score with k_nsol_labelneq0_da_hs128_k0p0001 and overwrite\n"
+        "  data_manager/data/h5datasets/"
+        "baikal_mc_merged_probs_k_nsol_labelneq0_da_hs128_k0p0001.h5 (189 GB).\n"
+        "See the comment block at the top of this file, and doc/AUDIT.md §3.1."
+    )
+
+
+
 import argparse
 import json
 import logging
