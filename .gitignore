@@ -196,17 +196,14 @@ docs/_build/
 *.csv
 *.png
 
-# Архив: default-deny. По умолчанию НЕ отслеживается ничего —
-# любой файл данных, положенный сюда, останется вне git независимо от
-# расширения. Отслеживаются только исходники, конфиги и документация.
+# Paper sources are local-only until publication. Add selected files
+# explicitly (or use `git add -f`) when the paper is ready to be published.
+/papers/
+
+# Archive: local-only. Nothing under archive/ is tracked; use archive_tracked/
+# for retired code that must remain in git history.
+archive/
 **/archive/**
-!**/archive/**/
-!**/archive/**/*.py
-!**/archive/**/*.sh
-!**/archive/**/*.yaml
-!**/archive/**/*.yml
-!**/archive/**/*.md
-!**/archive/**/*.ipynb
 
 # Отслеживаемый архив: код, выведенный из активного дерева, но сохраняемый
 # в истории (см. doc/AUDIT.md §8.2). Тот же default-deny, что и для archive/:
