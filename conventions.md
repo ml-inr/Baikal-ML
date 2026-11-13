@@ -32,10 +32,10 @@ import numpy as np
 import yaml
 
 # Local imports from src/
-from src.models.simple_mlp import SimpleMLP
-from src.data.h5_dataset import H5Dataset
-from src.training.trainer import Trainer
-from src.utils.metrics import calculate_binary_metrics
+from src.models.base_models import create_model
+from src.data.numu_dataset import NuMuDataset
+from src.training.metrics import MetricsTracker
+from src.utils.training import set_reproducible_seeds
 
 # Other local imports
 from data_manager.root2h5.root2h5 import process_file
@@ -255,9 +255,8 @@ from src.training.metrics import MetricsTracker, BinaryClassificationMetrics
 ```
 
 **src/utils:**
-- Shared utilities: metrics, logging, reproducibility
-- Configuration loading and validation
-- Experiment tracking helpers
+- `training.py` — reproducibility helper (`set_reproducible_seeds`)
+- Metrics live in `src/training/metrics.py`; experiment tracking is handled by the trainers
 
 **data_manager:**
 - All functions accept config dict
