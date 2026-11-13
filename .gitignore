@@ -111,12 +111,12 @@ inference/track_energy_reconstruction/analysis/by_checkpoint/
 # ============================================================
 # Tracking & Logging (TensorBoard, ClearML, MLflow)
 # ============================================================
-# Логи обучения и сборки датасетов по умолчанию не версионируются: в рабочем
-# дереве ~876 файлов общим объёмом ~543 MB (trained_models — ~479 MB).
-# Сводки прогонов лежат в training_summary.yaml и run_info.json. Для отдельного
-# лога-провенанса добавьте точечное исключение; каталог trained_models/*/logs/
-# тоже нужно разыгнорировать, иначе правило каталога сильнее файлового.
-# Пример:
+# Training and dataset-building logs are not versioned by default: the working
+# tree contains ~876 files / ~543 MB (trained_models alone ~479 MB). Run
+# summaries live in training_summary.yaml and run_info.json. To track a specific
+# provenance log, add a targeted exception; the parent `trained_models/*/logs/`
+# directory must be unignored first, otherwise the directory rule wins.
+# Example:
 # !trained_models/classifier/logs/
 # !trained_models/classifier/logs/<run>.log
 *.log
