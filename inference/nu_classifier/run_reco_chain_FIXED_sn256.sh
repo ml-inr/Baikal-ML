@@ -25,7 +25,7 @@ cd /home/albert/Baikal2025
 export CUDA_DEVICE_ORDER=PCI_BUS_ID     # so cuda:N means what nvidia-smi shows
 DEVICE="cuda:5"
 PY=/home/albert/miniconda3/envs/baikal25/bin/python
-SN=gplotnikov_sig_noise_models/k_nsol_labelneq0_da_hs128_k0p0001
+SN_DIR=inference/sig_noise
 
 CHECKPOINT="trained_models/classifier/260816_2250_da_nu_classifier_exp_full_E1_lambda0.01_FIXED_sn256/best_da_model.pth"
 H5DIR=data_manager/data/h5datasets
@@ -43,11 +43,11 @@ BATCH_SIZE=1024          # classifier batch -- speed only, the model is batch-in
 MIN_BATCH_EVENTS=32768   # mc_reco has ~25,000 tiny parts
 
 echo "########## 1/4  sig-noise probabilities for mc_reco"
-"$PY" "$SN/predict_mc_h5.py" --input "$MC_RECO_H5" \
+"$PY" "$SN_DIR/predict_mc_h5.py" --input "$MC_RECO_H5" \
       --device "$DEVICE" --batch-size "$SN_BATCH"
 
 echo "########## 2/4  sig-noise probabilities for exp_reco"
-"$PY" "$SN/predict_exp_h5.py" --input "$EXP_RECO_H5" \
+"$PY" "$SN_DIR/predict_exp_h5.py" --input "$EXP_RECO_H5" \
       --device "$DEVICE" --batch-size "$SN_BATCH"
 
 echo "########## 3/4  classifier scores for mc_reco"

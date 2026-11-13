@@ -31,6 +31,19 @@ inference/
 │   ├── analysis/           # load.py, metrics.py, plots.py
 │   └── preds/{run}@{checkpoint_stem}/{mc_merged,exp_reco}_allhits.duckdb
 │
+├── sig_noise/              # External SN model: per-hit probabilities
+│   ├── predict_mc_h5.py
+│   ├── predict_exp_h5.py
+│   ├── run_predict_{mc,exp}.sh
+│   └── README.md           # writes companion h5 next to the source, not preds/
+│
+├── angle_track_uncertainty/ # External angle/line/uncertainty model (release_v3)
+│   ├── predict.py           # our HDF5 -> DuckDB by event_fk
+│   ├── prepare_selected_h5.py
+│   ├── predict_one_pass.py, predict_rethresholded.py  # upstream CSV path
+│   ├── run_predict_{mc,exp}.sh
+│   └── preds/{run}@{checkpoint_stem}/{source}_{sn_mode}_p070[_gate200]_track.duckdb
+│
 ├── reader/                 # Streaming access to sources and predictions — start here
 │   ├── tutorial.ipynb
 │   └── tests/test_reader.py
@@ -57,6 +70,7 @@ per-source DuckDB files:
 | nu_classifier | exp or exp_reco | `exp_reco_thr{thr}.duckdb` |
 | prefilter | mc_merged or mc_reco | `mc_merged_allhits.duckdb` |
 | prefilter | exp or exp_reco | `exp_reco_allhits.duckdb` |
+| angle_track_uncertainty | any supported source | `{source}_{sn_mode}_p070[_gate200]_track.duckdb` |
 
 **Schema (nu_classifier):**
 ```sql
@@ -69,6 +83,11 @@ predictions(event_fk BIGINT PRIMARY KEY, score FLOAT, n_sn_hits INTEGER, n_sn_st
 ```sql
 predictions(event_fk BIGINT PRIMARY KEY, score FLOAT, n_hits INTEGER)
 ```
+
+**Schema (angle_track_uncertainty):** direction (`theta_deg`, `phi_deg`,
+`direction_x/y/z`), a point on the infinite line (`anchor_*`), raw sigmas and
+calibrated radii, `n_hits`/`n_strings`, and the two scope columns. See
+`angle_track_uncertainty/README.md` for the full table and validation limits.
 
 All scripts use `INSERT OR IGNORE` — safe to re-run on overlapping subsets.
 Add `--check-existing` to warn if a re-run produces different scores for already-stored events.
@@ -95,7 +114,19 @@ bash inference/prefilter/run_predict_mc.sh
 
 # Prefilter — experimental data
 bash inference/prefilter/run_predict_exp.sh
+
+# Sig-noise probabilities (external model; companion h5 next to the source)
+bash inference/sig_noise/run_predict_mc.sh
+bash inference/sig_noise/run_predict_exp.sh
+
+# Angle/track/uncertainty (external release_v3 model; DuckDB by event_fk)
+bash inference/angle_track_uncertainty/run_predict_mc.sh
+bash inference/angle_track_uncertainty/run_predict_exp.sh
+GATE=true bash inference/angle_track_uncertainty/run_predict_mc.sh
 ```
+
+The `sig_noise/` products are companion `{stem}_probs_k_nsol_labelneq0_da_hs128_k0p0001.h5`
+files written next to their source HDF5, not DuckDB tables under `preds/`.
 
 The preds output directory is derived automatically from the checkpoint path:
 ```

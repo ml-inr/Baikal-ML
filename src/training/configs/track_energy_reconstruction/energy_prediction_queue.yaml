@@ -1,0 +1,50 @@
+# Test-part predictions for completed energy checkpoints.
+# One prediction per GPU lane; predictions run alongside the training queue.
+poll_seconds: 60
+
+jobs:
+  # GPU 1 (P100, training B-G is using ~4 GB; keep prediction batches smaller)
+  - id: PRED-BASE
+    checkpoint: trained_models/track_energy_reconstruction/261027_0935_mu_energy_BASE_cont_partsplit_s42/best_model.pth
+    gpu: 1
+    batch_size: 256
+  - id: PRED-A
+    checkpoint: trained_models/track_energy_reconstruction/261026_2057_mu_energy_A_lam0p01_detachedcritic_partsplit_scratch_s42/best_model.pth
+    gpu: 1
+    batch_size: 256
+  - id: PRED-H-G
+    checkpoint: trained_models/track_energy_reconstruction/261027_0935_mu_energy_H-G_d0base_s42/best_model.pth
+    gpu: 1
+    batch_size: 256
+  - id: PRED-H-T5
+    checkpoint: trained_models/track_energy_reconstruction/261027_0935_mu_energy_H-T5_d0base_s42/best_model.pth
+    gpu: 1
+    batch_size: 256
+
+  # GPU 3 (RTX 5000, training AD-G)
+  - id: PRED-D-G
+    checkpoint: trained_models/track_energy_reconstruction/261027_0935_mu_energy_D-G_partsplit_scratch_s42/best_model.pth
+    gpu: 3
+    batch_size: 512
+  - id: PRED-C-G
+    checkpoint: trained_models/track_energy_reconstruction/261027_0935_mu_energy_C-G_partsplit_scratch_s42/best_model.pth
+    gpu: 3
+    batch_size: 512
+  - id: PRED-AH-G
+    checkpoint: trained_models/track_energy_reconstruction/261027_0935_mu_energy_AH-G_abase_s42/best_model.pth
+    gpu: 3
+    batch_size: 512
+
+  # GPU 5 (A100, training AD-T5)
+  - id: PRED-D-T5
+    checkpoint: trained_models/track_energy_reconstruction/261027_0935_mu_energy_D-T5_partsplit_scratch_s42/best_model.pth
+    gpu: 5
+    batch_size: 512
+  - id: PRED-C-T5
+    checkpoint: trained_models/track_energy_reconstruction/261027_0935_mu_energy_C-T5_partsplit_scratch_s42/best_model.pth
+    gpu: 5
+    batch_size: 512
+  - id: PRED-AH-T5
+    checkpoint: trained_models/track_energy_reconstruction/261027_0935_mu_energy_AH-T5_abase_s42/best_model.pth
+    gpu: 5
+    batch_size: 512

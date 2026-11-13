@@ -1,7 +1,7 @@
 # HDF5 Data Format Documentation
 
 > **Note**: This file documents the HDF5 internal structure only. For the pipeline that
-> produces these files, see [../CLAUDE.md](../CLAUDE.md). The older `data_format.md`, which
+> produces these files, see [../AGENTS.md](../AGENTS.md). The older `data_format.md`, which
 > also covered the Parquet catalogues, `root2df` and `constants.py`, is archived at
 > `archive_tracked/doc/data_format.md` — all three were retired in the 2026-09 cleanup.
 
@@ -250,5 +250,5 @@ showers, 163 GB. The 2019 groups of the main file are deliberately not built.
 The previous version of this file stored precomputed targets alongside the truth; it was
 replaced because that froze the cylinder radius, the propagation model and the shower order
 into the file. `data_manager/root2h5/create_energy_h5.py` and
-`root2h5/energy_truth/validate_targets.py` belong to that superseded pipeline and no longer
-match this file's schema.
+`archive_tracked/data_manager/root2h5/energy_truth/validate_targets.py` belong to that
+superseded pipeline and no longer match this file's schema.

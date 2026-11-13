@@ -1,21 +1,37 @@
 """Predict prefilter scores for experimental data from HDF5.
 
 No sig-noise filtering — all raw hits are fed to the prefilter model.
-Auto-detects source type (exp vs exp_reco) from h5 top-level key.
+Auto-detects the source group (exp / exp_reco / exp_full) as the top-level group
+holding 'raw'; event_fk lookup uses header_prty when that group has it.
 
-Output: preds/{checkpoint_name}/exp_reco_allhits.duckdb  (or exp_allhits.duckdb)
+Output: preds/{checkpoint_name}/{src_key}_allhits.duckdb
 Schema: predictions(event_fk BIGINT PK, score FLOAT, n_hits INTEGER)
 
-For exp_reco: event_fk looked up by (season, cluster, run, event_id_in_run) from header_prty.
-For exp (no header_prty): event_fk looked up by parsed part key (season, cluster, run int).
+With header_prty (exp_reco, exp_full): event_fk looked up by
+(season, cluster, run, event_id_in_run) read from header_prty.
+Without it (exp): event_fk looked up by parsed part key (season, cluster, run int).
 
 Incremental: safe to re-run on different part subsets — INSERT OR IGNORE.
+
+Reproducibility: `--batch-size` and `--chunk-events` both perturb the score in its last
+float32 bit. The model pads each batch to the longest event in it, so batch composition
+sets the order of a floating-point reduction, and `--chunk-events` changes that
+composition wherever a part is larger than the window. Measured on exp.h5 (649,976
+events, one checkpoint): batch 512 against 2048 moves 37.8% of scores, chunk 5,000
+against whole-part moves 5.3%, and in both cases the largest difference is 1.192e-07 —
+exactly one ulp at 1.0.
+
+This is **not** the sig-noise situation. There the float padding mask changes which hits
+pass the threshold, so batch size is part of the hit selection (doc/sig_noise_batch_size.md).
+Here nothing is selected and the change is arithmetic noise six orders below any bin edge
+or working point used downstream. Still, two runs to be compared bit-for-bit must use the
+same values for both flags.
 
 Usage (from project root):
     python inference/prefilter/predict_exp.py \\
         --checkpoint trained_models/prefilter/da_prefilter_numu_260429_.../best_da_model.pth \\
         --exp-h5 data_manager/data/h5datasets/exp_reco.h5 \\
-        [--batch-size 512] [--device auto] \\
+        [--batch-size 512] [--chunk-events 200000] [--device auto] \\
         [--output-dir inference/prefilter/preds] \\
         [--catalog data_manager/catalog_v2.duckdb]
 """
@@ -43,6 +59,10 @@ def _parse_exp_part_key(pk: str) -> tuple[int, int, int]:
     return int(m.group(1)), int(m.group(2)), int(m.group(3))
 
 
+# raw/data is chunked (43215, 1) + gzip: a generous chunk cache keeps a window read
+# from re-decompressing the chunks that straddle its edges.
+_RDCC = dict(rdcc_nbytes=256 * 1024 * 1024, rdcc_nslots=1_000_003)
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -56,6 +76,9 @@ from inference.shared.catalog_query import (
     append_embeddings,
 )
 from inference.shared.history import append_history_row
+from inference.shared.sig_counts import (
+    SN_THRESHOLD, check_lengths, probs_path_for, read_part_counts,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -103,13 +126,21 @@ def predict_exp(
     check_existing: bool = False,
     skip_done_parts: bool = False,
     save_embeddings: bool = False,
+    chunk_events: int = 200_000,
+    probs_h5: str | None = None,
+    sn_threshold: float = SN_THRESHOLD,
 ) -> None:
     t_start = datetime.now()
     dev = _resolve_device(device)
     checkpoint_name = f"{Path(checkpoint).parent.name}@{Path(checkpoint).stem}"
 
+    # src_key = top-level group holding the hit data ('exp', 'exp_reco', 'exp_full', ...).
+    # has_header is driven by the actual presence of header_prty, not the group name,
+    # so exp_full (physical CC-timestamp event_id in header_prty) is handled correctly.
     with h5py.File(exp_h5, "r") as h5:
-        src_key = "exp_reco" if "exp_reco" in h5 else "exp"
+        data_groups = [k for k in h5.keys() if "raw" in h5[k]]
+        src_key = data_groups[0] if data_groups else list(h5.keys())[0]
+        has_header_h5 = "header_prty" in h5[src_key]
 
     checkpoint_dir = Path(output_dir) / checkpoint_name
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
@@ -129,17 +160,26 @@ def predict_exp(
     logger.info(f"Output DB:       {db_path}")
     logger.info(f"skip_done_parts: {skip_done_parts}")
     logger.info(f"save_embeddings: {save_embeddings}")
+    logger.info(f"chunk_events:    {chunk_events:,}")
+    logger.info(f"probs h5:        {probs_h5 or 'none — hit counts will be NULL'}")
 
     error_msg  = ""
     n_inserted = 0
     n_skipped  = 0
 
+    probs_file = None
     try:
         model, norm_config, _ = load_model(checkpoint, device=dev)
+        if probs_h5:
+            probs_file = h5py.File(probs_h5, "r", **_RDCC)
+            probs_grp = probs_file[src_key] if src_key in probs_file else \
+                probs_file[list(probs_file.keys())[0]]
+        else:
+            probs_grp = None
         conn = open_predictions_db(str(db_path), PREFILTER_SCHEMA)
         if save_embeddings:
             conn.execute(EMBEDDINGS_SCHEMA)
-        has_header = (src_key == "exp_reco")
+        has_header = has_header_h5
 
         done_part_keys: set = set()
         if skip_done_parts:
@@ -148,7 +188,7 @@ def predict_exp(
             done_part_keys = _get_done_parts(conn, catalog, src_key)
             logger.info(f"  {len(done_part_keys)} already-done parts  ({time.perf_counter()-t0:.1f}s)")
 
-        with h5py.File(exp_h5, "r") as h5:
+        with h5py.File(exp_h5, "r", **_RDCC) as h5:
             grp       = h5[src_key]
             all_parts = sorted(grp["raw"]["data"].keys())
             sel_parts = [p for p in all_parts if p not in done_part_keys]
@@ -171,62 +211,94 @@ def predict_exp(
                 if n_events == 0:
                     continue
 
-                data_raw = grp[f"raw/data/{pk}/data"][:].astype(np.float32)
-                header   = grp[f"header_prty/{pk}/data"][:] if has_header else None
+                ds_data = grp[f"raw/data/{pk}/data"]
+                ds_hdr  = grp[f"header_prty/{pk}/data"] if has_header else None
 
-                n_hits_arr    = (ev_starts[1:] - ev_starts[:-1]).astype(np.int32)
-                features_list = [
-                    data_raw[int(ev_starts[i]):int(ev_starts[i + 1])]
-                    for i in range(n_events)
-                ]
+                # Signal-hit counts for the whole part, sliced per window below. Tiny
+                # next to the hits, so they are read once rather than per window.
+                counts = read_part_counts(probs_grp, pk, sn_threshold)
+                if counts.empty and probs_grp is not None:
+                    logger.warning(f"  {pk}: absent from the probs file — counts NULL")
+                check_lengths(counts, n_events, f"{src_key}/{pk}")
 
-                if save_embeddings:
-                    scores, emb_arr = predict_scores_and_embeddings(
-                        model, features_list, norm_config,
-                        batch_size=batch_size, device=dev,
-                    )
-                else:
-                    scores = predict_scores(
-                        model, features_list, norm_config,
-                        batch_size=batch_size, device=dev, with_tqdm=False,
-                    )
+                # One exp_full part is up to 11.3M events / 1.06e9 hits = 21 GB as
+                # float32, and the per-event view list on top of it would be another
+                # 11.3M Python objects -- so the whole part cannot be taken at once.
+                # Walk it in windows of chunk_events instead. Each window is a single
+                # contiguous hit-range read and the windows advance in file order, so
+                # the gzip chunks are decompressed in order; only a chunk straddling a
+                # window boundary is touched twice, and the 256 MB cache above holds it
+                # across the seam. Parts smaller than the window (exp, exp_reco, and
+                # every mc part) take this path with one window and behave as before.
+                for c0 in range(0, n_events, chunk_events):
+                    c1 = min(c0 + chunk_events, n_events)
+                    hit_lo, hit_hi = int(ev_starts[c0]), int(ev_starts[c1])
 
-                all_ev = np.arange(n_events, dtype=np.int64)
-                if has_header and header is not None:
-                    seasons  = header[:, 0].astype(np.int32)
-                    clusters = header[:, 1].astype(np.int32)
-                    runs     = np.array([str(int(header[i, 2])) for i in range(n_events)])
-                    ev_ids   = header[:, 3].astype(np.int64)
-                    cat_res  = get_event_fks_exp(catalog, src_key, seasons, clusters, runs, ev_ids)
-                else:
-                    pk_season, pk_cluster, pk_run = _parse_exp_part_key(pk)
-                    cat_res = get_event_fks_exp(
-                        catalog, src_key,
-                        seasons=np.full(n_events, pk_season,  dtype=np.int32),
-                        clusters=np.full(n_events, pk_cluster, dtype=np.int32),
-                        runs=np.array([str(pk_run)] * n_events),
-                        event_ids=all_ev,
-                    )
+                    block  = ds_data[hit_lo:hit_hi].astype(np.float32)
+                    loc    = ev_starts[c0:c1 + 1] - hit_lo
+                    header = ds_hdr[c0:c1] if ds_hdr is not None else None
 
-                if len(cat_res) == 0:
-                    logger.warning(f"  {pk}: no events found in catalog, skipping")
-                else:
-                    found_qi  = cat_res["query_idx"].values
-                    event_fks = cat_res["event_fk"].values.astype(np.int64)
-                    ins, skp  = append_predictions_prefilter(
-                        conn,
-                        event_fks=event_fks,
-                        scores=scores[found_qi],
-                        n_hits=n_hits_arr[found_qi],
-                        check_existing=check_existing,
-                    )
-                    n_inserted += ins
-                    n_skipped  += skp
-                    part_ins   += ins
-                    part_skp   += skp
+                    n_hits_arr    = (loc[1:] - loc[:-1]).astype(np.int32)
+                    features_list = [
+                        block[int(loc[i]):int(loc[i + 1])]
+                        for i in range(c1 - c0)
+                    ]
+
                     if save_embeddings:
-                        ei, _ = append_embeddings(conn, event_fks, emb_arr[found_qi])
-                        emb_ins += ei
+                        scores, emb_arr = predict_scores_and_embeddings(
+                            model, features_list, norm_config,
+                            batch_size=batch_size, device=dev,
+                        )
+                    else:
+                        scores = predict_scores(
+                            model, features_list, norm_config,
+                            batch_size=batch_size, device=dev, with_tqdm=False,
+                        )
+
+                    n_chunk = c1 - c0
+                    all_ev  = np.arange(c0, c1, dtype=np.int64)
+                    if header is not None:
+                        seasons  = header[:, 0].astype(np.int32)
+                        clusters = header[:, 1].astype(np.int32)
+                        runs     = np.array([str(int(v)) for v in header[:, 2]])
+                        ev_ids   = header[:, 3].astype(np.int64)
+                        cat_res  = get_event_fks_exp(
+                            catalog, src_key, seasons, clusters, runs, ev_ids
+                        )
+                    else:
+                        pk_season, pk_cluster, pk_run = _parse_exp_part_key(pk)
+                        cat_res = get_event_fks_exp(
+                            catalog, src_key,
+                            seasons=np.full(n_chunk, pk_season,  dtype=np.int32),
+                            clusters=np.full(n_chunk, pk_cluster, dtype=np.int32),
+                            runs=np.array([str(pk_run)] * n_chunk),
+                            event_ids=all_ev,
+                        )
+
+                    if len(cat_res) == 0:
+                        logger.warning(f"  {pk}[{c0}:{c1}]: no events found in catalog, skipping")
+                    else:
+                        found_qi  = cat_res["query_idx"].values
+                        event_fks = cat_res["event_fk"].values.astype(np.int64)
+                        found     = counts.slice(c0, c1).take(found_qi)
+                        ins, skp  = append_predictions_prefilter(
+                            conn,
+                            event_fks=event_fks,
+                            scores=scores[found_qi],
+                            n_hits=n_hits_arr[found_qi],
+                            n_sn_hits=found.n_sn_hits,
+                            n_sn_strings=found.n_sn_strings,
+                            n_gt_sig_hits=found.n_gt_sig_hits,
+                            n_gt_sig_strings=found.n_gt_sig_strings,
+                            check_existing=check_existing,
+                        )
+                        n_inserted += ins
+                        n_skipped  += skp
+                        part_ins   += ins
+                        part_skp   += skp
+                        if save_embeddings:
+                            ei, _ = append_embeddings(conn, event_fks, emb_arr[found_qi])
+                            emb_ins += ei
 
                 parts_done = part_idx + 1
                 if parts_done % log_every == 0 or parts_done == len(sel_parts):
@@ -244,6 +316,9 @@ def predict_exp(
                     )
 
         total_in_db = conn.execute("SELECT COUNT(*) FROM predictions").fetchone()[0]
+        with_counts = conn.execute(
+            "SELECT COUNT(*) FROM predictions WHERE n_sn_hits IS NOT NULL").fetchone()[0]
+        logger.info(f"rows with sig-noise counts: {with_counts:,} / {total_in_db:,}")
         conn.close()
 
         logger.info(f"\nDone: {n_inserted:,} inserted  {n_skipped:,} skipped  "
@@ -264,6 +339,8 @@ def predict_exp(
         raise
 
     finally:
+        if probs_file is not None:
+            probs_file.close()
         elapsed = (datetime.now() - t_start).total_seconds()
         logger.info(f"Total elapsed: {elapsed:.0f}s")
         append_history_row(
@@ -299,6 +376,20 @@ def main() -> None:
                         help="Skip parts already present in the predictions DB (safe restart)")
     parser.add_argument("--save-embeddings", action="store_true", default=False,
                         help="Also store encoder-level feature vectors in an embeddings table")
+    parser.add_argument("--probs-h5", default=None,
+                        help="Sig-noise probabilities file supplying n_sn_hits / "
+                             "n_sn_strings (and MC truth counts where it has them). "
+                             "Pass 'auto' to take the one named beside --exp-h5. "
+                             "Without it those columns are NULL.")
+    parser.add_argument("--sn-threshold", type=float, default=SN_THRESHOLD,
+                        help="Which stored sig-noise counts to copy (0.5 or 0.8). Does "
+                             "not affect scoring — the prefilter reads all raw hits.")
+    parser.add_argument("--chunk-events", type=int, default=200_000,
+                        help="Events per read window inside a part. Bounds RAM — an "
+                             "exp_full part is up to 21 GB of hits. Where a part is "
+                             "larger than the window it also re-cuts the inference "
+                             "batches, which moves scores by one float32 ulp; see the "
+                             "note in the module docstring.")
     args = parser.parse_args()
 
     predict_exp(
@@ -311,6 +402,10 @@ def main() -> None:
         check_existing=args.check_existing,
         skip_done_parts=args.skip_done_parts,
         save_embeddings=args.save_embeddings,
+        chunk_events=args.chunk_events,
+        probs_h5=(str(probs_path_for(args.exp_h5)) if args.probs_h5 == "auto"
+                  else args.probs_h5),
+        sn_threshold=args.sn_threshold,
     )
 
 

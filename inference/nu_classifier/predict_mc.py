@@ -126,6 +126,33 @@ def _load_npy_training_parts(npy_dir: str) -> tuple[dict, str]:
     return parts_dict, npy_source
 
 
+def _load_npy_training_events(npy_dir: str) -> dict:
+    """Return {ptype_name: {part_key: set(local event ids)}} for the NPY dataset.
+
+    Event-level counterpart of `_load_npy_training_parts`, read from the same two
+    back-link arrays. Used when a run marks the training events instead of dropping
+    their parts: a part can feed the training set and still hold thousands of events
+    the model never saw, so the flag is per event.
+    """
+    npy_path = Path(npy_dir)
+    with open(npy_path / "dataset_info.json") as f:
+        info = json.load(f)
+    particle_decode = {v: k for k, v in info["particle_encode"].items()}
+
+    part_keys  = np.load(npy_path / "h5_part_keys.npy", allow_pickle=True)
+    local_ids  = np.load(npy_path / "h5_local_event_ids.npy")
+    ptypes_arr = np.load(npy_path / "particle_types.npy")
+
+    out: dict = {}
+    for pt_id, ptype_name in particle_decode.items():
+        sel = ptypes_arr == pt_id
+        per_part: dict = {}
+        for part, loc in zip(np.asarray(part_keys[sel], dtype=str), local_ids[sel]):
+            per_part.setdefault(str(part), set()).add(int(loc))
+        out[ptype_name] = per_part
+    return out
+
+
 def predict_mc(
     checkpoint: str,
     mc_h5: str,
@@ -134,6 +161,7 @@ def predict_mc(
     parts: Optional[List[str]] = None,
     max_events_per_ptype: Optional[int] = None,
     npy_dir_to_exclude: Optional[str] = None,
+    mark_training_npy: Optional[str] = None,
     skip_done_parts: bool = False,
     threshold: float = 0.8,
     min_hits: int = 8,
@@ -192,6 +220,12 @@ def predict_mc(
         else:
             sn_model, _, sn_dev = load_sn_model(device=device)
 
+        training_events: dict = {}
+        if mark_training_npy is not None:
+            training_events = _load_npy_training_events(mark_training_npy)
+            logger.info(
+                f"mark_training_npy: {sum(len(v) for v in training_events.values()):,} parts "
+                f"carry training events -> written to predictions.used_for_labels")
         if npy_dir_to_exclude is not None:
             training_parts, npy_source = _load_npy_training_parts(npy_dir_to_exclude)
             if npy_source != source:
@@ -203,7 +237,7 @@ def predict_mc(
         else:
             training_parts = {}
 
-        from gplotnikov_sig_noise_models.k_nsol_labelneq0_da_hs128_k0p0001.sig_noise_model_v3 import (
+        from trained_models.sig_noise.k_nsol_labelneq0_da_hs128_k0p0001.sig_noise_model_v3 import (
             predict_flat,
         )
 
@@ -313,6 +347,15 @@ def predict_mc(
                     cut_mask = (n_sn_h >= min_hits) & (n_sn_s >= min_strings)
                     sel_ev   = np.where(cut_mask)[0]
 
+                    # Event-level provenance: which of the selected events the model was
+                    # fitted on. In exclude mode those parts never reach this point.
+                    is_train = None
+                    train_map = training_events.get(ptype, {})
+                    if train_map and len(sel_ev):
+                        is_train = np.array(
+                            [ev_local_of[i] in train_map.get(buf_parts[ev_part_of[i]][0], ())
+                             for i in sel_ev], dtype=bool)
+
                     if len(sel_ev) > 0:
                         features_list = []
                         for ev_i in sel_ev:
@@ -361,6 +404,8 @@ def predict_mc(
                                 n_sn_hits=n_sn_h[sel_ev[found_qi]],
                                 n_sn_strings=n_sn_s[sel_ev[found_qi]],
                                 check_existing=check_existing,
+                                used_for_labels=(is_train[found_qi]
+                                                 if is_train is not None else None),
                             )
                             n_inserted += ins; n_skipped += skp
                             ptype_ins  += ins; ptype_skp += skp
@@ -502,6 +547,9 @@ def main() -> None:
                         help="Comma-separated part keys to process (default: all)")
     parser.add_argument("--max-events-per-ptype", type=int, default=None,
                         help="Cap on events per particle type (first N in part order, default: unlimited)")
+    parser.add_argument("--mark-training-npy", default=None,
+                        help="NPY dataset whose events fed the training labels; marks them "
+                             "in predictions.used_for_labels instead of dropping their parts")
     parser.add_argument("--npy-dir-to-exclude",  default=None,
                         help="NPY dataset dir whose parts are excluded from processing "
                              "(e.g. data_manager/datasets/nu_classifier_dataset_h5s0_thr0.8)")
@@ -541,6 +589,7 @@ def main() -> None:
         parts=set(args.parts.split(",")) if args.parts else None,
         max_events_per_ptype=args.max_events_per_ptype,
         npy_dir_to_exclude=args.npy_dir_to_exclude,
+        mark_training_npy=args.mark_training_npy,
         skip_done_parts=args.skip_done_parts,
         threshold=args.threshold,
         min_hits=args.min_hits,

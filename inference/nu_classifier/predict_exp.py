@@ -112,6 +112,7 @@ def predict_exp(
     max_events_per_part: Optional[int] = None,
     sample_mode: str = "random",
     exclude_training_npy: Optional[str] = None,
+    mark_da_target_npy: Optional[str] = None,
     probs_h5: Optional[str] = None,
     probs_group: Optional[str] = None,
     sn_batch_size: int = SN_BATCH_SIZE,
@@ -160,7 +161,7 @@ def predict_exp(
         model, norm_config, train_config = load_model(checkpoint, device=dev)
         with_probs = train_config.get("model", {}).get("input_dim", 5) == 6
 
-        from gplotnikov_sig_noise_models.k_nsol_labelneq0_da_hs128_k0p0001.sig_noise_model_v3 import (
+        from trained_models.sig_noise.k_nsol_labelneq0_da_hs128_k0p0001.sig_noise_model_v3 import (
             predict_flat,
         )
 
@@ -171,8 +172,8 @@ def predict_exp(
         # (~1.65× at 5k/part, more at higher density). RAM-cheap, not a copy.
         _RDCC = dict(rdcc_nbytes=64 * 1024 * 1024, rdcc_nslots=1_000_003)
 
-        # Precomputed SN probs (predict_exp_h5.py): read per-hit probs from the
-        # probs h5 instead of running the sig-noise model on the fly.
+        # Precomputed SN probs (inference/sig_noise/predict_exp_h5.py): read
+        # per-hit probs from the probs h5 instead of running the model on the fly.
         _probs_ctx = h5py.File(probs_h5, "r", **_RDCC) if probs_h5 else None
         probs_grp  = _probs_ctx[probs_group or src_key] if _probs_ctx else None
         if probs_grp is not None:
@@ -196,6 +197,15 @@ def predict_exp(
 
         # Out-of-training test set: skip events used as the DA target
         # (identified by the exp NPY back-links: part_key + local_event_id).
+        da_by_part: dict = {}
+        if mark_da_target_npy:
+            _pk = np.load(Path(mark_da_target_npy) / "exp_h5_part_keys.npy", allow_pickle=True)
+            _li = np.load(Path(mark_da_target_npy) / "exp_h5_local_event_ids.npy")
+            for _p, _l in zip(np.asarray(_pk, dtype=str), np.asarray(_li)):
+                da_by_part.setdefault(str(_p), set()).add(int(_l))
+            logger.info(f"mark_da_target: {sum(len(v) for v in da_by_part.values()):,} events "
+                        f"across {len(da_by_part)} parts -> predictions.was_da_target")
+
         train_by_part: dict = {}
         if exclude_training_npy:
             _pk = np.load(Path(exclude_training_npy) / "exp_h5_part_keys.npy", allow_pickle=True)
@@ -339,6 +349,8 @@ def predict_exp(
                             n_sn_hits=n_sn_h[sel_ev[found_qi]],
                             n_sn_strings=n_sn_s[sel_ev[found_qi]],
                             check_existing=check_existing,
+                            was_da_target=(np.isin(sel_ev, list(da_by_part[pk]))[found_qi]
+                                           if da_by_part and pk in da_by_part else None),
                         )
                         n_inserted += ins
                         n_skipped  += skp
@@ -448,12 +460,17 @@ def main() -> None:
                              "window per part → only that window's gzip chunks decompress "
                              "(~5-10× faster); unbiased since a part is one short run. "
                              "'random' scatters over the whole part (touches every chunk).")
+    parser.add_argument("--mark-da-target-npy", default=None,
+                        help="exp NPY dataset used as the domain-adaptation target; marks it "
+                             "in predictions.was_da_target (kept, not excluded)")
     parser.add_argument("--exclude-training-npy", default=None,
                         help="Exp NPY dir with exp_h5_part_keys/local_event_ids back-links; "
                              "skip those DA-training events (out-of-training test set)")
     parser.add_argument("--probs-h5", default=None,
-                        help="Precomputed SN-probs h5 (predict_exp_h5.py). If given, read "
-                             "per-hit probs from it instead of running the sig-noise model.")
+                        help="Precomputed SN-probs h5 "
+                             "(inference/sig_noise/predict_exp_h5.py). If given, "
+                             "read per-hit probs from it instead of running the "
+                             "sig-noise model.")
     parser.add_argument("--probs-group", default=None,
                         help="Top group in --probs-h5 (default: same as exp src_key)")
     args = parser.parse_args()
@@ -474,6 +491,7 @@ def main() -> None:
         max_events_per_part=args.max_events_per_part,
         sample_mode=args.sample_mode,
         exclude_training_npy=args.exclude_training_npy,
+        mark_da_target_npy=args.mark_da_target_npy,
         probs_h5=args.probs_h5,
         probs_group=args.probs_group,
         sn_batch_size=args.sn_batch_size,

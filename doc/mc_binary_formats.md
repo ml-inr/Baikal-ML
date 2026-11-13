@@ -3,7 +3,7 @@
 Both upstream formats are streams of 32-bit words wrapped in Fortran unformatted records. The
 layout has to be exact — shift by one word and the coordinates silently become plausible
 nonsense rather than an error. This document is the reference for
-[read_wout.py](../data_manager/root2h5/energy_truth/read_wout.py), which implements it.
+[read_wout.py](../data_manager/root2h5/mc_binary/read_wout.py), which implements it.
 
 Where these files come from and where they live: [mc_provenance.md](mc_provenance.md).
 
@@ -55,7 +55,7 @@ as 250 m is contradicted by the data, see [mc_provenance.md](mc_provenance.md) �
 
 ```
 [0]  n_hit_channels        [1] theta_primary   [2] phi_primary   [3] A_primary
-[4]  E_primary             [5..7] primary vertex (0,0,0 for neutrino generation)
+[4]  E_primary             [5..7] primary vertex (0,0,0 in v1.0; real vertex in v3.0/v4.0)
 [8]  t_first_muon          [9] E_bundle_surface   [10] E_bundle_reg
 [11] muon cipher           [12] n_tracks
 [13] run (−1)              [14] event (−1)        [15] weight
@@ -69,6 +69,18 @@ per track:  [n_showers][E_muon, t_muon, x, y, z][showers]
 The one subtlety: a track's shower count sits in the word **before** its fields, so the count
 of the *next* track is the word right after the current track's showers. Hence the stride
 `6 + 4·n_showers` rather than `5 + 4·n_showers`.
+
+The vertex words come from `graxis` in `newout4_1.f`. The 2019–2023 **v1.0** productions
+leave them zero; the 2025 **v3.0/v4.0** productions fill them with the interaction vertex.
+Verified on sentinel tracks (`fMuonEnergy = −0.001`): the first event of `nu2` v3.0 and
+events 5, 6, 8 of `nuatm` v4.0 (file 1226, batch 29) match `ref − c·fFirstMuonTime·d` to
+≤2e-4 m. The formula is
+**not** valid for alive tracks: the first `nuatm` v4.0 event (alive) differs by ~180 m. Where
+the header vertex is present, use it directly; for v1.0 reconstruct it only for sentinel
+events from the track position and `fFirstMuonTime`.
+
+`A_primary` is `+1` for neutrinos and `−1` for antineutrinos in the neutrino productions
+(`anucl` in `nugen3`).
 
 After all tracks come `n_hit_channels` channels, and this is **the only place the two formats
 differ**:
@@ -141,8 +153,8 @@ The layout is not trusted on reading — it is checked:
 ## 7. Usage
 
 ```bash
-python3 data_manager/root2h5/energy_truth/read_wout.py FILE --events 3
-python3 data_manager/root2h5/energy_truth/read_wout.py FILE --verify 20000
+python3 data_manager/root2h5/mc_binary/read_wout.py FILE --events 3
+python3 data_manager/root2h5/mc_binary/read_wout.py FILE --verify 20000
 ```
 
 ```python

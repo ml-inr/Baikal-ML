@@ -12,6 +12,14 @@ Pass 2 (per selected part only):
     Re-run sig-noise model on parts that contain at least one selected event.
     Write prob-filtered hit features (prob > threshold) and prob values
     into pre-allocated memory-mapped output arrays.
+
+Precomputed-probabilities path
+------------------------------
+When the build config sets ``sig_noise_source: probs_h5``, the same two passes
+read the per-hit probabilities and the stored per-event ``n_sig_hits_<thr>`` /
+``n_sig_strings_<thr>`` from the probs HDF5 instead of loading or running the
+model.  GT counts (``n_gt_*``) are still recomputed from raw/labels and
+raw/channels.  The model path is untouched and remains the default.
 """
 
 import logging
@@ -22,7 +30,7 @@ import h5py
 import numpy as np
 import torch
 
-from gplotnikov_sig_noise_models.k_nsol_labelneq0_da_hs128_k0p0001.sig_noise_model_v3 import (
+from trained_models.sig_noise.k_nsol_labelneq0_da_hs128_k0p0001.sig_noise_model_v3 import (
     predict_flat,
 )
 
@@ -159,6 +167,67 @@ def read_part_metadata(
     }
 
 
+def read_part_metadata_from_probs(
+    particle_group: h5py.Group,
+    probs_group: h5py.Group,
+    part_key: str,
+    threshold: float,
+) -> Optional[Dict]:
+    """Pass 1 for one part using the precomputed sig-noise probabilities.
+
+    Per-event signal counts are read from the probs file
+    (``n_sig_hits_<thr>`` / ``n_sig_strings_<thr>``).  GT counts still come
+    from ``raw/labels`` + ``raw/channels`` in the main HDF5; those arrays are
+    two integers per hit, far cheaper than ``raw/data``.
+
+    Returns the same dict as :func:`read_part_metadata`, or ``None`` if the
+    part is empty or absent.
+    """
+    if f"raw/ev_starts/{part_key}" not in particle_group:
+        logger.warning(f"  Part {part_key} not found in h5 group — skipping")
+        return None
+    ev_starts = particle_group[f"raw/ev_starts/{part_key}/data"][:].astype(np.int64)
+    n_events = len(ev_starts) - 1
+    if n_events == 0:
+        return None
+
+    hit_starts = ev_starts[:-1]
+    hit_ends   = ev_starts[1:]
+    n_hits     = (hit_ends - hit_starts).astype(np.int32)
+
+    key_h = f"n_sig_hits_{threshold:g}"
+    key_s = f"n_sig_strings_{threshold:g}"
+    if key_h not in probs_group or key_s not in probs_group:
+        raise KeyError(
+            f"{key_h}/{key_s} not stored in the probs file; available: "
+            f"{[k for k in probs_group.keys() if k.startswith('n_sig_hits_')]}"
+        )
+    n_sig_hits    = probs_group[f"{key_h}/{part_key}/data"][:].astype(np.int32)
+    n_sig_strings = probs_group[f"{key_s}/{part_key}/data"][:].astype(np.int32)
+    if len(n_sig_hits) != n_events or len(n_sig_strings) != n_events:
+        raise ValueError(
+            f"{part_key}: stored sig counts have {len(n_sig_hits)}/"
+            f"{len(n_sig_strings)} entries, expected {n_events}"
+        )
+
+    channels  = particle_group[f"raw/channels/{part_key}/data"][:].astype(np.int32)
+    gt_labels = particle_group[f"raw/labels/{part_key}/data"][:]
+    gt_mask   = gt_labels != 0
+    n_gt_sig_hits, n_gt_sig_strings = _count_sig_hits_strings(
+        gt_mask, channels, hit_starts, n_hits, n_events,
+    )
+
+    return {
+        "n_hits":           n_hits,
+        "n_sig_hits":       n_sig_hits,
+        "n_sig_strings":    n_sig_strings,
+        "n_gt_sig_hits":    n_gt_sig_hits,
+        "n_gt_sig_strings": n_gt_sig_strings,
+        "hit_starts":       hit_starts,
+        "hit_ends":         hit_ends,
+    }
+
+
 def read_all_metadata(
     h5_file: h5py.File,
     parts_dict: Dict[str, List[int]],
@@ -196,6 +265,84 @@ def read_all_metadata(
         for i, pn in enumerate(sorted(part_nums)):
             pk   = f"part_{pn}"
             meta = read_part_metadata(grp, pk, model, batch_size, device, threshold)
+            if meta is None:
+                continue
+
+            n_ev = len(meta["n_hits"])
+            all_n_hits.append(meta["n_hits"])
+            all_n_sig.append(meta["n_sig_hits"])
+            all_n_str.append(meta["n_sig_strings"])
+            all_n_gt_sig.append(meta["n_gt_sig_hits"])
+            all_n_gt_str.append(meta["n_gt_sig_strings"])
+            all_ptypes.append(np.full(n_ev, ptype_code, dtype=np.int8))
+
+            for j in range(n_ev):
+                all_locations.append(EventLocation(
+                    particle_type=ptype_full,
+                    part_key=pk,
+                    hit_start=int(meta["hit_starts"][j]),
+                    hit_end=int(meta["hit_ends"][j]),
+                    event_idx_in_part=j,
+                ))
+
+            if (i + 1) % 20 == 0 or i == n_parts - 1:
+                elapsed = time.time() - t0
+                rate    = (i + 1) / max(elapsed, 1e-3)
+                eta     = (n_parts - i - 1) / rate
+                logger.info(
+                    f"  [{i+1}/{n_parts}] {ptype_full}/{pk} "
+                    f"({elapsed:.0f}s elapsed, ETA {eta:.0f}s)"
+                )
+
+        n_ev_total = sum(len(a) for a in all_n_hits)
+        logger.info(f"  {ptype_full}: done ({n_ev_total:,} events so far)")
+
+    return {
+        "n_hits":           np.concatenate(all_n_hits),
+        "n_sig_hits":       np.concatenate(all_n_sig),
+        "n_sig_strings":    np.concatenate(all_n_str),
+        "n_gt_sig_hits":    np.concatenate(all_n_gt_sig),
+        "n_gt_sig_strings": np.concatenate(all_n_gt_str),
+        "particle_types":   np.concatenate(all_ptypes),
+        "locations":        all_locations,
+    }
+
+
+def read_all_metadata_from_probs(
+    h5_file: h5py.File,
+    probs_file: h5py.File,
+    parts_dict: Dict[str, List[int]],
+    particle_map: Dict[str, str],
+    particle_encode: Dict[str, int],
+    threshold: float,
+) -> Dict:
+    """Pass 1 from precomputed probabilities.
+
+    Iterates particle types and parts in exactly the same order as
+    :func:`read_all_metadata`, so the event order (and therefore the seeded
+    balance/shuffle) is identical to the model path.
+    """
+    all_n_hits:       List[np.ndarray] = []
+    all_n_sig:        List[np.ndarray] = []
+    all_n_str:        List[np.ndarray] = []
+    all_n_gt_sig:     List[np.ndarray] = []
+    all_n_gt_str:     List[np.ndarray] = []
+    all_ptypes:       List[np.ndarray] = []
+    all_locations:    List[EventLocation] = []
+
+    for ptype_short, part_nums in parts_dict.items():
+        ptype_full = particle_map[ptype_short]
+        ptype_code = particle_encode[ptype_full]
+        grp        = h5_file[ptype_full]
+        probs_grp  = probs_file[ptype_full]
+        n_parts    = len(part_nums)
+        t0         = time.time()
+
+        for i, pn in enumerate(sorted(part_nums)):
+            pk   = f"part_{pn}"
+            meta = read_part_metadata_from_probs(
+                grp, probs_grp, pk, threshold,
+            )
             if meta is None:
                 continue
 
@@ -298,6 +445,93 @@ def write_selected_features(
                 ev_mask = sig_mask[s:e]
                 dst     = offsets[out_idx]
                 n       = offsets[out_idx + 1] - dst
+                features[dst:dst + n]  = data_raw[s:e][ev_mask]
+                probs_out[dst:dst + n] = prob[s:e][ev_mask]
+
+            done_parts += 1
+            if done_parts % 20 == 0 or done_parts == n_parts:
+                elapsed = time.time() - t0
+                rate    = done_parts / max(elapsed, 1e-3)
+                eta     = (n_parts - done_parts) / rate
+                logger.info(
+                    f"  [{done_parts}/{n_parts}] "
+                    f"({elapsed:.0f}s elapsed, ETA {eta:.0f}s)"
+                )
+
+    features.flush()
+    probs_out.flush()
+    logger.info(
+        f"  Written: {total_sig_hits:,} sig hits, "
+        f"{features.nbytes / 1e9:.2f} GB features + "
+        f"{probs_out.nbytes / 1e6:.1f} MB probs"
+    )
+
+
+def write_selected_features_from_probs(
+    h5_path: str,
+    probs_h5_path: str,
+    locations: List[EventLocation],
+    selected_idx: np.ndarray,
+    offsets: np.ndarray,
+    features_path: str,
+    probs_path: str,
+    threshold: float,
+) -> None:
+    """Pass 2 using precomputed per-hit probabilities.
+
+    Hit features come from the main HDF5; probabilities are read from
+    ``<particle_type>/probs/<part>`` in the probs file.  The mask is the same
+    ``prob > threshold`` selection as the model path, without loading or
+    running the model.  Each event's selected-hit count is checked against
+    ``offsets`` so a mismatched probs file fails loudly instead of writing a
+    shifted array.
+    """
+    total_sig_hits = int(offsets[-1])
+    features  = np.lib.format.open_memmap(
+        features_path, mode="w+", dtype=np.float32, shape=(total_sig_hits, 5),
+    )
+    probs_out = np.lib.format.open_memmap(
+        probs_path, mode="w+", dtype=np.float32, shape=(total_sig_hits,),
+    )
+
+    # Group selected events by part
+    part_groups: Dict[Tuple[str, str], List[Tuple[int, EventLocation]]] = {}
+    for out_idx, global_idx in enumerate(selected_idx):
+        loc = locations[global_idx]
+        key = (loc.particle_type, loc.part_key)
+        part_groups.setdefault(key, []).append((out_idx, loc))
+
+    n_parts = len(part_groups)
+    logger.info(
+        f"  Writing features from probs: "
+        f"{len(selected_idx):,} events from {n_parts:,} parts"
+    )
+
+    done_parts = 0
+    t0 = time.time()
+
+    with h5py.File(h5_path, "r") as h5, \
+            h5py.File(probs_h5_path, "r") as pf:
+        for (ptype, pk), events in part_groups.items():
+            data_raw = h5[ptype][f"raw/data/{pk}/data"][:].astype(np.float32)
+            prob     = pf[ptype][f"probs/{pk}/data"][:].astype(np.float32)
+            if len(prob) != len(data_raw):
+                raise ValueError(
+                    f"{ptype}/{pk}: probs have {len(prob)} entries, "
+                    f"hits {len(data_raw)}"
+                )
+            sig_mask = prob > threshold
+
+            for out_idx, loc in events:
+                s, e    = loc.hit_start, loc.hit_end
+                ev_mask = sig_mask[s:e]
+                dst     = offsets[out_idx]
+                n       = offsets[out_idx + 1] - dst
+                if int(ev_mask.sum()) != n:
+                    raise ValueError(
+                        f"{ptype}/{pk}: event {loc.event_idx_in_part} has "
+                        f"{int(ev_mask.sum())} selected hits, offsets say {n}"
+                    )
                 features[dst:dst + n]  = data_raw[s:e][ev_mask]
                 probs_out[dst:dst + n] = prob[s:e][ev_mask]
 

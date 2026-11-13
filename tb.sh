@@ -17,7 +17,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-LOGDIR="${1:-experiments/numu}"
+LOGDIR="${1:-trained_models/classifier}"
 PORT="${2:-6006}"
 
 # Call the baikal25 env's tensorboard binary DIRECTLY. Do NOT use `conda run` —

@@ -27,7 +27,7 @@ import h5py
 import numpy as np
 import torch
 
-from gplotnikov_sig_noise_models.k_nsol_labelneq0_da_hs128_k0p0001.sig_noise_model_v3 import (
+from trained_models.sig_noise.k_nsol_labelneq0_da_hs128_k0p0001.sig_noise_model_v3 import (
     predict_flat,
 )
 
@@ -382,8 +382,9 @@ def build_exp_npy(cfg: dict) -> None:
     model_device = model_cfg.get("device", "auto")
     batch_size   = int(model_cfg.get("batch_size", 128))
 
-    # Precomputed sig-noise probs (from predict_exp_h5.py): if given, the builder
-    # reads probs / per-event counts instead of running the model → fast I/O.
+    # Precomputed sig-noise probs (inference/sig_noise/predict_exp_h5.py): if
+    # given, the builder reads probs / per-event counts instead of running the
+    # model → fast I/O.
     probs_h5     = cfg.get("probs_h5")
     probs_group  = cfg.get("probs_group") or h5_group
 
@@ -400,7 +401,7 @@ def build_exp_npy(cfg: dict) -> None:
         logger.info(f"  Using precomputed probs from {probs_h5} (no model run)")
     else:
         logger.info("\nLoading sig-noise model...")
-        from gplotnikov_sig_noise_models.k_nsol_labelneq0_da_hs128_k0p0001.sig_noise_model_v3 import (
+        from trained_models.sig_noise.k_nsol_labelneq0_da_hs128_k0p0001.sig_noise_model_v3 import (
             load_model,
         )
         model, _, device = load_model(device=model_device)

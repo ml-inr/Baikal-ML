@@ -1,0 +1,139 @@
+# Pool of 10 domain discriminators: does the ensemble stay diverse in the live game?
+#
+# Question this run answers (owner, 2026-10-02): a single discriminator reads one
+# direction in feature space, so the encoder can satisfy it by re-coordinating the
+# features instead of removing the domain. An ensemble is supposed to close that
+# route — but only if its members keep *differing*. On a frozen feature
+# distribution they converge to the same function ("after some number of
+# iterations they give the same gradients"), so the whole question is whether the
+# live adversarial game keeps them apart, or whether they collapse into M copies.
+#
+# So this run logs the pool's diversity every epoch (pool_cos_*, pool_disagree,
+# pool_auc_min/max, pool_sel_share, pool_loss_spread) alongside the usual probe.
+#
+# Recipe: identical to 261002_0535 (DArepair) — same data, seed 42, losses,
+# lambda schedule, probe, refresh, instance noise, LayerNorm — with two documented
+# differences: M = 10 discriminators, and the members take their step *before* the
+# encoder step (so the encoder's reversal gradient is computed against a freshly
+# updated opponent). No event weighting.
+experiment:
+  name: 261002_1101_da_nu_classifier_exp_full_E1_lambda0.01_pool10
+  description: >
+    Domain branch trained against a pool of 10 discriminators on identical data
+    and features. Measures whether the members keep different reading directions
+    (pool_cos_*) and disagree on the domain label (pool_disagree) while the
+    encoder moves, or collapse into one critic in ten copies.
+  seed: 42
+
+reproducibility:
+  deterministic: true
+  benchmark: false
+
+data:
+  device: cuda:1          # Tesla P100 (номер 1 в nvidia-smi; см. PCI_BUS_ID в обёртке)
+  include_probs: false
+  max_hits: 500
+
+  normalization:
+    enabled: true
+
+  source_domain:
+    npy_dir: data_manager/datasets/nu_classifier_dataset_h5s0_thr0.8
+    max_events: 5000000
+    train_split: 0.9
+
+  target_domain:
+    npy_dir: data_manager/datasets/nu_classifier_dataset_exp_full_thr0.8
+    max_events: 5000000
+    train_split: 0.8
+
+model:
+  type: numu
+  amp_clip: 100
+  feature_extractor:
+    input_dim: 5
+    d_model: 128
+    num_heads: 4
+    num_layers: 4
+    dim_feedforward: 128
+    dropout: 0.0
+    pooling: cls
+    use_positional_encoding: true
+    max_seq_len: 1000
+  classifier:
+    hidden_dims: [32, 16]
+    dropout: 0.0
+    use_batch_norm: false
+  spectral_norm:
+    enabled: false
+
+domain_adaptation:
+  # ── пул ──
+  n_discriminators: 10
+  # "min": энкодер максимизирует лосс самого лучшего члена пула — то есть обязан
+  # обмануть всех (условие «объединения слепых зон»). "mean" даёт среднего критика.
+  discriminator_aggregation: "min"
+  domain_discriminator:
+    hidden_dims: [32, 16]
+    dropout: 0.0
+    use_batch_norm: false
+    use_gradient_reversal: true
+    lambda_factor: 0.
+    hidden_layer_norm: true     # как в DArepair
+    instance_noise: 0.05        # как в DArepair
+  discriminator_refresh:
+    every_epochs: 5
+    steps: 100                  # шагов на каждого члена (10 членов = 1000 шагов)
+  lambda_scheduler:
+    schedule_by: "step"
+    type: "progressive"
+    max_lambda: 0.01
+    gamma: 10.0
+
+training:
+  epochs: 100
+  source_batch_size: 512
+  target_batch_size: 256
+  classification_loss: "focal"
+  focal_gamma: 2.0
+  feature_optimizer:     {optimizer: "adamw", learning_rate: 0.0001, weight_decay: 0.01}
+  classifier_optimizer:  {optimizer: "adamw", learning_rate: 0.0001, weight_decay: 0.01}
+  discriminator_optimizer: {optimizer: "adamw", learning_rate: 0.0003, weight_decay: 0.01}
+  scheduler: "plateau"
+  scheduler_params: {mode: "min", factor: 0.5, patience: 3, min_lr: 1.0e-6}
+  validate_every: 1
+  save_every: 5
+  invariance_probe:
+    enabled: true
+    path: "data_manager/probe_sample/probe_sample.npz"
+    every_n_epochs: 1
+  early_stopping:
+    enabled: true
+    monitor: "val_loss"
+    mode: "min"
+    patience: 15
+    min_delta: 0.
+
+dataloader:
+  num_workers: 0
+  pin_memory: false
+  augmentation:
+    noise_std: [0.05, 5.0, 1.0, 1.0, 2.0]
+    rotation_enabled: true
+    afterpulse:
+      enabled: false
+      prob: 0.02
+      max_afterpulses: 3
+      q_range: [5.0, 100.0]
+
+logging:
+  level: "INFO"
+  output_dir: "trained_models/classifier"
+  log_every: 10
+  tensorboard: true
+  save_config: true
+  save_model_summary: true
+
+debug:
+  enabled: false
+  max_batches_per_epoch: 10

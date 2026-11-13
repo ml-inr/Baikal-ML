@@ -53,6 +53,7 @@ venv.bak/
 *.arrow
 *.duckdb
 *.duckdb.bak
+*.wal
 *.pdf
 *.tex
 
@@ -78,6 +79,8 @@ datasets/
 *.pt
 *.pkl
 *.pickle
+*.joblib
+*.safetensors
 *.model
 *.weights
 *.onnx
@@ -98,9 +101,24 @@ results/
 outputs/
 checkpoints/
 
+# Generated per-checkpoint notebooks and analysis caches. Their templates and
+# generating scripts are tracked; the executed notebooks are local artifacts.
+inference/nu_classifier/analysis/HIGH_SCORE_EXCESS/by_checkpoint/
+inference/nu_classifier/analysis/HIGH_SCORE_EXCESS/archive_notebooks/
+inference/track_energy_reconstruction/analysis/by_checkpoint/
+**/cached_data/
+
 # ============================================================
 # Tracking & Logging (TensorBoard, ClearML, MLflow)
 # ============================================================
+# Логи обучения и сборки датасетов по умолчанию не версионируются: в рабочем
+# дереве ~876 файлов общим объёмом ~543 MB (trained_models — ~479 MB).
+# Сводки прогонов лежат в training_summary.yaml и run_info.json. Для отдельного
+# лога-провенанса добавьте точечное исключение; каталог trained_models/*/logs/
+# тоже нужно разыгнорировать, иначе правило каталога сильнее файлового.
+# Пример:
+# !trained_models/classifier/logs/
+# !trained_models/classifier/logs/<run>.log
 *.log
 *.out
 **/events.out.tfevents.*
@@ -135,9 +153,15 @@ Thumbs.db
 *.tmp
 *.temp
 *.zip
+*.tar
 *.tar.gz
+*.tgz
+*.bz2
+*.xz
+*.zst
 *.7z
 *.rar
+*.pptx
 
 # ============================================================
 # Version Control
@@ -203,18 +227,29 @@ tmp/
 # ============================================================
 # Signal/Noise Models — keep only the canonical model
 # ============================================================
+# Moved from gplotnikov_sig_noise_models/ to trained_models/sig_noise/.
 # All model variants except k_nsol_labelneq0_da_hs128_k0p0001 are excluded.
-gplotnikov_sig_noise_models/archive/
-gplotnikov_sig_noise_models/encoder_nl5_nh1_dff512_hs512_bs128/
-gplotnikov_sig_noise_models/k_nsol_labelneq0_da_hs128/
-gplotnikov_sig_noise_models/k_nsol_labelneq0_da_hs128_k0p001/
-gplotnikov_sig_noise_models/k_nsol_labelneq0_hs512_dff512/
-gplotnikov_sig_noise_models/logs/
-gplotnikov_sig_noise_models/test.ipynb
+trained_models/sig_noise/archive/
+trained_models/sig_noise/encoder_nl5_nh1_dff512_hs512_bs128/
+trained_models/sig_noise/k_nsol_labelneq0_da_hs128/
+trained_models/sig_noise/k_nsol_labelneq0_da_hs128_k0p001/
+trained_models/sig_noise/k_nsol_labelneq0_hs512_dff512/
+trained_models/sig_noise/logs/
+trained_models/sig_noise/test.ipynb
 
 # Allow the model config and README for the canonical model
-!gplotnikov_sig_noise_models/k_nsol_labelneq0_da_hs128_k0p0001/train_config_mc_2020.yaml
-!gplotnikov_sig_noise_models/k_nsol_labelneq0_da_hs128_k0p0001/README.md
+!trained_models/sig_noise/k_nsol_labelneq0_da_hs128_k0p0001/train_config_mc_2020.yaml
+!trained_models/sig_noise/k_nsol_labelneq0_da_hs128_k0p0001/README.md
+
+# ============================================================
+# Angle/track/uncertainty release — small files tracked
+# ============================================================
+# The weights stay ignored (*.pt, *.ckpt); the norms and provenance JSONs are
+# small and make the bundle reproducible.
+!trained_models/angle_track_uncertainty/release_v3/angle_norm.h5
+!trained_models/angle_track_uncertainty/release_v3/classifier_norm.h5
+!trained_models/angle_track_uncertainty/release_v3/independent_2019_f_metrics.json
+!trained_models/angle_track_uncertainty/release_v3/reco_2020_comparison.json
 
 # ============================================================
 # Project-Specific Development Docs
@@ -230,12 +265,35 @@ my_notes
 # Кэш сессий marimo — регенерируется
 **/__marimo__/
 
-# Исключения из *.json / *.csv: настройки проекта и эталоны верификации
-!.claude/settings.json
-!gplotnikov_sig_noise_models/k_nsol_labelneq0_da_hs128_k0p0001/probs_fingerprint_before.json
-!gplotnikov_sig_noise_models/k_nsol_labelneq0_da_hs128_k0p0001/probs_fingerprint_after.json
+# Исключения из *.json / *.csv: эталоны верификации
+!trained_models/sig_noise/k_nsol_labelneq0_da_hs128_k0p0001/probs_fingerprint_before.json
+!trained_models/sig_noise/k_nsol_labelneq0_da_hs128_k0p0001/probs_fingerprint_after.json
 !inference/nu_classifier/preds/prediction_history.csv
 
-# Локальные настройки машины — не общие для проекта.
-# Идёт ПОСЛЕ !.claude/settings.json, иначе исключение перекрыло бы его.
+# ============================================================
+# Claude Code — настройки и состояние сессий, вне репозитория
+# ============================================================
+# Настройки не версионируются: settings.json содержит привязку к модели
+# и токен доступа, settings.local.json — правки конкретной машины.
+.claude/settings.json
 .claude/settings.local.json
+
+# Состояние сессий и вспомогательные файлы. Часть ловится общими
+# *.json / *.log, здесь — явно, чтобы правило не зависело от расширения
+# (.jsonl в projects/, .sh в shell-snapshots/, .md в plans/).
+.claude/todos/
+.claude/projects/
+.claude/plans/
+.claude/shell-snapshots/
+.claude/plugins/
+.claude/worktrees/
+.claude/file-history/
+.claude/statsig/
+.claude/ide/
+.claude/logs/
+
+# Локальные инструкции для Claude Code — не общие для проекта.
+CLAUDE.local.md
+
+# Каталог .claude/skills/ целиком НЕ игнорируется: скиллы — это документация
+# пайплайнов, на неё ссылается CLAUDE.md.

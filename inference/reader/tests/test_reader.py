@@ -33,6 +33,10 @@ from inference.reader import parts, query, spec, training       # noqa: E402
 CHECKPOINT = ("260816_2250_da_nu_classifier_exp_full_E1_lambda0.01_FIXED_sn256"
               "@best_da_model")
 
+#: A prefilter checkpoint, whose training dataset records no per-event back-links.
+#: It is the case `strictness="parts"` exists for, so the checks below need one.
+PREFILTER_CHECKPOINT = "da_prefilter_numu_260429_0155"
+
 #: Selections narrow enough to run in seconds, one part each where possible.
 CASES = {
     "exp_reco": [reader.H8S3, reader.NOT_EXCLUDED,
@@ -272,6 +276,84 @@ def exact_training_half_has_the_configured_size():
                               strictness="train", selection=selection)
     expected = int(selection["max_events"] * selection["train_split"])
     assert len(exact) == expected, f"{len(exact):,} != {expected:,}"
+
+
+@test
+def prefilter_dataset_offers_only_part_strictness():
+    """The prefilter builder writes no back-links, so the finer cuts must refuse.
+
+    Silently returning an empty exclusion would leave a caller believing they had
+    dropped the training events. The error has to name the strictness that works.
+    """
+    try:
+        checkpoint = reader.open_checkpoint(PREFILTER_CHECKPOINT)
+    except KeyError as reason:
+        raise Skip(str(reason))
+    npy_dir = checkpoint.training_dataset()
+    assert not training.has_event_backlinks(npy_dir), npy_dir
+
+    for strictness in ("all", "train"):
+        try:
+            training.identity(npy_dir, strictness=strictness,
+                              selection=checkpoint.training_selection())
+        except LookupError as reason:
+            assert "parts" in str(reason), reason
+        else:
+            raise AssertionError(f"strictness={strictness!r} should have raised")
+
+    listed = training.part_identity(npy_dir)
+    assert not listed.empty and "local_idx" not in listed.columns, listed.columns
+    # The part list is the builder's own input, so its size is a property of the
+    # dataset rather than of this test: 432 + 187 + 333 parts.
+    assert len(listed) == 952, len(listed)
+
+
+@test
+def part_exclusion_leaves_no_event_of_a_listed_part():
+    """`NOT_TRAINED_PARTS` must remove whole parts, not merely thin them."""
+    need_stores("mc_merged")
+    try:
+        checkpoint = reader.open_checkpoint(PREFILTER_CHECKPOINT)
+    except KeyError as reason:
+        raise Skip(str(reason))
+    handle = reader.open("mc_merged", checkpoint=checkpoint)
+    listed = training.part_identity(checkpoint.training_dataset())
+
+    kept = handle.count(where=[reader.NOT_TRAINED_PARTS])
+    everything = handle.count()
+    assert 0 < kept["events"] < everything["events"], (kept, everything)
+
+    # Name one listed part explicitly: after the exclusion it must be empty.
+    row = listed.iloc[0]
+    survivors = handle.count(where=[
+        reader.NOT_TRAINED_PARTS,
+        f"l.part_key = '{row.part_key}'",
+        f"e.data_class = '{row.data_class}'",
+    ])
+    assert survivors["events"] == 0, survivors
+
+
+@test
+def histogram_counts_everything_count_counts():
+    """The aggregate must not lose rows at the bin edges or anywhere else."""
+    need_stores("mc_merged")
+    try:
+        checkpoint = reader.open_checkpoint(PREFILTER_CHECKPOINT)
+    except KeyError as reason:
+        raise Skip(str(reason))
+    handle = reader.open("mc_merged", checkpoint=checkpoint)
+    where = [reader.NOT_TRAINED_PARTS]
+
+    total = handle.count(where=where)["events"]
+    binned = handle.histogram("score", bins=64, where=where)
+    assert int(binned["n"].sum()) == total, (int(binned["n"].sum()), total)
+    assert len(binned) == 64, len(binned)
+
+    grouped = handle.histogram("score", bins=8, by="data_class", where=where)
+    assert int(grouped["n"].sum()) == total, int(grouped["n"].sum())
+    # Every group carries every bin, empty ones included, so two histograms
+    # subtract without reindexing.
+    assert (grouped.groupby("data_class").size() == 8).all(), grouped
 
 
 @test

@@ -221,7 +221,8 @@ def calculate_class_weights(labels: torch.Tensor) -> torch.Tensor:
 def binary_cross_entropy_with_logits_weighted(
     logits: torch.Tensor,
     targets: torch.Tensor,
-    pos_weight: Optional[torch.Tensor] = None
+    pos_weight: Optional[torch.Tensor] = None,
+    sample_weight: Optional[torch.Tensor] = None,
 ) -> torch.Tensor:
     """
     Weighted binary cross-entropy loss with logits.
@@ -230,6 +231,8 @@ def binary_cross_entropy_with_logits_weighted(
         logits: Model logits [batch_size, 1]
         targets: Binary targets [batch_size] (0 or 1)
         pos_weight: Weight for positive class (optional)
+        sample_weight: Per-event weights [batch_size] (optional); weighted mean
+            when given, plain mean otherwise.
 
     Returns:
         Loss value
@@ -238,10 +241,14 @@ def binary_cross_entropy_with_logits_weighted(
     logits = logits.view(-1, 1)
 
     loss = F.binary_cross_entropy_with_logits(
-        logits, targets, pos_weight=pos_weight, reduction='mean'
+        logits, targets, pos_weight=pos_weight, reduction='none'
     )
 
-    return loss
+    if sample_weight is not None:
+        w = sample_weight.float().view(-1, 1)
+        return (loss * w).sum() / w.sum().clamp_min(1e-8)
+
+    return loss.mean()
 
 
 def focal_loss_with_logits_weighted(
@@ -249,8 +256,9 @@ def focal_loss_with_logits_weighted(
     targets: torch.Tensor,
     gamma: float = 2.0,
     pos_weight: Optional[torch.Tensor] = None,
+    sample_weight: Optional[torch.Tensor] = None,
 ) -> torch.Tensor:
-    """Focal loss with logits, optional positive class weighting.
+    """Focal loss with logits, optional positive class and per-sample weighting.
 
     FL(p_t) = -alpha_t * (1 - p_t)^gamma * log(p_t)
 
@@ -259,6 +267,10 @@ def focal_loss_with_logits_weighted(
         targets: Binary targets [batch_size] (0 or 1)
         gamma: Focusing exponent. 0 = standard BCE, 2 = default focal.
         pos_weight: Alpha weight for positive class (optional).
+        sample_weight: Per-event weights [batch_size] (optional), e.g. the
+            reweighting array built by add_weights.py. With it the loss is a
+            weighted mean over the batch, so the scale stays comparable to the
+            unweighted mean.
 
     Returns:
         Scalar loss value.
@@ -275,6 +287,10 @@ def focal_loss_with_logits_weighted(
     if pos_weight is not None:
         alpha = torch.where(targets == 1, pos_weight, torch.ones_like(targets))
         loss = alpha * loss
+
+    if sample_weight is not None:
+        w = sample_weight.float().view(-1, 1)
+        return (loss * w).sum() / w.sum().clamp_min(1e-8)
 
     return loss.mean()
 

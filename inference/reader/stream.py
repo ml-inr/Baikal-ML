@@ -161,6 +161,74 @@ class Reader:
             connection.close()
         return {"events": int(events), "parts": int(parts)}
 
+    def histogram(self, column: str = "score", *, bins: int = 100,
+                  span: tuple[float, float] = (0.0, 1.0), where=None,
+                  by: str | list[str] | None = None) -> pd.DataFrame:
+        """Bin a per-event column in DuckDB, without materialising a single row.
+
+        `count()` answers how many; this answers how they are distributed, at the
+        same cost -- one aggregate query. It exists because the frame `events()`
+        would build is not always affordable: `exp_full` scored by the prefilter is
+        133M rows, and a score histogram of it is a hundred numbers.
+
+        `column` and `by` name columns of the streamed selection -- the prediction
+        table's own (`score`, `n_hits`, `n_sn_hits`, ...) and the addressing columns
+        `data_class`, `cluster`, `run`, `part_key`. Values on the edges are counted:
+        the last bin is closed on the right, so nothing is silently dropped at 1.0.
+
+        Weights are deliberately absent. The MC event weight lives in `prime_prty`
+        in HDF5, not in any database, so a weighted histogram cannot be one query --
+        take `events()` and weight it there, where the weight is visible.
+
+        Returns one row per bin (per group, when `by` is given) with `lo`, `hi`,
+        `mid` and `n`. Empty bins are present with `n = 0`, so a difference of two
+        histograms lines up without reindexing.
+        """
+        if bins < 1:
+            raise ValueError(f"bins must be positive, got {bins}")
+        low, high = float(span[0]), float(span[1])
+        if not high > low:
+            raise ValueError(f"span must be increasing, got {span}")
+        width = (high - low) / bins
+        groups = [by] if isinstance(by, str) else list(by or [])
+
+        connection = query.connect(self.checkpoint, self.spec.name)
+        try:
+            sql, tables = query.build_sql(connection, self.spec, self.checkpoint,
+                                          where)
+            for alias, frame in tables.items():
+                connection.register(alias, frame)
+            inner = sql.replace(" ORDER BY p.event_fk", "")
+            # `least(..., bins - 1)` puts the closed right edge in the last bin
+            # instead of a bin of its own.
+            selected = ", ".join([*groups,
+                                  f"least(cast(floor(({column} - {low}) / {width}) "
+                                  f"AS BIGINT), {bins - 1}) AS bin",
+                                  "count(*) AS n"])
+            counted = connection.execute(
+                f"SELECT {selected} FROM ({inner}) "
+                f"WHERE {column} >= {low} AND {column} <= {high} "
+                f"GROUP BY ALL"
+            ).df()
+        finally:
+            connection.close()
+
+        edges = np.linspace(low, high, bins + 1)
+        grid = pd.DataFrame({"bin": np.arange(bins, dtype="int64"),
+                             "lo": edges[:-1], "hi": edges[1:],
+                             "mid": 0.5 * (edges[:-1] + edges[1:])})
+        if not groups:
+            out = grid.merge(counted, on="bin", how="left")
+        else:
+            names = [g.split(".")[-1] for g in groups]
+            keys = (counted[names].drop_duplicates() if not counted.empty
+                    else pd.DataFrame(columns=names))
+            out = keys.merge(grid, how="cross").merge(counted, on=[*names, "bin"],
+                                                      how="left")
+        out["n"] = out["n"].fillna(0).astype("int64")
+        sort_by = [g.split(".")[-1] for g in groups] + ["bin"]
+        return out.sort_values(sort_by).reset_index(drop=True)
+
     # ── layer 1: events, no hits touched ─────────────────────────────────────
     def events(self, where=None, columns=None, masks=(), *,
                progress=None) -> pd.DataFrame:

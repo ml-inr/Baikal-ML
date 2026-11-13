@@ -1,6 +1,6 @@
 # Code Development Conventions
 
-*This document defines coding rules for the project. See [CLAUDE.md](CLAUDE.md) for the
+*This document defines coding rules for the project. See [AGENTS.md](AGENTS.md) for the
 pipeline map, data locations and working rules.*
 
 ## Core Principles
@@ -217,7 +217,7 @@ def process_data(input_path: Path, config: dict) -> Path:
 **Module Documentation:**
 - Include brief module purpose in docstring
 - Document key classes and their relationships
-- Keep README files minimal (reference CLAUDE.md)
+- Keep README files minimal (reference AGENTS.md)
 
 ## Module-Specific Conventions
 

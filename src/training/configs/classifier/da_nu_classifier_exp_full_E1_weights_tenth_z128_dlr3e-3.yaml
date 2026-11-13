@@ -1,0 +1,139 @@
+# Ячейка сетки «1/10 данных»: размерность d_model (z) × lr дискриминатора × λ-контроль.
+#
+# Что проверяется: «комната для пряток» домена. Класс во всех обученных моделях
+# живёт в одной оси, а доменный сигнал, переживающий z-flip, читается только из
+# хвоста (64-128 измерений); при z=3/8 хвостового резервуара физически нет.
+# Ось lr дискриминатора: 3e-4 (как в 261002_0804_weights) против 3e-3 (в 10 раз
+# выше feature-lr) — проверка гипотезы «критик слишком медленный» против
+# λ-атриции. Ячейка z3_lam0 (λ=0) — контроль: отделить ёмкость от ветки DA.
+#
+# Отличия от 261002_0804_weights (кроме самой ячейки): train 1/10
+# (max_events 500k на оба домена — одна и та же подвыборка для всех ячеек,
+# сид 42), фиксированное расписание LR (step ×0.5 каждые 8 эпох — одинаковое во
+# всех ячейках; plateau давал бы каждой ячейке свою траекторию LR). Всё
+# остальное — веса, батчи, λ-программа (ячейки 1-6), refresh, probe — как там.
+experiment:
+  name: 261012_0810_da_nu_classifier_exp_full_E1_weights_tenth_z128_dlr3e-3
+  description: 'Grid 1/10-data cell: d_model=128 (z=128, heads=4), discriminator lr=0.003,
+    lambda ramp 0.01 as in weights run.'
+  seed: 42
+reproducibility:
+  deterministic: true
+  benchmark: false
+data:
+  device: cuda:2
+  include_probs: false
+  max_hits: 500
+  normalization:
+    enabled: true
+  source_domain:
+    npy_dir: data_manager/datasets/nu_classifier_dataset_h5s0_thr0.8
+    max_events: 500000
+    train_split: 0.9
+    weights_file: data_manager/datasets/nu_classifier_dataset_h5s0_thr0.8/weights.npy
+  target_domain:
+    npy_dir: data_manager/datasets/nu_classifier_dataset_exp_full_thr0.8
+    max_events: 500000
+    train_split: 0.8
+model:
+  type: numu
+  amp_clip: 100
+  feature_extractor:
+    input_dim: 5
+    d_model: 128
+    num_heads: 4
+    num_layers: 4
+    dim_feedforward: 128
+    dropout: 0.0
+    pooling: cls
+    use_positional_encoding: true
+    max_seq_len: 1000
+  classifier:
+    hidden_dims:
+    - 32
+    - 16
+    dropout: 0.0
+    use_batch_norm: false
+  spectral_norm:
+    enabled: false
+domain_adaptation:
+  domain_discriminator:
+    hidden_dims:
+    - 32
+    - 16
+    dropout: 0.0
+    use_batch_norm: false
+    use_gradient_reversal: true
+    lambda_factor: 0.0
+    hidden_layer_norm: true
+    instance_noise: 0.05
+  discriminator_refresh:
+    every_epochs: 5
+    steps: 300
+  lambda_scheduler:
+    schedule_by: step
+    type: progressive
+    max_lambda: 0.01
+    gamma: 10.0
+training:
+  epochs: 100
+  source_batch_size: 512
+  target_batch_size: 256
+  classification_loss: focal
+  focal_gamma: 2.0
+  feature_optimizer:
+    optimizer: adamw
+    learning_rate: 0.0001
+    weight_decay: 0.01
+  classifier_optimizer:
+    optimizer: adamw
+    learning_rate: 0.0001
+    weight_decay: 0.01
+  discriminator_optimizer:
+    optimizer: adamw
+    learning_rate: 0.003
+    weight_decay: 0.01
+  scheduler: step
+  scheduler_params:
+    step_size: 8
+    gamma: 0.5
+  validate_every: 1
+  save_every: 5
+  invariance_probe:
+    enabled: true
+    path: data_manager/probe_sample/probe_sample.npz
+    every_n_epochs: 1
+  early_stopping:
+    enabled: true
+    monitor: val_loss
+    mode: min
+    patience: 15
+    min_delta: 0.0
+dataloader:
+  num_workers: 0
+  pin_memory: false
+  augmentation:
+    noise_std:
+    - 0.05
+    - 5.0
+    - 1.0
+    - 1.0
+    - 2.0
+    rotation_enabled: true
+    afterpulse:
+      enabled: false
+      prob: 0.02
+      max_afterpulses: 3
+      q_range:
+      - 5.0
+      - 100.0
+logging:
+  level: INFO
+  output_dir: trained_models/classifier
+  log_every: 10
+  tensorboard: true
+  save_config: true
+  save_model_summary: true
+debug:
+  enabled: false
+  max_batches_per_epoch: 10

@@ -1,0 +1,137 @@
+data:
+  calibration_fraction: 0.2
+  device: cuda:0
+  max_hits: 500
+  normalization:
+    enabled: true
+    stats_file: data_manager/stats_dict/default_mc.yaml
+  npy_dir: data_manager/datasets/mu_energy_dataset_h8s3_thr0.8_train1M
+  split_seed: 42
+  target_normalization:
+    enabled: true
+    max: 7.985914
+    mean: 3.685674
+    min: -0.614567
+    mode: uniform_minmax_train
+    std: 2.482745
+  train_split: 0.9
+dataloader:
+  augmentation:
+    noise_std:
+    - 0.2
+    - 5.0
+    - 1.0
+    - 1.0
+    - 2.0
+    noise_truncate_sigma: 3.0
+    rotation_enabled: true
+    zflip_enabled: true
+    zflip_prob: 0.5
+  num_workers: 4
+  pin_memory: true
+  shuffle_batch: false
+debug:
+  enabled: false
+  max_batches_per_epoch: 10
+  max_val_batches: 10
+domain_adaptation:
+  critic:
+    lr: 0.001
+    steps: 0
+    update_on_adversarial: true
+  discriminator:
+    dropout: 0.1
+    hidden_dims:
+    - 128
+    - 128
+    hidden_layer_norm: true
+    use_batch_norm: false
+  discriminator_refresh:
+    every_epochs: 0
+    steps: 0
+  enabled: true
+  grl:
+    grl_lambda: 1.0
+    max_lambda: 0.03
+    ramp_epochs: 0.0
+    warmup_epochs: 2.0
+  probe:
+    every_n_epochs: 1
+    max_events: 5000
+    mlp_enabled: true
+    mlp_hidden:
+    - 128
+    mlp_max_iter: 200
+    seed: 42
+  source_da:
+    batch_size: 512
+    layout: mc_classifier
+    max_events: 1000000
+    npy_dir: data_manager/datasets/nu_classifier_dataset_h8s3_thr0.8
+    particle_types:
+    - 0
+    probe_fraction: 0.1
+  split_seed: 42
+  target_da:
+    batch_size: 256
+    holdout_fraction: 0.2
+    layout: exp_full
+    max_events: 1000000
+    npy_dir: data_manager/datasets/nu_classifier_dataset_exp_full_h8s3_thr0.8
+    prefix: exp
+experiment:
+  description: '20-epoch DA A: muatm source-DA vs exp_full, simultaneous, lambda=0.03,
+    critic lr=1e-3'
+  name: 261025_1900_mu_energy_A_lam0p03_critlr0p001_train1M_20ep_s42
+  seed: 42
+logging:
+  level: INFO
+  log_every: 50
+  output_dir: trained_models/track_energy_reconstruction
+  save_config: true
+  save_model_summary: true
+  tensorboard: true
+model:
+  amp_clip: 100
+  feature_extractor:
+    d_model: 128
+    dim_feedforward: 256
+    dropout: 0.1
+    input_dim: 5
+    max_seq_len: 1000
+    num_heads: 4
+    num_layers: 4
+    pooling: cls
+    use_positional_encoding: true
+  regressor:
+    dropout: 0.1
+    hidden_dims:
+    - 64
+  type: mu_energy
+reproducibility:
+  deterministic: true
+resume:
+  from_checkpoint: trained_models/track_energy_reconstruction/261023_2037_mu_energy_h8s3_d128_l4_flat1M_znorm_zflip_noise_fixedsched_cont_s42/best_model.pth
+  load_optimizer: false
+  load_scheduler: false
+training:
+  amp: false
+  batch_size: 256
+  early_stopping:
+    enabled: false
+    min_delta: 0.0001
+    monitor: val_mae_log10
+    patience: 20
+  epochs: 164
+  grad_clip: 1.0
+  loss:
+    huber_delta: 0.5
+    name: huber
+  optimizer:
+    learning_rate: 6.25e-05
+    name: adamw
+    weight_decay: 0.01
+  save_every: 5
+  scheduler:
+    name: none
+  validate_every: 1

@@ -1,0 +1,148 @@
+# Prefilter DA retrain: hard labels + the DA-repair recipe.
+#
+# Difference from the canonical prefilter configs:
+#   * classification loss is focal on hard 0/1 labels (dataset hard_nu_labels);
+#   * the adversarial source is restricted to muatm (exp contains no neutrinos);
+#   * K=10 discriminator steps per batch;
+#   * the discriminator is re-fitted on frozen features every 5 epochs;
+#   * LayerNorm + instance noise in the discriminator;
+#   * a fresh logistic invariance probe runs every epoch on a fixed held-out
+#     all-hits sample.
+#
+# Every added key is read by config; with them absent the trainer reproduces
+# the pre-2026-11 behaviour (see the trainer docstring).
+
+experiment:
+  name: "da_prefilter_numu_261108_1943_Qclip_hardlabels_FocalLoss_muOnlyDA_k10_refresh5_probe"
+  description: "Prefilter hard-label DA retrain, muatm-only source, k_steps=10, discriminator refresh, LayerNorm+instance noise, invariance probe."
+  seed: 42
+
+reproducibility:
+  deterministic: true
+  benchmark: false
+
+data:
+  device: "cuda:1"          # Tesla P100 (PCI 41:00.0), with CUDA_DEVICE_ORDER=PCI_BUS_ID
+  max_hits: 500
+
+  normalization:
+    enabled: true
+    # Uses data_manager/stats_dict/default_mc.yaml
+
+  # Source domain (MC) — hard labels, balanced 1:1 nu:mu in the builder
+  source_domain:
+    npy_dir: "/home/albert/Baikal2025/data_manager/datasets/baikal_mc2020_prefilter/hard_nu_labels"
+    max_events: 2000000
+    train_split: 0.95
+    # The file is shuffled at build time, so ascending order is still a random
+    # class mixture; this turns the 36 GB mmap reads into a forward scan.
+    sequential_read: true
+
+  # Target domain (experimental data) — same file/selection as the canonical
+  # hard-label prefilter run
+  target_domain:
+    h5_path: "/home/albert/Baikal2025/data_manager/data/h5datasets/exp.h5"
+    max_events: 400000
+    train_split: 0.9
+
+model:
+  type: "numu"
+  amp_clip: 100
+  feature_extractor:
+    input_dim: 5
+    d_model: 128
+    num_heads: 4
+    num_layers: 4
+    dim_feedforward: 128
+    dropout: 0.0
+    pooling: "cls"
+    use_positional_encoding: true
+    max_seq_len: 1000
+  classifier:
+    hidden_dims: [32, 16]
+    dropout: 0.0
+    use_batch_norm: false
+
+domain_adaptation:
+  domain_source: muatm
+  domain_discriminator:
+    hidden_dims: [32, 16]
+    dropout: 0.0
+    use_batch_norm: false
+    use_gradient_reversal: true
+    lambda_factor: 0.0
+    hidden_layer_norm: true
+    instance_noise: 0.05
+  discriminator_refresh:
+    every_epochs: 5
+    steps: 300
+  lambda_scheduler:
+    type: "delayed_constant"
+    start_epoch: 2
+    lambda: 0.003
+
+training:
+  epochs: 50
+  source_batch_size: 512
+  target_batch_size: 256
+
+  classification_loss: "focal"
+  focal_gamma: 2.0
+  class_weights: null
+
+  feature_optimizer:
+    optimizer: "adamw"
+    learning_rate: 0.0001
+    weight_decay: 0.0
+  classifier_optimizer:
+    optimizer: "adamw"
+    learning_rate: 0.0001
+    weight_decay: 0.01
+  discriminator_optimizer:
+    optimizer: "adamw"
+    learning_rate: 0.01
+    weight_decay: 0.0
+
+  validate_every: 1
+  save_every: 1
+
+  k_steps: 10
+
+  invariance_probe:
+    enabled: true
+    path: "data_manager/probe_sample/probe_sample_prefilter.npz"
+    every_n_epochs: 1
+
+  early_stopping:
+    enabled: false
+    monitor: "val_loss"
+    mode: "min"
+    patience: 5
+    min_delta: 0.0
+
+  scheduler: "plateau"
+  scheduler_params:
+    factor: 0.5
+    min_lr: 1.0e-06
+    mode: "min"
+    patience: 3
+  scheduler_discriminator: null
+
+dataloader:
+  num_workers: 0
+  pin_memory: false
+  augmentation:
+    noise_std: [0.05, 5.0, 1.0, 1.0, 2.0]
+    rotation_enabled: true
+
+logging:
+  level: INFO
+  log_every: 10
+  output_dir: "trained_models/prefilter"
+  save_config: true
+  save_model_summary: true
+  tensorboard: true
+
+debug:
+  enabled: false
+  max_batches_per_epoch: 10

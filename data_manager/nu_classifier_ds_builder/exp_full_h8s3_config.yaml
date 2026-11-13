@@ -1,0 +1,34 @@
+# Nu-classifier exp target dataset with the 8-3 event cut (FULL STATISTICS).
+#
+# Same source, probs file, excluded bad runs and per-part cap as
+# exp_full_config.yaml; only the event cut changes (8-3 instead of 5-0).
+#
+# Usage (from project root, inside conda env baikal25):
+#   python data_manager/build_exp_nu_classifier_dataset.py \
+#       --config data_manager/nu_classifier_ds_builder/exp_full_h8s3_config.yaml
+
+h5_path_exp: "data_manager/data/h5datasets/exp_full.h5"
+h5_group: "exp_full"
+
+exclude_parts:
+  - "part_s2020_c02_r0020"
+  - "part_s2020_c02_r0249"
+
+max_events_per_part: 200000
+
+output_dir: "data_manager/datasets/nu_classifier_dataset_exp_full_h8s3_thr0.8"
+
+sig_noise_threshold: 0.8
+event_cuts:
+  min_hits: 8
+  min_strings: 3
+
+# Precomputed sig-noise probs (same file as the h5s0 exp dataset).
+probs_h5: "data_manager/data/h5datasets/exp_full_probs_k_nsol_labelneq0_da_hs128_k0p0001.h5"
+probs_group: "exp_full"
+
+sig_noise_model:
+  device: "cuda:0"       # unused when probs_h5 is present
+  batch_size: 256
+
+seed: 42

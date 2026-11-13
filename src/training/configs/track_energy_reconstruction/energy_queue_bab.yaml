@@ -1,0 +1,24 @@
+# Corrected joint-full reference runs for B/AB.
+# They are separate from the main queue so the already-running D/C/H/AH/AD/AC
+# jobs are not disturbed.  GPU 1 is dedicated to this lane.
+poll_seconds: 60
+free_memory_mib: 1000
+max_utilization: 5
+
+jobs:
+  - id: B-G
+    config: src/training/configs/track_energy_reconstruction/mu_energy_B-G_partsplit.yaml
+    gpu: 1
+    depends_on: []
+  - id: B-T5
+    config: src/training/configs/track_energy_reconstruction/mu_energy_B-T5_partsplit.yaml
+    gpu: 1
+    depends_on: [B-G]
+  - id: AB-G
+    config: src/training/configs/track_energy_reconstruction/mu_energy_AB-G_partsplit.yaml
+    gpu: 1
+    depends_on: [B-T5]
+  - id: AB-T5
+    config: src/training/configs/track_energy_reconstruction/mu_energy_AB-T5_partsplit.yaml
+    gpu: 1
+    depends_on: [AB-G]

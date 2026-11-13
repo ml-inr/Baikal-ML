@@ -1,0 +1,36 @@
+# Nu-classifier MC dataset with the 8-3 event cut, built from stored SN probs.
+#
+# Same TRAIN parts as the h5s0 dataset (default_parts.json, verified against the
+# old dataset's h5_part_keys: 432 muatm / 187 nuatm / 333 nue2).  The probs file
+# was extended with the missing train muon parts on 2026-10-24.
+#
+# Balance: binary, n = min(muatm, nuatm+nue2) = 1,010,617 -> 2,021,234 events.
+#
+# Usage:
+#   python -m data_manager.nu_classifier_ds_builder --config \
+#       data_manager/nu_classifier_ds_builder/h8s3_config.yaml
+
+h5_path: "data_manager/data/h5datasets/baikal_mc_merged.h5"
+
+parts_json: "data_manager/nu_classifier_ds_builder/default_parts.json"
+
+output_dir: "data_manager/datasets/nu_classifier_dataset_h8s3_thr0.8"
+
+# Read precomputed per-hit probabilities (batch size 256 is baked into the file).
+sig_noise_source: "probs_h5"
+sig_noise_probs_path: "data_manager/data/h5datasets/baikal_mc_merged_probs_k_nsol_labelneq0_da_hs128_k0p0001.h5"
+
+sig_noise_model:
+  device: "cuda:0"       # unused when sig_noise_source == probs_h5
+  batch_size: 256
+
+sig_noise_threshold: 0.8
+
+event_cuts:
+  min_hits: 8
+  min_strings: 3
+
+balance: true
+balance_mode: "binary"
+
+seed: 42

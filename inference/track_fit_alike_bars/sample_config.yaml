@@ -1,0 +1,51 @@
+# Выборка для каталога фитов: сколько событий каждого домена и как их брать.
+#
+# События берутся как они лежат в h5 -- непрерывными окнами, без отбора по скору,
+# -- поэтому проскоренная подвыборка набирается сама, своим естественным темпом
+# (для exp_full это примерно каждая двадцатая).  Исключается только то, на чём
+# учился чекпоинт: его размеченный MC и неразмеченная DA-цель.
+#
+# Размер блока = events / (parts * blocks_per_part); он же единица возобновления
+# прогона.  Окна внутри парта не пересекаются и разнесены по нему -- условия в
+# ране дрейфуют, и одно окно увезло бы этот дрейф целиком.
+
+seed: 20261001
+
+checkpoint: 260816_2250_da_nu_classifier_exp_full_E1_lambda0.01_FIXED_sn256@best_da_model
+catalog: data_manager/catalog_v2.duckdb
+out_dir: inference/track_fit_alike_bars/sample
+
+exclude:
+  source_training: true     # размеченный MC обучающей выборки (NOT_TRAINED)
+  da_target: true           # неразмеченная цель доменной адаптации (NOT_DA_TARGET)
+
+domains:
+  # 30 млн из 133: блок ~129k событий, восемь окон на парт, все 29 партов.
+  exp_full:
+    source: exp_full
+    data_class: exp_full
+    events: 30000000
+    parts: 29
+    blocks_per_part: 8
+
+  # 10 млн из 651: партов много, окна короткие -- 7.5k событий на парт целиком.
+  muatm:
+    source: mc_merged
+    data_class: muatm_2020
+    events: 10000000
+    parts: 1400
+    blocks_per_part: 4
+
+  nuatm:
+    source: mc_merged
+    data_class: nuatm_2020
+    events: 2000000
+    parts: 320
+    blocks_per_part: 4
+
+  nue2:
+    source: mc_merged
+    data_class: nue2_2020
+    events: 2000000
+    parts: 250
+    blocks_per_part: 4

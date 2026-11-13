@@ -1,0 +1,103 @@
+best_epoch: 29
+best_metric: !!python/object/apply:numpy._core.multiarray.scalar
+- &id001 !!python/object/apply:numpy.dtype
+  args:
+  - f8
+  - false
+  - true
+  state: !!python/tuple
+  - 3
+  - <
+  - null
+  - null
+  - null
+  - -1
+  - -1
+  - 0
+- !!binary |
+  4eWUvW2Phj8=
+final_train:
+  accuracy: 0.9898751324655589
+  auc: 0.9995712459392284
+  class_balance: !!python/object/apply:numpy._core.multiarray.scalar
+  - *id001
+  - !!binary |
+    wqFivoP67z8=
+  f1: 0.9899283723543641
+  false_negatives: 1802
+  false_positives: 6300
+  loss: !!python/object/apply:numpy._core.multiarray.scalar
+  - *id001
+  - !!binary |
+    Nlw3Ou+Pfj8=
+  positive_class_ratio: !!python/object/apply:numpy._core.multiarray.scalar
+  - *id001
+  - !!binary |
+    eWj+okH93z8=
+  precision: 0.9844239840976294
+  precision_muon: !!python/object/apply:numpy._core.multiarray.scalar
+  - *id001
+  - !!binary |
+    zTYjobLa7z8=
+  precision_neutrino: !!python/object/apply:numpy._core.multiarray.scalar
+  - *id001
+  - !!binary |
+    bh0jumaA7z8=
+  recall: 0.9954946620996574
+  sensitivity: !!python/object/apply:numpy._core.multiarray.scalar
+  - *id001
+  - !!binary |
+    bvAhnxfb7z8=
+  specificity: !!python/object/apply:numpy._core.multiarray.scalar
+  - *id001
+  - !!binary |
+    LLhLfw1/7z8=
+  total_muons: 400238
+  total_neutrinos: 399970
+  true_negatives: 393938
+  true_positives: 398168
+final_val:
+  accuracy: 0.98982
+  auc: 0.999615565711232
+  class_balance: !!python/object/apply:numpy._core.multiarray.scalar
+  - *id001
+  - !!binary |
+    d8oEzx7Y7z8=
+  f1: 0.989914601042224
+  false_negatives: 81
+  false_positives: 428
+  loss: !!python/object/apply:numpy._core.multiarray.scalar
+  - *id001
+  - !!binary |
+    RGN9t5bliT8=
+  positive_class_ratio: !!python/object/apply:numpy._core.multiarray.scalar
+  - *id001
+  - !!binary |
+    YDyDhv4J4D8=
+  precision: 0.9831549118387909
+  precision_muon: !!python/object/apply:numpy._core.multiarray.scalar
+  - *id001
+  - !!binary |
+    +x9AfwTl7z8=
+  precision_neutrino: !!python/object/apply:numpy._core.multiarray.scalar
+  - *id001
+  - !!binary |
+    1/onSgF27z8=
+  recall: 0.9967678863572882
+  sensitivity: !!python/object/apply:numpy._core.multiarray.scalar
+  - *id001
+  - !!binary |
+    cHEzxIXl7z8=
+  specificity: !!python/object/apply:numpy._core.multiarray.scalar
+  - *id001
+  - !!binary |
+    vdOH8Ghz7z8=
+  total_muons: 24939
+  total_neutrinos: 25061
+  true_negatives: 24511
+  true_positives: 24980
+model_parameters:
+  base_model: 404161
+  domain_discriminator: 4769
+  total: 408930
+total_epochs: 45

@@ -1,0 +1,79 @@
+data:
+  device: cuda:0
+  max_hits: 500
+  normalization:
+    enabled: true
+    stats_file: data_manager/stats_dict/default_mc.yaml
+  npy_dir: data_manager/datasets/mu_energy_dataset_h8s3_thr0.8
+dataloader:
+  num_workers: 4
+  pin_memory: true
+  shuffle_batch: false
+debug:
+  enabled: false
+  max_batches_per_epoch: 10
+  max_val_batches: 10
+experiment:
+  description: Continuation from epoch 91 with lr raised to 5e-4 and ReduceLROnPlateau
+  name: 261023_0702_mu_energy_h8s3_d128_l4_flat1M_plateau_s42
+  seed: 42
+logging:
+  level: INFO
+  log_every: 100
+  output_dir: trained_models/track_energy_reconstruction
+  save_config: true
+  save_model_summary: true
+  tensorboard: true
+model:
+  amp_clip: 100
+  feature_extractor:
+    d_model: 128
+    dim_feedforward: 256
+    dropout: 0.1
+    input_dim: 5
+    max_seq_len: 1000
+    num_heads: 4
+    num_layers: 4
+    pooling: cls
+    use_positional_encoding: true
+  regressor:
+    dropout: 0.1
+    hidden_dims:
+    - 64
+  type: mu_energy
+reproducibility:
+  deterministic: true
+resume:
+  from_checkpoint: trained_models/track_energy_reconstruction/261022_1638_mu_energy_h8s3_d128_l4_flat1M_cosine50_s42/best_model.pth
+  load_optimizer: true
+  load_scheduler: false
+training:
+  amp: false
+  batch_size: 256
+  early_stopping:
+    enabled: false
+    min_delta: 0.0001
+    monitor: val_mae_log10
+    patience: 30
+  epochs: 200
+  grad_clip: 1.0
+  loss:
+    huber_delta: 0.5
+    name: huber
+  optimizer:
+    learning_rate: 0.0005
+    name: adamw
+    weight_decay: 0.01
+  save_every: 5
+  scheduler:
+    name: plateau
+    params:
+      cooldown: 0
+      eps: 1.0e-08
+      factor: 0.5
+      min_lr: 1.0e-07
+      mode: min
+      patience: 2
+      threshold: 5.0e-05
+      threshold_mode: abs
+  validate_every: 1

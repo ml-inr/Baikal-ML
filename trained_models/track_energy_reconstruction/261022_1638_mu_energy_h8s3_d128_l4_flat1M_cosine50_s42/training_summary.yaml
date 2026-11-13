@@ -1,0 +1,52 @@
+best_epoch: 91
+best_metric: 0.5001390933049991
+final_train:
+  bias_log10: -0.12861206546121892
+  class_1_bias_log10: 0.15260697902904233
+  class_1_mae_log10: 0.4376277302299992
+  class_1_n: 38709.0
+  class_1_rmse_log10: 0.5686259082842424
+  class_2_bias_log10: -0.14124914639184968
+  class_2_mae_log10: 0.5104543747069759
+  class_2_n: 861410.0
+  class_2_rmse_log10: 0.7007248936575805
+  epoch: 99
+  epoch_seconds: 116.92764091491699
+  epoch_time: 121.83893036842346
+  loss: 0.14858821720998516
+  loss_unweighted: 0.15860619949773408
+  lr: 1.0e-06
+  mae_factor: 3.2160479480501682
+  mae_log10: 0.5073225150199385
+  mae_log10_weighted: 0.4852292482349755
+  n_events: 900119.0
+  rmse_log10: 0.6955605053868839
+  within_factor_10: 0.8652944777301668
+  within_factor_2: 0.42549596220055347
+  within_factor_5: 0.7523627431484059
+final_val:
+  bias_log10: -0.1758022304339405
+  class_1_bias_log10: 0.05404861558447866
+  class_1_mae_log10: 0.39320159817443173
+  class_1_n: 5440.0
+  class_1_rmse_log10: 0.5228306079804583
+  class_2_bias_log10: -0.189042122613139
+  class_2_mae_log10: 0.5081767060008642
+  class_2_n: 94441.0
+  class_2_rmse_log10: 0.7136502247263153
+  epoch_seconds: 4.91128945350647
+  loss: 0.142645557643266
+  loss_unweighted: 0.15781502535518593
+  mae_factor: 3.1762494954432725
+  mae_log10: 0.5019146090694545
+  mae_log10_weighted: 0.46576666390237803
+  n_events: 99881.0
+  rmse_log10: 0.7045892086123356
+  within_factor_10: 0.8626565613079564
+  within_factor_2: 0.4512269600824982
+  within_factor_5: 0.7573312241567465
+model_parameters: 539393
+monitor: val_mae_log10
+resumed_from: /home/albert/Baikal2025/trained_models/track_energy_reconstruction/261022_0715_mu_energy_h8s3_d128_l4_flat1M_cont100_s42/best_model.pth
+start_epoch: 50
+total_epochs: 100

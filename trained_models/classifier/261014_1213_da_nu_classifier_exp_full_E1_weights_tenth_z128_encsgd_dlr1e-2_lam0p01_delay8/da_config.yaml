@@ -1,0 +1,121 @@
+data:
+  device: cuda:5
+  include_probs: false
+  max_hits: 500
+  normalization:
+    enabled: true
+  source_domain:
+    max_events: 500000
+    npy_dir: data_manager/datasets/nu_classifier_dataset_h5s0_thr0.8
+    train_split: 0.9
+    weights_file: data_manager/datasets/nu_classifier_dataset_h5s0_thr0.8/weights.npy
+  target_domain:
+    max_events: 500000
+    npy_dir: data_manager/datasets/nu_classifier_dataset_exp_full_thr0.8
+    train_split: 0.8
+dataloader:
+  augmentation:
+    afterpulse:
+      enabled: false
+      max_afterpulses: 3
+      prob: 0.02
+      q_range:
+      - 5.0
+      - 100.0
+    noise_std:
+    - 0.05
+    - 5.0
+    - 1.0
+    - 1.0
+    - 2.0
+    rotation_enabled: true
+  num_workers: 0
+  pin_memory: false
+debug:
+  enabled: false
+  max_batches_per_epoch: 10
+domain_adaptation:
+  discriminator_refresh:
+    every_epochs: 5
+    steps: 300
+  domain_discriminator:
+    dropout: 0.0
+    hidden_dims:
+    - 32
+    - 16
+    hidden_layer_norm: true
+    instance_noise: 0.05
+    lambda_factor: 0.0
+    use_batch_norm: false
+    use_gradient_reversal: true
+  lambda_scheduler:
+    lambda: 0.01
+    start_epoch: 8
+    type: delayed_constant
+experiment:
+  description: 'Clean-grid cell: discriminator adamw lr=0.01, feature sgd lr=0.03
+    momentum=0.9, lambda on at 8 = 0.01.'
+  name: 261014_1213_da_nu_classifier_exp_full_E1_weights_tenth_z128_encsgd_dlr1e-2_lam0p01_delay8
+  seed: 42
+logging:
+  level: INFO
+  log_every: 10
+  output_dir: trained_models/classifier
+  save_config: true
+  save_model_summary: true
+  tensorboard: true
+model:
+  amp_clip: 100
+  classifier:
+    dropout: 0.0
+    hidden_dims:
+    - 32
+    - 16
+    use_batch_norm: false
+  feature_extractor:
+    d_model: 128
+    dim_feedforward: 128
+    dropout: 0.0
+    input_dim: 5
+    max_seq_len: 1000
+    num_heads: 4
+    num_layers: 4
+    pooling: cls
+    use_positional_encoding: true
+  spectral_norm:
+    enabled: false
+  type: numu
+reproducibility:
+  benchmark: false
+  deterministic: true
+training:
+  classification_loss: focal
+  classifier_optimizer:
+    learning_rate: 0.0001
+    optimizer: adamw
+    weight_decay: 0.01
+  discriminator_optimizer:
+    learning_rate: 0.01
+    optimizer: adamw
+    weight_decay: 0.0
+  early_stopping:
+    enabled: true
+    min_delta: 0.0
+    mode: min
+    monitor: val_loss
+    patience: 15
+  epochs: 100
+  feature_optimizer:
+    learning_rate: 0.03
+    momentum: 0.9
+    optimizer: sgd
+    weight_decay: 0.0
+  focal_gamma: 2.0
+  invariance_probe:
+    enabled: true
+    every_n_epochs: 2
+    path: data_manager/probe_sample/probe_sample.npz
+  save_every: 5
+  source_batch_size: 512
+  target_batch_size: 256
+  validate_every: 1

@@ -38,6 +38,13 @@ def nu_classifier_collate_fn(
 
     features_list        = [item["features"] for item in batch]
     labels               = torch.stack([item["labels"] for item in batch])
+    # Per-event training weights (add_weights.py); 1.0 when the dataset has none,
+    # so the loss is unchanged for every run that does not name a weights file.
+    weights              = torch.stack([
+        item["weight"] if "weight" in item
+        else torch.tensor(1.0, dtype=torch.float32)
+        for item in batch
+    ])
     lengths              = torch.stack([item["lengths"] for item in batch])
     original_lengths     = torch.stack([item["original_lengths"] for item in batch])
     signal_hit_counts    = torch.tensor(
@@ -113,6 +120,7 @@ def nu_classifier_collate_fn(
     padded               = padded.to(device)
     mask                 = mask.to(device)
     labels               = labels.to(device)
+    weights              = weights.to(device)
     lengths              = lengths.to(device)
     original_lengths     = original_lengths.to(device)
     signal_hit_counts    = signal_hit_counts.to(device)
@@ -164,6 +172,7 @@ def nu_classifier_collate_fn(
     return {
         "features":            padded,
         "labels":              labels,
+        "weights":             weights,
         "lengths":             lengths,
         "original_lengths":    original_lengths,
         "mask":                mask,

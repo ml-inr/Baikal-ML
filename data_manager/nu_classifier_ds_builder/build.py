@@ -1,12 +1,20 @@
 """Main pipeline: HDF5 → sig-noise filtering → balance → shuffle → write .npy.
 
 Two-pass approach:
-    Pass 1: load raw/data per part, run sig-noise model, compute per-event
-            n_sig_hits and n_sig_strings. Keep only scalar metadata in RAM.
+    Pass 1: per part, compute per-event n_sig_hits and n_sig_strings, either by
+            running the sig-noise model (default) or by reading precomputed
+            probabilities (sig_noise_source: probs_h5). Keep only scalars in RAM.
     Apply event cuts (n_sig_hits >= min_hits, n_sig_strings >= min_strings).
-    Balance classes: 2n muatm vs n nuatm + n nue2.
-    Pass 2: re-run model on selected parts, write prob-filtered hit features
-            and per-hit probabilities to memory-mapped .npy files.
+    Balance classes:
+        three_class (default) — 2n muatm vs n nuatm + n nue2,
+                                n = min(muatm//2, nuatm, nue2);
+        binary                — n muatm vs n (nuatm + nue2),
+                                n = min(muatm, nuatm + nue2).
+    Pass 2: write prob-filtered hit features and per-hit probabilities to
+            memory-mapped .npy files, from the model or from the probs file.
+
+Defaults reproduce the historical datasets: sig_noise_source=model,
+balance_mode=three_class.
 
 Usage:
     python -m data_manager.nu_classifier_ds_builder \
@@ -24,8 +32,13 @@ import h5py
 import numpy as np
 import yaml
 
-from .io import read_all_metadata, write_selected_features
-from .balance import balance_classes, PARTICLE_ENCODE
+from .io import (
+    read_all_metadata,
+    read_all_metadata_from_probs,
+    write_selected_features,
+    write_selected_features_from_probs,
+)
+from .balance import balance_classes, balance_binary, PARTICLE_ENCODE
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +54,10 @@ PARTICLE_MAP = {
 NEUTRINO_TYPES = {"nuatm_2020", "nue2_2020"}
 
 DEFAULT_H5_PATH = "data_manager/data/h5datasets/baikal_mc_merged.h5"
+DEFAULT_PROBS_PATH = (
+    "data_manager/data/h5datasets/"
+    "baikal_mc_merged_probs_k_nsol_labelneq0_da_hs128_k0p0001.h5"
+)
 
 
 # ---------------------------------------------------------------------------
@@ -63,19 +80,33 @@ def build_nu_classifier_npy(cfg: dict) -> None:
     model_device = model_cfg.get("device", "auto")
     batch_size  = int(model_cfg.get("batch_size", 128))
 
+    source = str(cfg.get("sig_noise_source", "model"))
+    if source not in ("model", "probs_h5"):
+        raise ValueError(
+            f"sig_noise_source must be 'model' or 'probs_h5', got {source!r}"
+        )
+    probs_h5_path = str(cfg.get("sig_noise_probs_path", DEFAULT_PROBS_PATH))
+    if source == "probs_h5" and not Path(probs_h5_path).exists():
+        raise FileNotFoundError(f"SN probs file not found: {probs_h5_path}")
+
     with open(cfg["parts_json"]) as f:
         parts_dict = json.load(f)
     logger.info(f"Parts JSON: {cfg['parts_json']}")
     for k, v in parts_dict.items():
         logger.info(f"  {k}: {len(v)} parts")
 
-    # ── Load sig-noise model ──────────────────────────────────────────────
-    logger.info("\nLoading sig-noise model...")
-    from gplotnikov_sig_noise_models.k_nsol_labelneq0_da_hs128_k0p0001.sig_noise_model_v3 import (
-        load_model,
-    )
-    model, _, device = load_model(device=model_device)
-    logger.info(f"  Model on {device}, threshold={threshold}")
+    # ── Sig-noise source ──────────────────────────────────────────────────
+    model  = None
+    device = None
+    if source == "model":
+        logger.info("\nLoading sig-noise model...")
+        from trained_models.sig_noise.k_nsol_labelneq0_da_hs128_k0p0001.sig_noise_model_v3 import (
+            load_model,
+        )
+        model, _, device = load_model(device=model_device)
+        logger.info(f"  Model on {device}, threshold={threshold}")
+    else:
+        logger.info(f"\nUsing precomputed sig-noise probabilities: {probs_h5_path}")
 
     t_total = time.time()
 
@@ -84,17 +115,29 @@ def build_nu_classifier_npy(cfg: dict) -> None:
     logger.info("Pass 1: running sig-noise model, collecting metadata")
     logger.info(f"{'='*60}")
 
-    with h5py.File(h5_path, "r") as h5:
-        meta = read_all_metadata(
-            h5_file=h5,
-            parts_dict=parts_dict,
-            particle_map=PARTICLE_MAP,
-            particle_encode=PARTICLE_ENCODE,
-            model=model,
-            batch_size=batch_size,
-            device=device,
-            threshold=threshold,
-        )
+    if source == "model":
+        with h5py.File(h5_path, "r") as h5:
+            meta = read_all_metadata(
+                h5_file=h5,
+                parts_dict=parts_dict,
+                particle_map=PARTICLE_MAP,
+                particle_encode=PARTICLE_ENCODE,
+                model=model,
+                batch_size=batch_size,
+                device=device,
+                threshold=threshold,
+            )
+    else:
+        with h5py.File(h5_path, "r") as h5, \
+                h5py.File(probs_h5_path, "r") as pf:
+            meta = read_all_metadata_from_probs(
+                h5_file=h5,
+                probs_file=pf,
+                parts_dict=parts_dict,
+                particle_map=PARTICLE_MAP,
+                particle_encode=PARTICLE_ENCODE,
+                threshold=threshold,
+            )
 
     n_sig_hits      = meta["n_sig_hits"]
     n_sig_strings   = meta["n_sig_strings"]
@@ -127,12 +170,24 @@ def build_nu_classifier_npy(cfg: dict) -> None:
     # ── Balance ───────────────────────────────────────────────────────────
     rng = np.random.RandomState(seed)
     do_balance = bool(cfg.get("balance", True))
+    balance_mode = str(cfg.get("balance_mode", "three_class"))
+    if balance_mode not in ("three_class", "binary"):
+        raise ValueError(
+            f"balance_mode must be 'three_class' or 'binary', "
+            f"got {balance_mode!r}"
+        )
     logger.info(f"\n{'='*60}")
-    logger.info(f"Class balancing: {'enabled' if do_balance else 'disabled'}")
+    logger.info(
+        f"Class balancing: {'enabled' if do_balance else 'disabled'} "
+        f"(mode={balance_mode})"
+    )
     logger.info(f"{'='*60}")
 
     if do_balance:
-        selected_in_cut = balance_classes(particle_types_cut, rng)
+        if balance_mode == "three_class":
+            selected_in_cut = balance_classes(particle_types_cut, rng)
+        else:
+            selected_in_cut = balance_binary(particle_types_cut, rng)
         selected = cut_idx[selected_in_cut]
     else:
         selected = cut_idx
@@ -157,18 +212,32 @@ def build_nu_classifier_npy(cfg: dict) -> None:
     logger.info(f"Pass 2: writing filtered features to {output_dir}")
     logger.info(f"{'='*60}")
 
-    write_selected_features(
-        h5_path=h5_path,
-        locations=locations,
-        selected_idx=selected,
-        offsets=offsets,
-        features_path=str(output_dir / "features.npy"),
-        probs_path=str(output_dir / "probs.npy"),
-        model=model,
-        batch_size=batch_size,
-        device=device,
-        threshold=threshold,
-    )
+    features_path = str(output_dir / "features.npy")
+    probs_path    = str(output_dir / "probs.npy")
+    if source == "model":
+        write_selected_features(
+            h5_path=h5_path,
+            locations=locations,
+            selected_idx=selected,
+            offsets=offsets,
+            features_path=features_path,
+            probs_path=probs_path,
+            model=model,
+            batch_size=batch_size,
+            device=device,
+            threshold=threshold,
+        )
+    else:
+        write_selected_features_from_probs(
+            h5_path=h5_path,
+            probs_h5_path=probs_h5_path,
+            locations=locations,
+            selected_idx=selected,
+            offsets=offsets,
+            features_path=features_path,
+            probs_path=probs_path,
+            threshold=threshold,
+        )
 
     # ── Write per-event arrays ────────────────────────────────────────────
     logger.info("\nWriting per-event arrays...")
@@ -203,12 +272,28 @@ def build_nu_classifier_npy(cfg: dict) -> None:
     total_bytes = sum((output_dir / f).stat().st_size for f in npy_names)
 
     # ── Dataset info JSON ─────────────────────────────────────────────────
+    sn_batch_size = batch_size
+    if source == "probs_h5":
+        with h5py.File(probs_h5_path, "r") as pf:
+            sn_batch_size = int(pf.attrs.get("sig_noise_batch_size", -1))
+        if sn_batch_size <= 0:
+            logger.warning(
+                "probs file has no sig_noise_batch_size attribute; "
+                "the hit selection depends on it, recording unknown"
+            )
+            sn_batch_size = None
+
     info = {
         "n_events":          n_selected,
         "n_sig_hits_total":  int(offsets[-1]),
         "total_bytes":       total_bytes,
         "sig_noise_threshold": threshold,
+        "sig_noise_source":  source,
+        "sig_noise_probs_path": probs_h5_path if source == "probs_h5" else None,
+        "sig_noise_batch_size": sn_batch_size,
         "event_cuts":        {"min_hits": min_hits, "min_strings": min_strings},
+        "balance":           do_balance,
+        "balance_mode":      balance_mode if do_balance else None,
         "h5_source":         cfg.get("h5_source", "mc_merged"),
         "particle_encode":   PARTICLE_ENCODE,
         "parts":             {k: len(v) for k, v in parts_dict.items()},

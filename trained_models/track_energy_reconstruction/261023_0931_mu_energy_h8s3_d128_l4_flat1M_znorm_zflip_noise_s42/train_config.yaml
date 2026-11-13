@@ -1,0 +1,94 @@
+data:
+  device: cuda:0
+  max_hits: 500
+  normalization:
+    enabled: true
+    stats_file: data_manager/stats_dict/default_mc.yaml
+  npy_dir: data_manager/datasets/mu_energy_dataset_h8s3_thr0.8
+  target_normalization:
+    enabled: true
+    max: 7.985914
+    mean: 3.685674
+    min: -0.614567
+    mode: uniform_minmax_train
+    std: 2.482745
+dataloader:
+  augmentation:
+    noise_std:
+    - 0.2
+    - 5.0
+    - 1.0
+    - 1.0
+    - 2.0
+    noise_truncate_sigma: 3.0
+    rotation_enabled: true
+    zflip_enabled: true
+    zflip_prob: 0.5
+  num_workers: 4
+  pin_memory: true
+  shuffle_batch: false
+debug:
+  enabled: false
+  max_batches_per_epoch: 10
+  max_val_batches: 10
+experiment:
+  description: 'A/B vs 261023_0907: same z-norm + rotation/z-flip, plus truncated
+    Gaussian hit noise'
+  name: 261023_0931_mu_energy_h8s3_d128_l4_flat1M_znorm_zflip_noise_s42
+  seed: 42
+logging:
+  level: INFO
+  log_every: 100
+  output_dir: trained_models/track_energy_reconstruction
+  save_config: true
+  save_model_summary: true
+  tensorboard: true
+model:
+  amp_clip: 100
+  feature_extractor:
+    d_model: 128
+    dim_feedforward: 256
+    dropout: 0.1
+    input_dim: 5
+    max_seq_len: 1000
+    num_heads: 4
+    num_layers: 4
+    pooling: cls
+    use_positional_encoding: true
+  regressor:
+    dropout: 0.1
+    hidden_dims:
+    - 64
+  type: mu_energy
+reproducibility:
+  deterministic: true
+training:
+  amp: false
+  batch_size: 256
+  early_stopping:
+    enabled: false
+    min_delta: 0.0001
+    monitor: val_mae_log10
+    patience: 30
+  epochs: 100
+  grad_clip: 1.0
+  loss:
+    huber_delta: 0.5
+    name: huber
+  optimizer:
+    learning_rate: 0.0005
+    name: adamw
+    weight_decay: 0.01
+  save_every: 5
+  scheduler:
+    name: plateau
+    params:
+      cooldown: 0
+      eps: 1.0e-08
+      factor: 0.5
+      min_lr: 1.0e-07
+      mode: min
+      patience: 2
+      threshold: 5.0e-05
+      threshold_mode: abs
+  validate_every: 1

@@ -13,6 +13,9 @@ Expected directory layout::
         n_sig_hits.npy       (n_events,) int32
         n_sig_strings.npy    (n_events,) int32
         particle_types.npy   (n_events,) int8
+        weights.npy          (n_events,) float32  — optional, per-event training
+                             weights; loaded only when a config names it via
+                             ``weights_file`` (built by add_weights.py)
 """
 
 from pathlib import Path
@@ -34,6 +37,9 @@ class NuClassifierNpyDataset(BaseNpyDataset):
         seed: Random seed for max_events subsampling.
         indices: Optional subset of event indices to expose.
         include_probs: Append raw sig-noise probabilities as a 6th feature column.
+        weights_file: Optional path to a per-event weights array (add_weights.py).
+            Deliberately not auto-discovered: only a config that names it gets
+            weighted training, so adding the file cannot change another run.
     """
 
     def __init__(
@@ -44,6 +50,7 @@ class NuClassifierNpyDataset(BaseNpyDataset):
         seed: int = 42,
         indices: Optional[np.ndarray] = None,
         include_probs: bool = False,
+        weights_file: Optional[str] = None,
     ) -> None:
         npy_dir = Path(npy_dir)
 
@@ -63,6 +70,13 @@ class NuClassifierNpyDataset(BaseNpyDataset):
         self.probs: Optional[np.ndarray] = (
             np.load(npy_dir / "probs.npy", mmap_mode="r") if include_probs else None
         )
+        self.weights: Optional[np.ndarray] = (
+            np.load(Path(weights_file)) if weights_file is not None else None
+        )
+        if self.weights is not None and len(self.weights) != len(self.labels):
+            raise ValueError(
+                f"weights length {len(self.weights)} != labels length {len(self.labels)} "
+                f"({weights_file})")
         self.max_hits = max_hits
 
         self._init_indices(len(self.labels), max_events, seed, indices)
@@ -97,11 +111,15 @@ class NuClassifierNpyDataset(BaseNpyDataset):
                 float(self.theta[real_idx]) if self.theta is not None else float("nan"),
                 dtype=torch.float32,
             ),
+            "weight":              torch.tensor(
+                float(self.weights[real_idx]) if self.weights is not None else 1.0,
+                dtype=torch.float32,
+            ),
         }
 
     def _split_attrs(self) -> List[str]:
         return [
             "features", "offsets", "labels",
             "n_sig_hits", "n_sig_strings", "particle_types", "theta",
-            "max_hits", "include_probs", "probs",
+            "max_hits", "include_probs", "probs", "weights",
         ]

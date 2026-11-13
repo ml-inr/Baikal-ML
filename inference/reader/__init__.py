@@ -9,6 +9,8 @@
     ev = r.events(where=[reader.H8S3])                    # no hit is read
     for chunk in r.stream(where=[reader.H8S3], budget_mb=512):
         chunk.events, chunk.hits, chunk.parts, chunk.meta
+    catalogue = fits.open()          # tracks of `track_fit_alike_bars`, by event_fk
+    catalogue.attach(ev)             # `fit_*` columns onto a frame of events
 
 Design in one paragraph: iteration follows **parts**, the structural unit of a
 source, because a part is one detector run or one MC file with its own `ev_starts`
@@ -20,11 +22,17 @@ values), since a chunk cannot be read in part.  Nothing is written to disk.
 
 Nothing here reads the `splits` table, and nothing depends on it existing.
 """
-from . import parts, predicates, query, registry, schema, spec, stream, training
-from .predicates import (
-    H8S3, NOT_DA_TARGET, NOT_EXCLUDED, NOT_TRAINED, NOT_TRAINED_EXACT, NotTrained,
-    Sql,
+from . import (
+    fits, parts, predicates, query, registry, schema, spec, stream, track_nn,
+    training,
 )
+from .predicates import (
+    H8S3, H8S3_TRUTH, NOT_DA_TARGET, NOT_EXCLUDED, NOT_TRAINED,
+    NOT_TRAINED_EXACT,
+    NOT_TRAINED_PARTS, NotTrained, Sql,
+)
+from .fits import Fits, open_fits
+from .track_nn import TrackPredictions, open_track_nn
 from .registry import Checkpoint, checkpoints, open_checkpoint, unresolved
 from .schema import (
     EXP_RECO_COLUMNS, HIT_VARS, MC_RECO_COLUMNS, PRIME_PRTY_COLUMNS, SN_THRESHOLD,
@@ -53,12 +61,14 @@ def sources():
 __all__ = [
     "open", "sources", "checkpoints", "unresolved", "open_checkpoint",
     "Reader", "Chunk", "Progress", "Checkpoint",
-    "H8S3", "NOT_TRAINED", "NOT_TRAINED_EXACT", "NOT_DA_TARGET", "NOT_EXCLUDED",
+    "H8S3", "H8S3_TRUTH", "NOT_TRAINED", "NOT_TRAINED_EXACT",
+    "NOT_TRAINED_PARTS",
+    "NOT_DA_TARGET", "NOT_EXCLUDED",
     "NotTrained", "Sql",
     "SOURCES", "describe",
     "HIT_VARS", "PRIME_PRTY_COLUMNS", "STRING_DIVISOR", "SN_THRESHOLD",
     "signal_mask", "EXP_RECO_COLUMNS", "MC_RECO_COLUMNS",
     "check_against_converter_config",
     "schema", "spec", "registry", "training", "predicates", "query", "parts",
-    "stream",
+    "stream", "track_nn", "TrackPredictions", "open_track_nn",
 ]

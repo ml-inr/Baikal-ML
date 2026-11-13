@@ -1,0 +1,44 @@
+experiment:
+  name: 261026_1725_non_neural_energy_baseline_partsplit_s42
+  seed: 42
+  description: "Non-neural energy baseline on part-split train parts: log-linear, Ridge, HGB"
+
+data:
+  dataset_dir: data_manager/datasets/mu_energy_dataset_h8s3_thr0.8_train1M_partsplit
+  features_file: non_neural_features.npy
+  features_config: non_neural_features.yaml
+  train_split: 0.9
+  split_seed: 42
+  calibration_fraction: 0.2
+  weighted: true
+
+models:
+  train:
+    - loglinear
+    - ridge
+    - hgb
+  loglinear_features:
+    - log10_sumQ
+    - log1p_n_hits
+    - log1p_n_strings
+  ridge_alphas:
+    - 0.1
+    - 1.0
+    - 10.0
+    - 100.0
+  hgb_grid:
+    max_iter: [300, 500]
+    learning_rate: [0.05]
+    max_leaf_nodes: [31, 63]
+    l2_regularization: [1.0]
+    loss: [squared_error, absolute_error]
+
+ablations:
+  enabled: true
+  hgb:
+    counts_charge: [counts, charge]
+    counts_charge_geometry: [counts, charge, geometry]
+    all: [counts, charge, geometry, time]
+
+output:
+  root: trained_models/track_energy_reconstruction

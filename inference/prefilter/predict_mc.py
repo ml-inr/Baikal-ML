@@ -46,6 +46,9 @@ from inference.shared.catalog_query import (
     MC_RECO_PTYPE_TO_DATA_CLASS,
 )
 from inference.shared.history import append_history_row
+from inference.shared.sig_counts import (
+    SN_THRESHOLD, PartCounts, check_lengths, probs_path_for, read_part_counts,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -108,6 +111,10 @@ def predict_mc(
     catalog: str = "data_manager/catalog_v2.duckdb",
     check_existing: bool = False,
     save_embeddings: bool = False,
+    probs_h5: Optional[str] = None,
+    sn_threshold: float = SN_THRESHOLD,
+    exclude_trained_parts: bool = False,
+    training_npy_dir: Optional[str] = None,
 ) -> None:
     t_start = datetime.now()
     dev = _resolve_device(device)
@@ -133,13 +140,55 @@ def predict_mc(
     logger.info(f"max_events_per_ptype:  {max_events_per_ptype if max_events_per_ptype is not None else 'unlimited'}")
     logger.info(f"skip_done_parts:       {skip_done_parts}")
     logger.info(f"save_embeddings:       {save_embeddings}")
+    logger.info(f"probs h5:              {probs_h5 or 'none — hit counts will be NULL'}")
+
+    # Whole-part training exclusion.  The prefilter NPY datasets record no
+    # per-event back-links, so the finest handle is the h5 part list the
+    # dataset was built from (prefilter_h5_parts.json); this mirrors
+    # reader.NOT_TRAINED_PARTS.  The nu-classifier can exclude per event
+    # because its dataset carries h5_part_keys.npy.
+    exclude_parts: dict = {}
+    if exclude_trained_parts:
+        if source != "mc_merged":
+            raise ValueError(
+                "--exclude-trained-parts is defined for --source mc_merged "
+                "only: the training parts come from the mc_merged NPY dataset")
+        if training_npy_dir is None:
+            config_path = Path(checkpoint).parent / "da_config.yaml"
+            if not config_path.exists():
+                raise FileNotFoundError(
+                    f"--exclude-trained-parts: {config_path} not found; pass "
+                    "--training-npy-dir explicitly")
+            import yaml
+            with open(config_path) as f:
+                _cfg = yaml.safe_load(f) or {}
+            training_npy_dir = (
+                _cfg.get("data", {}).get("source_domain", {}).get("npy_dir"))
+            if not training_npy_dir:
+                raise ValueError(
+                    f"{config_path} has no data.source_domain.npy_dir; pass "
+                    "--training-npy-dir explicitly")
+        from inference.reader import training as reader_training
+        _train_frame = reader_training.part_identity(training_npy_dir)
+        exclude_parts = {
+            str(data_class): set(group["part_key"].astype(str))
+            for data_class, group
+            in _train_frame.groupby("data_class", observed=True)
+        }
+        logger.info(
+            "exclude_trained_parts: %s (%s)", training_npy_dir,
+            ", ".join(f"{dc}={len(pk)}"
+                      for dc, pk in sorted(exclude_parts.items())))
+    logger.info(f"exclude_trained_parts: {exclude_trained_parts}")
 
     error_msg  = ""
     n_inserted = 0
     n_skipped  = 0
 
+    probs_file = None
     try:
         model, norm_config, _ = load_model(checkpoint, device=dev)
+        probs_file = h5py.File(probs_h5, "r") if probs_h5 else None
         conn = open_predictions_db(str(db_path), PREFILTER_SCHEMA)
         if save_embeddings:
             conn.execute(EMBEDDINGS_SCHEMA)
@@ -162,6 +211,10 @@ def predict_mc(
 
             for ptype in selected_ptypes:
                 grp        = h5[ptype]
+                probs_grp  = (probs_file[ptype] if probs_file and ptype in probs_file
+                              else None)
+                if probs_file is not None and probs_grp is None:
+                    logger.warning(f"{ptype}: absent from the probs file — counts NULL")
                 data_class = _ptype_to_data_class(ptype, source)
                 season     = int(data_class.rsplit("_", 1)[-1]) if "_" in data_class else 0
 
@@ -171,9 +224,20 @@ def predict_mc(
                 n_before_done = len(sel_parts)
                 if done_excl:
                     sel_parts = [p for p in sel_parts if p not in done_excl]
+                n_done_excl = n_before_done - len(sel_parts)
 
-                suffix = (f"  (excluded: {n_before_done - len(sel_parts)} done)"
-                          if n_before_done - len(sel_parts) else "")
+                train_excl = exclude_parts.get(data_class, set())
+                n_before_train = len(sel_parts)
+                if train_excl:
+                    sel_parts = [p for p in sel_parts if p not in train_excl]
+                n_train_excl = n_before_train - len(sel_parts)
+
+                bits = []
+                if n_done_excl:
+                    bits.append(f"{n_done_excl} done")
+                if n_train_excl:
+                    bits.append(f"{n_train_excl} trained")
+                suffix = (f"  (excluded: {', '.join(bits)})" if bits else "")
                 logger.info(f"\n{ptype}: {len(sel_parts)} parts to process{suffix}")
 
                 n_remaining       = max_events_per_ptype
@@ -185,7 +249,7 @@ def predict_mc(
                 log_every         = 10
 
                 # Part buffer: accumulate small parts before running GPU inference
-                # Each entry: (pk, data_raw, ev_starts, n_events)
+                # Each entry: (pk, data_raw, ev_starts, n_events, counts)
                 buf_parts:  list = []
                 buf_events: int  = 0
 
@@ -200,7 +264,7 @@ def predict_mc(
                     global_ev_starts = [0]
                     ev_part_of:  list = []
                     ev_local_of: list = []
-                    for bi, (_, _, ev_starts, n_ev) in enumerate(buf_parts):
+                    for bi, (_, _, ev_starts, n_ev, _) in enumerate(buf_parts):
                         for j in range(n_ev):
                             global_ev_starts.append(
                                 global_ev_starts[-1] + int(ev_starts[j + 1] - ev_starts[j])
@@ -230,6 +294,20 @@ def predict_mc(
                     sel_runs   = np.array([buf_parts[ev_part_of[i]][0] for i in range(n_buf)])
                     sel_ids    = np.array([ev_local_of[i] for i in range(n_buf)], dtype=np.int64)
 
+                    # Counts follow the events through the buffer. A part the probs file
+                    # does not cover contributes NULLs for its own events only, so a mixed
+                    # buffer still writes the right value for each event.
+                    buf_counts = PartCounts(**{
+                        name: (None if all(getattr(b[4], name) is None for b in buf_parts)
+                               else np.concatenate([
+                                   getattr(b[4], name)[:b[3]].astype(np.float64)
+                                   if getattr(b[4], name) is not None
+                                   else np.full(b[3], np.nan)
+                                   for b in buf_parts]))
+                        for name in ("n_sn_hits", "n_sn_strings",
+                                     "n_gt_sig_hits", "n_gt_sig_strings")
+                    })
+
                     cat_result = get_event_fks_mc(
                         catalog, source,
                         data_classes=np.array([data_class] * n_buf),
@@ -244,11 +322,16 @@ def predict_mc(
                     else:
                         found_qi  = cat_result["query_idx"].values
                         event_fks = cat_result["event_fk"].values.astype(np.int64)
+                        found     = buf_counts.take(found_qi)
                         ins, skp  = append_predictions_prefilter(
                             conn,
                             event_fks=event_fks,
                             scores=scores[found_qi],
                             n_hits=n_hits_arr[found_qi],
+                            n_sn_hits=found.n_sn_hits,
+                            n_sn_strings=found.n_sn_strings,
+                            n_gt_sig_hits=found.n_gt_sig_hits,
+                            n_gt_sig_strings=found.n_gt_sig_strings,
                             check_existing=check_existing,
                         )
                         n_inserted += ins; n_skipped += skp
@@ -283,7 +366,9 @@ def predict_mc(
                     hit_end  = int(ev_starts[-1])
                     data_raw = grp[f"raw/data/{pk}/data"][:hit_end].astype(np.float32)
 
-                    buf_parts.append((pk, data_raw, ev_starts, n_events))
+                    counts = read_part_counts(probs_grp, pk, sn_threshold)
+                    check_lengths(counts, n_events_full, f"{ptype}/{pk}")
+                    buf_parts.append((pk, data_raw, ev_starts, n_events, counts))
                     buf_events += n_events
 
                     parts_done = part_idx + 1
@@ -323,6 +408,9 @@ def predict_mc(
                         )
 
         total_in_db = conn.execute("SELECT COUNT(*) FROM predictions").fetchone()[0]
+        with_counts = conn.execute(
+            "SELECT COUNT(*) FROM predictions WHERE n_sn_hits IS NOT NULL").fetchone()[0]
+        logger.info(f"rows with sig-noise counts: {with_counts:,} / {total_in_db:,}")
         conn.close()
 
         logger.info(f"\nDone: {n_inserted:,} inserted  {n_skipped:,} skipped  "
@@ -343,6 +431,8 @@ def predict_mc(
         raise
 
     finally:
+        if probs_file is not None:
+            probs_file.close()
         elapsed = (datetime.now() - t_start).total_seconds()
         logger.info(f"Total elapsed: {elapsed:.0f}s")
         append_history_row(
@@ -387,6 +477,24 @@ def main() -> None:
     parser.add_argument("--output-dir",           default="inference/prefilter/preds")
     parser.add_argument("--catalog",              default="data_manager/catalog_v2.duckdb")
     parser.add_argument("--check-existing",       action="store_true")
+    parser.add_argument("--probs-h5",             default=None,
+                        help="Sig-noise probabilities file supplying n_sn_hits / "
+                             "n_sn_strings and the MC-truth counts n_gt_sig_*. Pass "
+                             "'auto' to take the one named beside --mc-h5. Parts it does "
+                             "not cover get NULL, not zero.")
+    parser.add_argument("--sn-threshold",         type=float, default=SN_THRESHOLD,
+                        help="Which stored sig-noise counts to copy (0.5 or 0.8). Does "
+                             "not affect scoring — the prefilter reads all raw hits.")
+    parser.add_argument("--exclude-trained-parts", action="store_true", default=False,
+                        help="Drop whole h5 parts the checkpoint's source NPY dataset "
+                             "was built from. Prefilter datasets have no per-event "
+                             "back-links, so this is the finest exclusion available; it "
+                             "is the counterpart of reader.NOT_TRAINED_PARTS. Requires "
+                             "--source mc_merged.")
+    parser.add_argument("--training-npy-dir",     default=None,
+                        help="Source NPY dataset whose parts to exclude; default: "
+                             "data.source_domain.npy_dir from "
+                             "<checkpoint>/../da_config.yaml")
     parser.add_argument("--save-embeddings",      action="store_true", default=False,
                         help="Also store encoder-level feature vectors in an embeddings table")
     args = parser.parse_args()
@@ -406,6 +514,11 @@ def main() -> None:
         catalog=args.catalog,
         check_existing=args.check_existing,
         save_embeddings=args.save_embeddings,
+        probs_h5=(str(probs_path_for(args.mc_h5)) if args.probs_h5 == "auto"
+                  else args.probs_h5),
+        sn_threshold=args.sn_threshold,
+        exclude_trained_parts=args.exclude_trained_parts,
+        training_npy_dir=args.training_npy_dir,
     )
 
 

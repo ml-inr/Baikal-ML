@@ -1,0 +1,110 @@
+data:
+  calibration_fraction: 0.2
+  device: cuda:0
+  max_hits: 500
+  normalization:
+    enabled: true
+    stats_file: data_manager/stats_dict/default_mc.yaml
+  npy_dir: data_manager/datasets/mu_energy_dataset_h8s3_thr0.8_train1M_partsplit
+  split_seed: 42
+  target_normalization:
+    enabled: true
+    max: 7.985914
+    mean: 3.685674
+    min: -0.614567
+    mode: uniform_minmax_train
+    std: 2.482745
+  train_split: 0.9
+dataloader:
+  augmentation:
+    noise_std:
+    - 0.2
+    - 5.0
+    - 1.0
+    - 1.0
+    - 2.0
+    noise_truncate_sigma: 3.0
+    rotation_enabled: true
+    zflip_enabled: true
+    zflip_prob: 0.5
+  num_workers: 4
+  pin_memory: true
+  shuffle_batch: false
+debug:
+  enabled: false
+  max_batches_per_epoch: 10
+  max_val_batches: 10
+experiment:
+  description: 'B-G: corrected NLL scale, joint full sigma, gaussian'
+  id: B-G
+  name: 261027_0935_mu_energy_B-G_partsplit_scratch_s42
+  seed: 42
+logging:
+  level: INFO
+  log_every: 50
+  output_dir: trained_models/track_energy_reconstruction
+  save_config: true
+  save_model_summary: true
+  tensorboard: true
+model:
+  amp_clip: 100
+  feature_extractor:
+    d_model: 128
+    dim_feedforward: 256
+    dropout: 0.1
+    input_dim: 5
+    max_seq_len: 1000
+    num_heads: 4
+    num_layers: 4
+    pooling: cls
+    use_positional_encoding: true
+  heteroscedastic:
+    beta_nll: 0.0
+    distribution: gaussian
+    dropout: 0.1
+    enabled: true
+    hidden_dims:
+    - 64
+    init_sigma_dex: 0.5
+    sigma_max_dex: 5.0
+    sigma_min_dex: 0.05
+    warmup_epochs: 2
+    warmup_loss: huber
+  regressor:
+    dropout: 0.1
+    hidden_dims:
+    - 64
+  type: mu_energy
+reproducibility:
+  deterministic: true
+training:
+  amp: false
+  batch_size: 256
+  early_stopping:
+    enabled: false
+    min_delta: 0.001
+    monitor: val_mae_log10
+    patience: 20
+  epochs: 100
+  grad_clip: 1.0
+  loss:
+    huber_delta: 0.5
+    name: gaussian_nll
+  optimizer:
+    learning_rate: 0.0005
+    name: adamw
+    weight_decay: 0.01
+  save_every: 5
+  scheduler:
+    name: plateau
+    params:
+      cooldown: 2
+      eps: 1.0e-08
+      factor: 0.5
+      min_lr: 1.0e-06
+      mode: min
+      patience: 4
+      threshold: 0.0001
+      threshold_mode: rel
+  sigma_strategy: joint
+  validate_every: 1

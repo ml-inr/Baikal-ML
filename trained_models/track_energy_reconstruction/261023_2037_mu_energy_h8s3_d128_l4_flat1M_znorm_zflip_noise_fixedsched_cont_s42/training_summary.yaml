@@ -1,0 +1,59 @@
+best_epoch: 143
+best_metric: 0.49027573366887284
+final_train:
+  bias_log10: -0.13378695197089827
+  class_1_bias_log10: 0.15177800119263485
+  class_1_mae_log10: 0.44579748526666335
+  class_1_n: 38709.0
+  class_1_rmse_log10: 0.5784593812101921
+  class_2_bias_log10: -0.146619324240414
+  class_2_mae_log10: 0.5052891075012584
+  class_2_n: 861410.0
+  class_2_rmse_log10: 0.6988582043760793
+  epoch: 199
+  epoch_seconds: 117.67595553398132
+  epoch_time: 121.69553565979004
+  loss: 0.023817847609850507
+  loss_unweighted: 0.025489102104354552
+  lr: 1.0e-06
+  mae_factor: 3.1822237415988712
+  mae_log10: 0.502730711553708
+  mae_log10_weighted: 0.4796128063190413
+  n_events: 900119.0
+  rmse_log10: 0.6941104110903398
+  within_factor_10: 0.8650845054931626
+  within_factor_2: 0.4359634670526897
+  within_factor_5: 0.7554723319916589
+final_val:
+  bias_log10: -0.15788457946505413
+  class_1_bias_log10: 0.05343872249564704
+  class_1_mae_log10: 0.39302810215774703
+  class_1_n: 5440.0
+  class_1_rmse_log10: 0.5265698785112168
+  class_2_bias_log10: -0.17005724502038214
+  class_2_mae_log10: 0.49951731109594905
+  class_2_n: 94441.0
+  class_2_rmse_log10: 0.6991737710301623
+  epoch_seconds: 4.019580125808716
+  loss: 0.022434523969741955
+  loss_unweighted: 0.025001861670854587
+  mae_factor: 3.1168607256180496
+  mae_log10: 0.4937173966153328
+  mae_log10_weighted: 0.45576970047116155
+  n_events: 99881.0
+  rmse_log10: 0.6908841758735289
+  within_factor_10: 0.8654098377068712
+  within_factor_2: 0.4550515112984452
+  within_factor_5: 0.7615762757681641
+model_parameters: 539393
+monitor: val_mae_log10
+resumed_from: /home/albert/Baikal2025/trained_models/track_energy_reconstruction/261023_1200_mu_energy_h8s3_d128_l4_flat1M_znorm_zflip_noise_fixedsched_s42/best_model.pth
+start_epoch: 86
+target_normalization:
+  enabled: true
+  max: 7.985914
+  mean: 3.685674
+  min: -0.614567
+  mode: uniform_minmax_train
+  std: 2.482745
+total_epochs: 200

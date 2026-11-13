@@ -2,7 +2,7 @@
 
 ## The property
 
-`gplotnikov_sig_noise_models/.../model_simplified.py:45` and `encoder.py:79` pass the
+`trained_models/sig_noise/.../model_simplified.py:45` and `encoder.py:79` pass the
 transformer padding mask to `nn.TransformerEncoder` as a **float** tensor:
 
 ```python

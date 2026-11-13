@@ -1,0 +1,46 @@
+# Predictions for the still-running B/AB/AD/AC checkpoints.
+# ready_file is written at the end of training; until then the job stays pending.
+poll_seconds: 60
+
+jobs:
+  - id: PRED-B-G
+    checkpoint: trained_models/track_energy_reconstruction/261027_0935_mu_energy_B-G_partsplit_scratch_s42/best_model.pth
+    ready_file: trained_models/track_energy_reconstruction/261027_0935_mu_energy_B-G_partsplit_scratch_s42/training_summary.yaml
+    gpu: 1
+    batch_size: 256
+  - id: PRED-B-T5
+    checkpoint: trained_models/track_energy_reconstruction/261027_0935_mu_energy_B-T5_partsplit_scratch_s42/best_model.pth
+    ready_file: trained_models/track_energy_reconstruction/261027_0935_mu_energy_B-T5_partsplit_scratch_s42/training_summary.yaml
+    gpu: 1
+    batch_size: 256
+  - id: PRED-AB-G
+    checkpoint: trained_models/track_energy_reconstruction/261027_0935_mu_energy_AB-G_partsplit_scratch_s42/best_model.pth
+    ready_file: trained_models/track_energy_reconstruction/261027_0935_mu_energy_AB-G_partsplit_scratch_s42/training_summary.yaml
+    gpu: 1
+    batch_size: 256
+  - id: PRED-AB-T5
+    checkpoint: trained_models/track_energy_reconstruction/261027_0935_mu_energy_AB-T5_partsplit_scratch_s42/best_model.pth
+    ready_file: trained_models/track_energy_reconstruction/261027_0935_mu_energy_AB-T5_partsplit_scratch_s42/training_summary.yaml
+    gpu: 1
+    batch_size: 256
+
+  - id: PRED-AD-G
+    checkpoint: trained_models/track_energy_reconstruction/261027_0935_mu_energy_AD-G_partsplit_scratch_s42/best_model.pth
+    ready_file: trained_models/track_energy_reconstruction/261027_0935_mu_energy_AD-G_partsplit_scratch_s42/training_summary.yaml
+    gpu: 3
+    batch_size: 512
+  - id: PRED-AC-G
+    checkpoint: trained_models/track_energy_reconstruction/261027_0935_mu_energy_AC-G_partsplit_scratch_s42/best_model.pth
+    ready_file: trained_models/track_energy_reconstruction/261027_0935_mu_energy_AC-G_partsplit_scratch_s42/training_summary.yaml
+    gpu: 3
+    batch_size: 512
+  - id: PRED-AD-T5
+    checkpoint: trained_models/track_energy_reconstruction/261027_0935_mu_energy_AD-T5_partsplit_scratch_s42/best_model.pth
+    ready_file: trained_models/track_energy_reconstruction/261027_0935_mu_energy_AD-T5_partsplit_scratch_s42/training_summary.yaml
+    gpu: 5
+    batch_size: 512
+  - id: PRED-AC-T5
+    checkpoint: trained_models/track_energy_reconstruction/261027_0935_mu_energy_AC-T5_partsplit_scratch_s42/best_model.pth
+    ready_file: trained_models/track_energy_reconstruction/261027_0935_mu_energy_AC-T5_partsplit_scratch_s42/training_summary.yaml
+    gpu: 5
+    batch_size: 512

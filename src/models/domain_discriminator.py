@@ -72,8 +72,14 @@ class DomainDiscriminator(nn.Module):
         use_batch_norm: Whether to use batch normalization
         use_gradient_reversal: Whether to include gradient reversal layer
         lambda_factor: Initial lambda for gradient reversal
+        hidden_layer_norm: LayerNorm after each hidden Linear (per-sample; unlike
+            BatchNorm it carries no cross-sample statistics to leak). Stabilises
+            the discriminator against the moving feature distribution.
+        instance_noise: std of Gaussian noise added to the input during training
+            only. Caps how sharp the domain boundary can become, so the reversal
+            gradient stays informative instead of vanishing.
     """
-    
+
     def __init__(
         self,
         input_dim: int,
@@ -81,39 +87,45 @@ class DomainDiscriminator(nn.Module):
         dropout: float = 0.2,
         use_batch_norm: bool = True,
         use_gradient_reversal: bool = True,
-        lambda_factor: float = 1.0
+        lambda_factor: float = 1.0,
+        hidden_layer_norm: bool = False,
+        instance_noise: float = 0.0
     ):
         super().__init__()
-        
+
         self.input_dim = input_dim
         self.hidden_dims = hidden_dims
         self.use_gradient_reversal = use_gradient_reversal
-        
+        self.instance_noise = float(instance_noise)
+
         # Gradient reversal layer
         if use_gradient_reversal:
             self.gradient_reversal = GradientReversalLayer(lambda_factor)
-        
+
         # Build discriminator layers
         layers = []
         prev_dim = input_dim
-        
+
         for hidden_dim in hidden_dims:
             layers.append(nn.Linear(prev_dim, hidden_dim))
-            
+
             if use_batch_norm:
                 layers.append(nn.BatchNorm1d(hidden_dim))
-            
+            if hidden_layer_norm:
+                layers.append(nn.LayerNorm(hidden_dim))
+
             layers.append(nn.ReLU())
             layers.append(nn.Dropout(dropout))
             prev_dim = hidden_dim
-        
+
         # Final domain classification layer (binary: MC vs Exp)
         layers.append(nn.Linear(prev_dim, 1))
-        
+
         self.discriminator = nn.Sequential(*layers)
-        
+
         logger.info(f"Created DomainDiscriminator: {input_dim}→{hidden_dims}→1, "
                    f"dropout={dropout}, batch_norm={use_batch_norm}, "
+                   f"layer_norm={hidden_layer_norm}, instance_noise={instance_noise}, "
                    f"gradient_reversal={use_gradient_reversal}")
     
     def forward(self, features: torch.Tensor) -> torch.Tensor:
@@ -130,7 +142,12 @@ class DomainDiscriminator(nn.Module):
         # Apply gradient reversal if enabled
         if self.use_gradient_reversal:
             features = self.gradient_reversal(features)
-        
+
+        # Instance noise (training only): keeps the boundary soft, so the
+        # reversal gradient reaching the encoder stays informative.
+        if self.training and self.instance_noise > 0.0:
+            features = features + torch.randn_like(features) * self.instance_noise
+
         # Domain classification
         domain_logits = self.discriminator(features)
         return domain_logits
@@ -183,7 +200,9 @@ class DomainAdaptationModel(nn.Module):
             dropout=discriminator_config.get('dropout', 0.2),
             use_batch_norm=discriminator_config.get('use_batch_norm', True),
             use_gradient_reversal=discriminator_config.get('use_gradient_reversal', True),
-            lambda_factor=discriminator_config.get('lambda_factor', 1.0)
+            lambda_factor=discriminator_config.get('lambda_factor', 1.0),
+            hidden_layer_norm=discriminator_config.get('hidden_layer_norm', False),
+            instance_noise=discriminator_config.get('instance_noise', 0.0),
         )
         
         logger.info(f"Created DomainAdaptationModel with feature_dim={feature_dim}")

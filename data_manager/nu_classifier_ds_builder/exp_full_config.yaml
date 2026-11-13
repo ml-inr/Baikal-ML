@@ -33,7 +33,7 @@ event_cuts:
 
 # Precomputed sig-noise probs (predict_exp_h5.py) — builder reads them instead
 # of running the model (fast I/O, no GPU). Build this file first:
-#   python gplotnikov_sig_noise_models/k_nsol_labelneq0_da_hs128_k0p0001/predict_exp_h5.py \
+#   python inference/sig_noise/predict_exp_h5.py \
 #       --input data_manager/data/h5datasets/exp_full.h5 --device cuda:0
 probs_h5: "data_manager/data/h5datasets/exp_full_probs_k_nsol_labelneq0_da_hs128_k0p0001.h5"
 probs_group: "exp_full"

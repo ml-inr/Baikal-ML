@@ -1,0 +1,145 @@
+# Muon-energy regression: continuation of the fixed-schedule A/B from epoch 85.
+#
+# HISTORICAL RUN CONFIG (legacy dataset).  The trainer now takes train/val from
+# data.train_split and expects the train+val-only dataset produced by the
+# integrated flat selection.  This config still points at the pre-refactor
+# dataset, whose flat weights are not row-aligned, so the loader refuses it.
+# For a new run on the full-2020 rebuild, change data.npy_dir to
+# data_manager/datasets/mu_energy_dataset_h8s3_thr0.8_train1M and choose a new
+# experiment.name; the split fields below are already in the new form.
+#
+# The run being continued is 261023_1200_..._fixedsched (best val MAE 0.49543 at
+# epoch 85, LR 6.25e-5, only 3 LR reductions); its train_config.yaml is in its run
+# directory.  This continuation keeps the same target z-normalization, rotation,
+# z-flip and truncated Gaussian noise, and resumes optimizer + scheduler state:
+#   * start epoch 86, total budget 200 epochs;
+#   * LR 6.25e-5, plateau (rel threshold 1e-4, patience 4, cooldown 2,
+#     min_lr 1e-6) — the LR is still far above the floor;
+#   * best checkpoint still selected by unweighted val MAE in dex;
+#   * early stopping disabled.
+#
+# The reference A/B without noise is 261023_0907; the old raw-target plateau run
+# 261023_0702 has best val MAE 0.49030 and remains the benchmark.
+#
+# Data: data_manager/datasets/mu_energy_dataset_h8s3_thr0.8
+#   * nuatm + nue2 only; exactly one muon track; h8s3; SN threshold 0.8
+#   * target = log10(E_mu at entry into r <= 90 m, |z| <= 295 m)
+#   * split_train / split_val: 900,119 / 99,881, separated by MC part
+#   * flat selection weights: 1 in the bulk, up to 20 in the sparse tails
+#
+# Usage (pick a free GPU first and expose it as cuda:0):
+#   CUDA_DEVICE_ORDER=PCI_BUS_ID CUDA_VISIBLE_DEVICES=<gpu> \
+#   python -m src.training.mu_energy_trainer --config <this file>
+
+experiment:
+  name: "261023_2037_mu_energy_h8s3_d128_l4_flat1M_znorm_zflip_noise_fixedsched_cont_s42"
+  description: "Continuation from epoch 85 of the fixed-schedule A/B; same scheduler, 200 total epochs"
+  seed: 42
+
+reproducibility:
+  deterministic: true
+
+data:
+  device: "cuda:0"
+  npy_dir: "data_manager/datasets/mu_energy_dataset_h8s3_thr0.8"
+  max_hits: 500
+  train_split: 0.9          # flat train+val rows; the test complement is not stored
+  split_seed: 42            # same permutation as MuEnergyNpyDataset.split()
+  normalization:
+    enabled: true
+    stats_file: "data_manager/stats_dict/default_mc.yaml"
+  target_normalization:
+    enabled: true
+    mode: "uniform_minmax_train"
+    min: -0.614567
+    max: 7.985914
+    mean: 3.685674
+    std: 2.482745
+
+model:
+  type: "mu_energy"
+  amp_clip: 100            # raw PE; normalized with the MC amplitude mean/std
+  feature_extractor:
+    input_dim: 5           # [Q, t, x, y, z]
+    d_model: 128
+    num_heads: 4
+    num_layers: 4
+    dim_feedforward: 256
+    dropout: 0.1
+    pooling: "cls"
+    use_positional_encoding: true
+    max_seq_len: 1000
+  regressor:
+    hidden_dims: [64]
+    dropout: 0.1
+
+resume:
+  from_checkpoint: "trained_models/track_energy_reconstruction/261023_1200_mu_energy_h8s3_d128_l4_flat1M_znorm_zflip_noise_fixedsched_s42/best_model.pth"
+  load_optimizer: true
+  load_scheduler: true       # continue the same fixed plateau schedule
+
+training:
+  epochs: 200                # total, including the 86 resumed epochs (0..85)
+  batch_size: 256
+
+  loss:
+    name: "huber"
+    huber_delta: 0.5       # dex; internally scaled to 0.5/std = 0.201390 z units
+    # The loss/TensorBoard values below are in z units; MAE/bias/within are in dex.
+
+  optimizer:
+    name: "adamw"
+    learning_rate: 6.25e-5   # LR at epoch 85 of the fixed-schedule A/B
+    weight_decay: 0.01
+
+  scheduler:
+    name: "plateau"
+    params:
+      mode: "min"            # monitors the weighted val loss (z units)
+      factor: 0.5
+      patience: 4            # epochs without relative improvement before reducing
+      threshold: 1.0e-4      # relative, scale-free after target z-normalization
+      threshold_mode: "rel"
+      cooldown: 2            # wait after a reduction before counting again
+      min_lr: 1.0e-6
+      eps: 1.0e-8
+
+  amp: false
+  grad_clip: 1.0
+
+  validate_every: 1
+  save_every: 5
+
+  early_stopping:
+    enabled: false
+    monitor: "val_mae_log10"   # best checkpoint chosen by unweighted MAE in dex
+    patience: 30
+    min_delta: 1.0e-4
+
+dataloader:
+  num_workers: 4
+  pin_memory: true
+  shuffle_batch: false
+  augmentation:
+    rotation_enabled: true     # per-event rotation around z
+    zflip_enabled: true        # per-event spatial z -> -z
+    zflip_prob: 0.5
+    # Truncated Gaussian noise on the raw hit features, like the nu-classifier
+    # option but with true truncation.  Units: Q PE, t ns, x/y/z m.
+    # Q=0.2 PE is ~10% of the mean charge; t=5 ns is the timing scale; the
+    # positions are the classifier's 1/1/2 m.  Tails |z|>3σ are resampled.
+    noise_std: [0.2, 5.0, 1.0, 1.0, 2.0]
+    noise_truncate_sigma: 3.0
+
+logging:
+  level: "INFO"
+  output_dir: "trained_models/track_energy_reconstruction"
+  log_every: 100
+  tensorboard: true
+  save_config: true
+  save_model_summary: true
+
+debug:
+  enabled: false
+  max_batches_per_epoch: 10
+  max_val_batches: 10

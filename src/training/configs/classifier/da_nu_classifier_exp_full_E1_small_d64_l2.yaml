@@ -1,0 +1,142 @@
+# Маленькая модель: всё как в эталоне 261002_0535, кроме размера энкодера.
+#
+# Единственная переменная относительно эталона (DArepair, 261002_0535):
+#   * энкодер: d_model 128 -> 64, слоёв 4 -> 2, голов 4 -> 2, FFN 128
+#     (энкодер ~67.5k параметров вместо ~399.5k);
+#   * z = CLS-токен = 64 измерения вместо 128 (проекции CLS->z модель не умеет).
+# Критик — как в эталоне: MLP [32,16] + LayerNorm, 2 721 параметр.
+# Голова класса (32,16), данные, батчи, оптимизаторы, λ-программа, refresh,
+# probe, ранняя остановка, сид 42 — без изменений. Веса событий не используются,
+# чтобы сравнение шло с 261002_0535 (без весов), а не с весовым прогоном.
+#
+# Почему критик MLP, а не линейный (зафиксировано 2026-10-10): первый запуск этой
+# модели шёл с линейным критиком (65 параметров) и был мёртв с рождения — in-game
+# val auc = 0.53 против 0.695 у эталона в тот же момент, при той же программе λ
+# (λ за первую эпоху ≤ 5e-4, ослепление исключено). Замер на чекпойнте той эпохи
+# (inference/nu_classifier/analysis/small_model_critic_diag/): на одних и тех же
+# замороженных фичах линейный читатель берёт 0.61-0.64, MLP [32,16]+LN — 0.76.
+# Доменный сигнал в представлении маленькой модели существенно нелинейный.
+# Прежнее обоснование линейности (logreg ≈ MLP: 0.854 против 0.855 на финальных
+# фичах 128-мерного эталона) на это представление не переносится.
+#
+# Обоснование размера: у обученного 128-мерного представления эффективный ранг 1.4,
+# первая компонента = 82% дисперсии и совпадает с классовой осью (0.6°), классовая
+# метрика воспроизводится одним линейным направлением с точностью 2e-6 (при
+# погрешности ~1e-4). Оговорка: это измерено на уровне FPR ~1e-3; область 1e-6, где
+# живёт физика, нашими выборками не проверяема — прогон надо судить по избытку exp
+# на рабочем режиме, а не по AUC источника. Запуск 261010_1642 с линейным критиком
+# оставлен в trained_models как запись отрицательного результата.
+experiment:
+  name: 261010_1755_da_nu_classifier_exp_full_E1_small_d64_l2
+  description: >
+    Small-model variant: 2-layer, d_model=64 encoder (z=64), MLP [32,16]+LN
+    discriminator as in the reference. Everything else identical to 261002_0535.
+  seed: 42
+
+reproducibility:
+  deterministic: true
+  benchmark: false
+
+data:
+  device: cuda:1          # единственная свободная карта (Tesla P100, №1 в nvidia-smi)
+  include_probs: false
+  max_hits: 500
+
+  normalization:
+    enabled: true
+
+  source_domain:
+    npy_dir: data_manager/datasets/nu_classifier_dataset_h5s0_thr0.8
+    max_events: 5000000
+    train_split: 0.9
+
+  target_domain:
+    npy_dir: data_manager/datasets/nu_classifier_dataset_exp_full_thr0.8
+    max_events: 5000000
+    train_split: 0.8
+
+model:
+  type: numu
+  amp_clip: 100
+  feature_extractor:
+    input_dim: 5
+    d_model: 64
+    num_heads: 2
+    num_layers: 2
+    dim_feedforward: 128
+    dropout: 0.0
+    pooling: cls
+    use_positional_encoding: true
+    max_seq_len: 1000
+  classifier:
+    hidden_dims: [32, 16]
+    dropout: 0.0
+    use_batch_norm: false
+  spectral_norm:
+    enabled: false
+
+domain_adaptation:
+  domain_discriminator:
+    hidden_dims: [32, 16]    # как в эталоне
+    dropout: 0.0
+    use_batch_norm: false
+    use_gradient_reversal: true
+    lambda_factor: 0.
+    hidden_layer_norm: true
+    instance_noise: 0.05
+  discriminator_refresh:
+    every_epochs: 5
+    steps: 300
+  lambda_scheduler:
+    schedule_by: "step"
+    type: "progressive"
+    max_lambda: 0.01
+    gamma: 10.0
+
+training:
+  epochs: 100
+  source_batch_size: 512
+  target_batch_size: 256
+  classification_loss: "focal"
+  focal_gamma: 2.0
+  feature_optimizer:     {optimizer: "adamw", learning_rate: 0.0001, weight_decay: 0.01}
+  classifier_optimizer:  {optimizer: "adamw", learning_rate: 0.0001, weight_decay: 0.01}
+  discriminator_optimizer: {optimizer: "adamw", learning_rate: 0.0003, weight_decay: 0.01}
+  scheduler: "plateau"
+  scheduler_params: {mode: "min", factor: 0.5, patience: 3, min_lr: 1.0e-6}
+  validate_every: 1
+  save_every: 5
+  invariance_probe:
+    enabled: true
+    path: "data_manager/probe_sample/probe_sample.npz"
+    every_n_epochs: 1
+  early_stopping:
+    enabled: true
+    monitor: "val_loss"
+    mode: "min"
+    patience: 15
+    min_delta: 0.
+
+dataloader:
+  num_workers: 0
+  pin_memory: false
+  augmentation:
+    noise_std: [0.05, 5.0, 1.0, 1.0, 2.0]
+    rotation_enabled: true
+    afterpulse:
+      enabled: false
+      prob: 0.02
+      max_afterpulses: 3
+      q_range: [5.0, 100.0]
+
+logging:
+  level: "INFO"
+  output_dir: "trained_models/classifier"
+  log_every: 10
+  tensorboard: true
+  save_config: true
+  save_model_summary: true
+
+debug:
+  enabled: false
+  max_batches_per_epoch: 10

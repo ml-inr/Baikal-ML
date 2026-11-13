@@ -3,11 +3,28 @@
 Source domain: memory-mapped NPY arrays (MC, produced by prefilter_npy_ds_builder).
 Target domain: in-memory exp.h5 (~300–650K events, fits in RAM).
 
-Soft labels in [0, 1]; background defined as label < 0.5.
+Labels are hard (0/1) or soft ([0, 1]); background is label < 0.5.  The loss is
+selected by ``training.classification_loss`` (bce / focal / soft_focal).
+
+The domain branch is configurable and every added feature is off by default, so
+configs written before 2026-11 keep their original behaviour:
+
+* ``domain_adaptation.domain_source: muatm`` restricts the adversarial source to
+  muons (the classification batch stays mixed);
+* ``training.k_steps`` runs K-1 extra discriminator steps per batch;
+* ``domain_adaptation.discriminator_refresh`` re-fits the discriminator on
+  frozen features periodically;
+* ``domain_adaptation.domain_discriminator.hidden_layer_norm`` /
+  ``instance_noise`` stabilise the critic;
+* ``source_domain.sequential_read`` sorts the split indices and skips the
+  loaders' per-epoch shuffle, so the mmap is read in ascending file order (the
+  dataset file itself is shuffled at build time);
+* ``training.invariance_probe`` measures the remaining domain information with
+  a fresh logistic reader every N epochs.
 
 Usage:
     python src/training/da_prefilter_numu_trainer.py \
-        --config src/training/configs/prefilter/da_prefilter_numu_baseline.yaml [--debug]
+        --config src/training/configs/prefilter/da_prefilter_numu_softlabels_zflip.yaml [--debug]
 """
 
 import argparse
@@ -22,7 +39,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 from torch.utils.tensorboard import SummaryWriter
 import yaml
 
@@ -57,7 +74,9 @@ class PrefilterDomainAdaptationTrainer:
     Key differences from ``DomainAdaptationTrainer`` (hcut variant):
     * Source is ``PrefilterNpyDataset`` (mmap .npy, zero-copy).
     * Target is ``ExpDataset`` (in-memory from exp.h5).
-    * Labels are float32 soft labels — domain adaptation uses muon-only source (particle_type==0).
+    * Labels are float32 — hard (0/1) or soft.  By default the domain source is
+      the full classification batch (all MC); ``domain_source: muatm`` restricts
+      the adversarial source to muons only.
     * Signal-hit metrics use precomputed ``signal_hit_counts`` tensor.
     """
 
@@ -96,11 +115,24 @@ class PrefilterDomainAdaptationTrainer:
         self.source_val_loader: Optional[DataLoader] = None
         self.target_train_loader: Optional[DataLoader] = None
         self.target_val_loader: Optional[DataLoader] = None
+        # Optional muatm-only source stream for the domain branch
+        # (domain_adaptation.domain_source: muatm). None = use the full
+        # classification batch, i.e. the historical behaviour.
+        self.domain_source_loader: Optional[DataLoader] = None
 
         # Training state
         self.current_epoch = 0
         self.current_step = 0
-        self.best_metric = float("-inf")
+        # The initial "best" must be worse than any real value in the monitored
+        # direction; otherwise a mode=min run never records best_da_model.pth.
+        es_mode = config["training"]["early_stopping"].get("mode", "max")
+        if es_mode == "max":
+            self.best_metric = float("-inf")
+        elif es_mode == "min":
+            self.best_metric = float("inf")
+        else:
+            raise ValueError(
+                f"Unexpected early stopping mode: {es_mode!r}")
         self.best_epoch = 0
         self.early_stopping_counter = 0
 
@@ -166,9 +198,21 @@ class PrefilterDomainAdaptationTrainer:
         source_train_ds, source_val_ds = source_ds.split(
             source_cfg.get("train_split", 0.85), seed=seed
         )
+
+        # Opt-in sequential read order.  The dataset file is shuffled at build
+        # time (prefilter_npy_ds_builder/build.py), so ascending index order
+        # still yields a random class mixture.  Sorting the split indices only
+        # removes the random I/O order that `split()` stores; the loaders below
+        # then skip their per-epoch shuffle.
+        sequential_read = bool(source_cfg.get("sequential_read", False))
+        if sequential_read:
+            source_train_ds._indices = np.sort(source_train_ds._indices)
+            source_val_ds._indices = np.sort(source_val_ds._indices)
+
         logger.info(
             f"Source (MC NPY): {len(source_train_ds):,} train, "
             f"{len(source_val_ds):,} val"
+            + (" [sequential read]" if sequential_read else "")
         )
 
         # --- Target domain: in-memory exp.h5 ---
@@ -204,7 +248,7 @@ class PrefilterDomainAdaptationTrainer:
         aug = dl_cfg.get("augmentation")
 
         self.source_train_loader = create_prefilter_npy_dataloader(
-            source_train_ds, src_bs, shuffle=True,
+            source_train_ds, src_bs, shuffle=not sequential_read,
             normalization_config=self.normalization_config,
             augmentation_config=aug, shuffle_batch=True,
             device=str(self.device), num_workers=nw, pin_memory=pm,
@@ -227,6 +271,34 @@ class PrefilterDomainAdaptationTrainer:
             augmentation_config=None, shuffle_batch=False,
             device=str(self.device), num_workers=nw, pin_memory=pm,
         )
+
+        # Optional muatm-only source stream for the domain branch.  The
+        # classification batch stays mixed (nu + mu); only the discriminator
+        # sees a muon-only source, matching the assumption exp ≈ muatm.
+        domain_source = self.config.get("domain_adaptation", {}).get(
+            "domain_source", "all")
+        if domain_source == "muatm":
+            split_idx = np.asarray(source_train_ds._indices)
+            mu_pos = np.flatnonzero(
+                source_train_ds.particle_types[split_idx] == 0)
+            if len(mu_pos) == 0:
+                raise ValueError(
+                    "domain_adaptation.domain_source=muatm but the source "
+                    "train split contains no muatm events")
+            mu_subset = Subset(source_train_ds, mu_pos)
+            self.domain_source_loader = create_prefilter_npy_dataloader(
+                mu_subset, 2 * tgt_bs, shuffle=not sequential_read,
+                normalization_config=self.normalization_config,
+                augmentation_config=aug, shuffle_batch=True,
+                device=str(self.device), num_workers=nw, pin_memory=pm,
+            )
+            logger.info(
+                f"Domain source: muatm only ({len(mu_subset):,} events, "
+                f"batch {2 * tgt_bs})")
+        elif domain_source not in ("all", None):
+            raise ValueError(
+                "domain_adaptation.domain_source must be 'all' or 'muatm', "
+                f"got {domain_source!r}")
         logger.info("Data preparation complete")
 
     def _calculate_class_weights(self, dataset) -> torch.Tensor:
@@ -307,51 +379,42 @@ class PrefilterDomainAdaptationTrainer:
         raise ValueError(f"Unknown optimizer: {cfg['optimizer']}")
 
     def _create_schedulers(self, tcfg: Dict) -> None:
+        """Create one scheduler per optimizer.
+
+        ``scheduler_discriminator`` / ``scheduler_params_discriminator``
+        override the discriminator alone (for example, a constant discriminator
+        lr while the encoder and classifier decay).  Without those keys the
+        behaviour is unchanged: all three schedulers share one type and params.
+        """
         stype = tcfg.get("scheduler")
+        sp = tcfg.get("scheduler_params", {})
+        d_stype = tcfg.get("scheduler_discriminator", stype)
+        d_sp = tcfg.get(
+            "scheduler_params_discriminator", sp if d_stype == stype else {})
+        self.scheduler_feature = self._make_scheduler(
+            self.optimizer_feature, stype, sp, tcfg)
+        self.scheduler_classifier = self._make_scheduler(
+            self.optimizer_classifier, stype, sp, tcfg)
+        self.scheduler_discriminator = self._make_scheduler(
+            self.optimizer_discriminator, d_stype, d_sp, tcfg)
+
+    @staticmethod
+    def _make_scheduler(optimizer, stype, sp, tcfg):
         if stype == "cosine":
-            sp = tcfg.get("scheduler_params", {})
-            T_max = int(sp.get("T_max", tcfg["epochs"]))
-            eta_min = float(sp.get("eta_min", 1e-6))
-            self.scheduler_feature = optim.lr_scheduler.CosineAnnealingLR(
-                self.optimizer_feature, T_max=T_max, eta_min=eta_min,
-            )
-            self.scheduler_classifier = optim.lr_scheduler.CosineAnnealingLR(
-                self.optimizer_classifier, T_max=T_max, eta_min=eta_min,
-            )
-            self.scheduler_discriminator = optim.lr_scheduler.CosineAnnealingLR(
-                self.optimizer_discriminator, T_max=T_max, eta_min=eta_min,
-            )
-        elif stype == "step":
-            sp = tcfg.get("scheduler_params", {})
-            ss = int(sp.get("step_size", 30))
-            g = float(sp.get("gamma", 0.1))
-            self.scheduler_feature = optim.lr_scheduler.StepLR(
-                self.optimizer_feature, step_size=ss, gamma=g,
-            )
-            self.scheduler_classifier = optim.lr_scheduler.StepLR(
-                self.optimizer_classifier, step_size=ss, gamma=g,
-            )
-            self.scheduler_discriminator = optim.lr_scheduler.StepLR(
-                self.optimizer_discriminator, step_size=ss, gamma=g,
-            )
-        elif stype == "plateau":
-            sp = tcfg.get("scheduler_params", {})
-            mode = sp.get("mode", "max")
-            factor = float(sp.get("factor", 0.5))
-            patience = int(sp.get("patience", 5))
-            min_lr = float(sp.get("min_lr", 1e-6))
-            self.scheduler_feature = optim.lr_scheduler.ReduceLROnPlateau(
-                self.optimizer_feature, mode=mode, factor=factor,
-                patience=patience, min_lr=min_lr,
-            )
-            self.scheduler_classifier = optim.lr_scheduler.ReduceLROnPlateau(
-                self.optimizer_classifier, mode=mode, factor=factor,
-                patience=patience, min_lr=min_lr,
-            )
-            self.scheduler_discriminator = optim.lr_scheduler.ReduceLROnPlateau(
-                self.optimizer_discriminator, mode=mode, factor=factor,
-                patience=patience, min_lr=min_lr,
-            )
+            return optim.lr_scheduler.CosineAnnealingLR(
+                optimizer, int(sp.get("T_max", tcfg["epochs"])),
+                float(sp.get("eta_min", 1e-6)))
+        if stype == "step":
+            return optim.lr_scheduler.StepLR(
+                optimizer, int(sp.get("step_size", 30)),
+                float(sp.get("gamma", 0.1)))
+        if stype == "plateau":
+            return optim.lr_scheduler.ReduceLROnPlateau(
+                optimizer, mode=sp.get("mode", "max"),
+                factor=float(sp.get("factor", 0.5)),
+                patience=int(sp.get("patience", 5)),
+                min_lr=float(sp.get("min_lr", 1e-6)))
+        return None
 
     # -- Lambda scheduling ------------------------------------------------
 
@@ -376,6 +439,11 @@ class PrefilterDomainAdaptationTrainer:
             return (2.0 / (1.0 + math.exp(-gamma * p)) - 1.0) * max_l
         elif stype == "constant":
             return sc.get("lambda", 1.0)
+        elif stype == "delayed_constant":
+            # λ=0 before start_epoch, then a constant λ: let the
+            # classification loss settle before the adversarial game starts.
+            start = int(sc.get("start_epoch", 0))
+            return sc.get("lambda", 1.0) if (epoch or 0) >= start else 0.0
         elif stype == "linear":
             return sc.get("start_lambda", 0.0) + (
                 sc.get("end_lambda", 1.0) - sc.get("start_lambda", 0.0)
@@ -503,6 +571,294 @@ class PrefilterDomainAdaptationTrainer:
 
         return features, mask
 
+    # -- Domain batches (shared by the training step and the refresh) -----
+
+    def _build_domain_batches(
+        self,
+        source_batch: Dict,
+        target_batch: Dict,
+        domain_source_batch: Optional[Dict] = None,
+    ):
+        """z-flip both domains and align the two halves to one size.
+
+        Both domains get a 50/50 vertical-orientation mix: the source by
+        flipping a random half of its events, the target by concatenating every
+        event with its mirror.  Orientation therefore carries no domain cue
+        into the discriminator.
+
+        ``domain_source_batch`` optionally replaces the source side of the game
+        (e.g. a muatm-only stream); the classification batch is unaffected.
+
+        Returns (src_dom_batch, tgt_dom_batch, n_source, n_target, domain_bs).
+        """
+        if domain_source_batch is not None:
+            source_batch = domain_source_batch
+        n_source = source_batch["features"].shape[0]
+
+        tgt_feat_orig = target_batch["features"]
+        tgt_mask = target_batch["mask"]
+        tgt_feat_flip_aug = tgt_feat_orig.clone()
+        tgt_feat_flip_aug[:, :, 4] = torch.where(
+            tgt_mask, -tgt_feat_orig[:, :, 4], tgt_feat_orig[:, :, 4])
+        tgt_mask_flip_aug = tgt_mask.clone()
+
+        tgt_features_cat = torch.cat(
+            [tgt_feat_orig, tgt_feat_flip_aug], dim=0)
+        tgt_lengths_cat = torch.cat(
+            [target_batch["lengths"], target_batch["lengths"]], dim=0)
+        tgt_mask_cat = torch.cat([tgt_mask, tgt_mask_flip_aug], dim=0)
+        n_target = tgt_features_cat.shape[0]
+
+        domain_bs = min(n_source, n_target)
+
+        sel_src = (
+            torch.randperm(n_source, device=self.device)[:domain_bs]
+            if n_source > domain_bs
+            else torch.arange(n_source, device=self.device)
+        )
+        sel_tgt = (
+            torch.randperm(n_target, device=self.device)[:domain_bs]
+            if n_target > domain_bs
+            else torch.arange(n_target, device=self.device)
+        )
+
+        src_features = source_batch["features"][sel_src].clone()
+        src_mask = source_batch["mask"][sel_src]
+
+        n_flip = domain_bs // 2
+        flip_idx = torch.randperm(domain_bs, device=self.device)[:n_flip]
+        src_features[flip_idx, :, 4] = torch.where(
+            src_mask[flip_idx],
+            -src_features[flip_idx, :, 4],
+            src_features[flip_idx, :, 4],
+        )
+
+        src_dom_batch = {
+            "features": src_features,
+            "lengths": source_batch["lengths"][sel_src],
+            "mask": src_mask,
+        }
+        tgt_dom_batch = {
+            "features": tgt_features_cat[sel_tgt],
+            "lengths": tgt_lengths_cat[sel_tgt],
+            "mask": tgt_mask_cat[sel_tgt],
+        }
+        return src_dom_batch, tgt_dom_batch, n_source, n_target, domain_bs
+
+    # -- Discriminator refresh --------------------------------------------
+
+    def _refresh_discriminator(self, steps: int) -> None:
+        """Re-fit the discriminator alone, on frozen features.
+
+        The adversarial game can collapse: the discriminator stops separating
+        the domains although the features still contain domain information.
+        From that state its reversal gradient to the encoder is ~zero, so the
+        domain branch does nothing.  Freezing the encoder and re-fitting the
+        discriminator restores a live opponent; whether the encoder then
+        responds is what the invariance probe measures.
+        """
+        import itertools
+
+        model = self.da_model
+        for param in model.base_model.parameters():
+            param.requires_grad_(False)
+        model.base_model.eval()
+        model.domain_discriminator.train()
+
+        source_iter = itertools.cycle(self.source_train_loader)
+        target_iter = itertools.cycle(self.target_train_loader)
+        domain_source_iter = (
+            itertools.cycle(self.domain_source_loader)
+            if self.domain_source_loader is not None else None)
+        loss_value = float("nan")
+        for _ in range(steps):
+            source_batch = next(source_iter)
+            target_batch = next(target_iter)
+            for b in (source_batch, target_batch):
+                for k in b:
+                    if isinstance(b[k], torch.Tensor):
+                        b[k] = b[k].to(self.device)
+            dom_src_batch = None
+            if domain_source_iter is not None:
+                dom_src_batch = next(domain_source_iter)
+                for k in dom_src_batch:
+                    if isinstance(dom_src_batch[k], torch.Tensor):
+                        dom_src_batch[k] = dom_src_batch[k].to(self.device)
+            src_dom_batch, tgt_dom_batch, _, _, _ = (
+                self._build_domain_batches(
+                    source_batch, target_batch,
+                    domain_source_batch=dom_src_batch))
+            with torch.no_grad():
+                f_src = model.get_features(src_dom_batch).detach()
+                f_tgt = model.get_features(tgt_dom_batch).detach()
+            logits_src = model.domain_discriminator(f_src)
+            logits_tgt = model.domain_discriminator(f_tgt)
+            loss = (
+                nn.functional.binary_cross_entropy_with_logits(
+                    logits_src, torch.zeros_like(logits_src))
+                + nn.functional.binary_cross_entropy_with_logits(
+                    logits_tgt, torch.ones_like(logits_tgt))
+            ) / 2
+            self.optimizer_discriminator.zero_grad()
+            loss.backward()
+            self.optimizer_discriminator.step()
+            loss_value = loss.item()
+
+        for param in model.base_model.parameters():
+            param.requires_grad_(True)
+        model.train()
+        logger.info(
+            "  discriminator refresh done (%d steps, last loss %.4f)",
+            steps, loss_value)
+
+    # -- Invariance probe --------------------------------------------------
+
+    def _probe_sample(self) -> Dict:
+        """Fixed held-out events built by probe_sample/build_probe_sample.py."""
+        if getattr(self, "_probe_arrays", None) is None:
+            path = self.config["training"]["invariance_probe"]["path"]
+            with np.load(path) as npz:
+                self._probe_arrays = {
+                    k: npz[k] for k in ("hits", "offsets", "group", "band")}
+            logger.info(
+                "Invariance probe sample: %s (%d events)",
+                path, len(self._probe_arrays["group"]))
+        return self._probe_arrays
+
+    def _probe_embeddings(
+        self,
+        hits: np.ndarray,
+        offsets: np.ndarray,
+        flip_z: bool = False,
+    ) -> np.ndarray:
+        """Encoder features of the probe sample, normalized and clipped as in training.
+
+        ``flip_z=True`` negates the (normalized) z coordinate of every hit --
+        the same operation ``_build_domain_batches`` applies to the domain
+        batches -- so the mirrored embeddings can feed the game-style probe.
+        ``data.max_hits`` is applied per event, exactly as the training dataset
+        does; without it, long experimental events would enter the probe at a
+        length the encoder never saw in training.
+        """
+        if self.normalization_config is None:
+            raise ValueError(
+                "invariance_probe requires data.normalization.enabled")
+        means = torch.tensor(
+            self.normalization_config["means"],
+            dtype=torch.float32, device=self.device)
+        stds = torch.tensor(
+            self.normalization_config["stds"],
+            dtype=torch.float32, device=self.device)
+        max_hits = self.config["data"].get("max_hits")
+        model = self.da_model.base_model
+        was_training = model.training
+        model.eval()
+        n_events = len(offsets) - 1
+        chunks = []
+        with torch.no_grad():
+            for start in range(0, n_events, 512):
+                end = min(start + 512, n_events)
+                lows = offsets[start:end]
+                highs = offsets[start + 1:end + 1]
+                if max_hits is not None:
+                    highs = np.minimum(highs, lows + int(max_hits))
+                lengths = torch.tensor(
+                    highs - lows, dtype=torch.long, device=self.device)
+                max_len = int(lengths.max().item())
+                padded = torch.zeros(
+                    len(lengths), max_len, hits.shape[1],
+                    dtype=torch.float32, device=self.device)
+                for i, (lo, hi) in enumerate(zip(lows, highs)):
+                    padded[i, :hi - lo] = torch.from_numpy(
+                        hits[lo:hi]).to(self.device)
+                mask = torch.arange(
+                    max_len, device=self.device)[None, :] < lengths[:, None]
+                padded = torch.where(
+                    mask.unsqueeze(-1),
+                    (padded - means) / (stds + 1e-8), padded)
+                if flip_z:
+                    padded[:, :, 4] = torch.where(
+                        mask, -padded[:, :, 4], padded[:, :, 4])
+                feats = model.get_feature_representation(
+                    {"features": padded, "lengths": lengths, "mask": mask})
+                chunks.append(feats.cpu().numpy())
+        if was_training:
+            model.train()
+        return np.concatenate(chunks, axis=0)
+
+    def _invariance_probe(self) -> Dict[str, float]:
+        """Fresh logistic probes on frozen features: two meters, one task each.
+
+        * ``probe_auc_*`` -- muatm vs exp on natural embeddings, overall and per
+          band.  A fresh probe, not the in-game discriminator, is the meter: a
+          discriminator driven into an uninformative state reports chance
+          exactly as genuinely invariant features would.
+        * ``probe_auc_game_*`` -- the in-game task: muatm-only source (as the
+          domain branch sees it) against exp, built exactly as the domain
+          batches are -- half of the muon side z-flipped, the exp side doubled
+          with its mirror.  This is the number to compare against ``Val dom``.
+        """
+        from sklearn.linear_model import LogisticRegression
+        from sklearn.metrics import roc_auc_score
+        from sklearn.model_selection import StratifiedKFold
+        from sklearn.preprocessing import StandardScaler
+
+        sample = self._probe_sample()
+        emb = self._probe_embeddings(sample["hits"], sample["offsets"])
+        emb_flip = self._probe_embeddings(
+            sample["hits"], sample["offsets"], flip_z=True)
+        group = sample["group"]   # 0 = muatm, 2 = exp, 4 = nu
+        band = sample["band"]     # 0 = bulk, 1 = mid, 2 = tail
+
+        metrics: Dict[str, float] = {}
+
+        def cv_auc(X: np.ndarray, y: np.ndarray) -> Optional[float]:
+            if len(np.unique(y)) < 2 or min(np.bincount(y)) < 50:
+                return None
+            aucs = []
+            for tr, te in StratifiedKFold(
+                    3, shuffle=True, random_state=42).split(X, y):
+                scaler = StandardScaler().fit(X[tr])
+                clf = LogisticRegression(max_iter=2000).fit(
+                    scaler.transform(X[tr]), y[tr])
+                aucs.append(roc_auc_score(
+                    y[te], clf.decision_function(scaler.transform(X[te]))))
+            return float(np.mean(aucs))
+
+        mu = np.flatnonzero(group <= 1)
+        exp = np.flatnonzero((group >= 2) & (group <= 3))
+        hist = np.zeros(len(group), dtype=bool)
+        hist[mu] = True
+        hist[exp] = True
+
+        for mask, tag in [(hist, "all"),
+                          (hist & (band == 0), "bulk"),
+                          (hist & (band == 2), "tail")]:
+            auc = cv_auc(emb[mask], (group[mask] >= 2).astype(int))
+            if auc is not None:
+                metrics[f"probe_auc_{tag}"] = auc
+
+        flipped = np.zeros(len(group), dtype=bool)
+        flipped[np.random.default_rng(42).choice(
+            mu, size=len(mu) // 2, replace=False)] = True
+        src_rows = np.where(flipped[mu, None], emb_flip[mu], emb[mu])
+        tgt_rows = np.concatenate([emb[exp], emb_flip[exp]], axis=0)
+        X_game = np.concatenate([src_rows, tgt_rows], axis=0)
+        y_game = np.concatenate([
+            np.zeros(len(src_rows), int),
+            np.ones(len(tgt_rows), int),
+        ])
+        band_game = np.concatenate([band[mu], band[exp], band[exp]])
+        for mask, tag in [
+            (np.ones(len(y_game), dtype=bool), "all"),
+            (band_game == 0, "bulk"),
+            (band_game == 2, "tail"),
+        ]:
+            auc = cv_auc(X_game[mask], y_game[mask])
+            if auc is not None:
+                metrics[f"probe_auc_game_{tag}"] = auc
+        return metrics
+
     # -- Training epoch ---------------------------------------------------
 
     def train_epoch(self) -> Dict[str, float]:
@@ -517,6 +873,11 @@ class PrefilterDomainAdaptationTrainer:
         total_batches = max(n_src, n_tgt)
         total_steps = total_epochs * total_batches
         log_every = self.config["logging"].get("log_every", 10)
+        k_steps = int(self.config["training"].get("k_steps", 1))
+        domain_source_iter = (
+            itertools.cycle(self.domain_source_loader)
+            if self.domain_source_loader is not None else None
+        )
 
         # Cycle the smaller loader so the larger one drives epoch length
         if n_src >= n_tgt:
@@ -583,72 +944,59 @@ class PrefilterDomainAdaptationTrainer:
 
             classification_loss.backward()
 
-            # === Domain adaptation (all MC events vs exp original + z-flipped) ===
-            # Source: all MC events (nu + mu) — not filtered by particle type.
+            # === Domain adaptation (z-flip both source and target) ===
+            # Source: all MC events, or the muatm-only stream when
+            # domain_adaptation.domain_source == "muatm".
             # Target: exp batch concatenated with z-flipped copy (inverted z coord),
             #         representing hypothetical upgoing events in experimental data.
             # Both target variants get label=1 (target domain).
-            n_source = source_batch["features"].shape[0]
+            dom_src_batch = None
+            if domain_source_iter is not None:
+                dom_src_batch = next(domain_source_iter)
+                for k in dom_src_batch:
+                    if isinstance(dom_src_batch[k], torch.Tensor):
+                        dom_src_batch[k] = dom_src_batch[k].to(self.device)
 
-            # Build z-flipped + augmented target half
-            tgt_feat_orig = target_batch["features"]
-            tgt_mask = target_batch["mask"]
-            tgt_feat_flip_aug = tgt_feat_orig.clone()
-            tgt_feat_flip_aug[:, :, 4] = torch.where(
-                tgt_mask, -tgt_feat_orig[:, :, 4], tgt_feat_orig[:, :, 4]
+            src_dom_batch, tgt_dom_batch, n_source, n_target, domain_bs = (
+                self._build_domain_batches(
+                    source_batch, target_batch,
+                    domain_source_batch=dom_src_batch,
+                )
             )
-
-            tgt_mask_flip_aug = tgt_mask.clone()
-
-            # Concatenate original and augmented z-flipped target
-            tgt_features_cat = torch.cat([tgt_feat_orig, tgt_feat_flip_aug], dim=0)
-            tgt_lengths_cat = torch.cat(
-                [target_batch["lengths"], target_batch["lengths"]], dim=0
-            )
-            tgt_mask_cat = torch.cat([tgt_mask, tgt_mask_flip_aug], dim=0)
-            n_target = tgt_features_cat.shape[0]  # 2 * original target batch size
-
-            domain_bs = min(n_source, n_target)
-
-            # Subsample if needed (source and target are typically equal after concat)
-            if n_source > domain_bs:
-                sel_src = torch.randperm(n_source, device=self.device)[:domain_bs]
-            else:
-                sel_src = torch.arange(n_source, device=self.device)
-
-            if n_target > domain_bs:
-                sel_tgt = torch.randperm(n_target, device=self.device)[:domain_bs]
-            else:
-                sel_tgt = torch.arange(n_target, device=self.device)
-
-            src_features = source_batch["features"][sel_src].clone()
-            src_mask = source_batch["mask"][sel_src]
-
-            # Randomly flip z (feature index 4) for half the source events
-            n_flip = domain_bs // 2
-            flip_idx = torch.randperm(domain_bs, device=self.device)[:n_flip]
-            src_features[flip_idx, :, 4] = torch.where(
-                src_mask[flip_idx],
-                -src_features[flip_idx, :, 4],
-                src_features[flip_idx, :, 4],
-            )
-
-            src_dom_batch = {
-                "features": src_features,
-                "lengths": source_batch["lengths"][sel_src],
-                "mask": src_mask,
-            }
-            tgt_dom_batch = {
-                "features": tgt_features_cat[sel_tgt],
-                "lengths": tgt_lengths_cat[sel_tgt],
-                "mask": tgt_mask_cat[sel_tgt],
-            }
-
-            src_dom_logits, _ = self.da_model.domain_forward(src_dom_batch)
-            tgt_dom_logits, _ = self.da_model.domain_forward(tgt_dom_batch)
 
             src_dom_labels = torch.zeros(domain_bs, 1, device=self.device)
             tgt_dom_labels = torch.ones(domain_bs, 1, device=self.device)
+
+            # Normalize by utilization rate
+            src_util = domain_bs / n_source
+            tgt_util = domain_bs / n_target
+            avg_util = (src_util + tgt_util) / 2
+
+            if k_steps > 1:
+                # K-1 discriminator steps on cached features: the encoder is
+                # not updated, only the critic.  With dropout=0 the cache is
+                # exact; with dropout>0 it is one dropout sample.
+                with torch.no_grad():
+                    feat_s = self.da_model.get_features(src_dom_batch)
+                    feat_t = self.da_model.get_features(tgt_dom_batch)
+                for _ in range(k_steps - 1):
+                    s_log = self.da_model.domain_discriminator(feat_s)
+                    t_log = self.da_model.domain_discriminator(feat_t)
+                    step_loss = (
+                        nn.functional.binary_cross_entropy_with_logits(
+                            s_log, src_dom_labels,
+                        )
+                        + nn.functional.binary_cross_entropy_with_logits(
+                            t_log, tgt_dom_labels,
+                        )
+                    ) / 2
+                    self.optimizer_discriminator.zero_grad()
+                    (step_loss / avg_util).backward()
+                    self.optimizer_discriminator.step()
+                self.optimizer_discriminator.zero_grad()
+
+            src_dom_logits, _ = self.da_model.domain_forward(src_dom_batch)
+            tgt_dom_logits, _ = self.da_model.domain_forward(tgt_dom_batch)
 
             domain_loss = (
                 nn.functional.binary_cross_entropy_with_logits(
@@ -659,10 +1007,6 @@ class PrefilterDomainAdaptationTrainer:
                 )
             ) / 2
 
-            # Normalize by utilization rate
-            src_util = domain_bs / n_source
-            tgt_util = domain_bs / n_target
-            avg_util = (src_util + tgt_util) / 2
             norm_domain_loss = domain_loss / avg_util
 
             norm_domain_loss.backward()
@@ -789,9 +1133,21 @@ class PrefilterDomainAdaptationTrainer:
                 all_val_labels.append(labels.cpu())
                 all_val_signal_hits.append(batch["signal_hit_counts"].cpu())
 
-                # Collect all MC domain logits — randomly flip z for half
-                src_feat = batch["features"].clone()
-                src_mask = batch["mask"]
+                # Collect MC domain logits — randomly flip z for half.
+                # With domain_source=muatm the discriminator never sees nu,
+                # so the validation source must be muatm-only as well.
+                dom_mask = None
+                if (self.config.get("domain_adaptation", {}).get("domain_source")
+                        == "muatm"):
+                    dom_mask = batch["particle_types"] == 0
+                    if int(dom_mask.sum()) == 0:
+                        continue
+                src_feat = (batch["features"][dom_mask]
+                            if dom_mask is not None else batch["features"]).clone()
+                src_mask = (batch["mask"][dom_mask] if dom_mask is not None
+                            else batch["mask"])
+                src_lengths = (batch["lengths"][dom_mask]
+                               if dom_mask is not None else batch["lengths"])
                 bs = src_feat.shape[0]
                 n_flip = bs // 2
                 flip_idx = torch.randperm(bs, device=self.device)[:n_flip]
@@ -802,7 +1158,7 @@ class PrefilterDomainAdaptationTrainer:
                 )
                 src_dl, _ = self.da_model.domain_forward({
                     "features": src_feat,
-                    "lengths": batch["lengths"],
+                    "lengths": src_lengths,
                     "mask": src_mask,
                 })
                 src_domain_logits.append(src_dl.cpu())
@@ -932,16 +1288,12 @@ class PrefilterDomainAdaptationTrainer:
             "normalization_config": self.normalization_config,
             "training_history": history[: epoch + 1] if history else [],
         }
-        if self.scheduler_feature is not None:
-            ckpt["scheduler_feature_state_dict"] = (
-                self.scheduler_feature.state_dict()
-            )
-            ckpt["scheduler_classifier_state_dict"] = (
-                self.scheduler_classifier.state_dict()
-            )
-            ckpt["scheduler_discriminator_state_dict"] = (
-                self.scheduler_discriminator.state_dict()
-            )
+        # A scheduler may be disabled per optimizer (e.g. a constant
+        # discriminator lr), so save only the ones that exist.
+        for name in ("feature", "classifier", "discriminator"):
+            sch = getattr(self, f"scheduler_{name}")
+            if sch is not None:
+                ckpt[f"scheduler_{name}_state_dict"] = sch.state_dict()
 
         torch.save(
             ckpt, self.output_dir / f"da_checkpoint_epoch_{epoch:03d}.pth",
@@ -1015,23 +1367,52 @@ class PrefilterDomainAdaptationTrainer:
             if epoch % validate_every == 0:
                 val_metrics = self.validate_epoch()
 
-            # Scheduler step
-            if self.scheduler_feature is not None:
-                if isinstance(
-                    self.scheduler_feature,
-                    optim.lr_scheduler.ReduceLROnPlateau,
-                ):
+            # Invariance probe: a fresh logistic reader on frozen features.
+            probe_metrics: Dict[str, float] = {}
+            probe_cfg = self.config["training"].get("invariance_probe", {})
+            probe_every = int(probe_cfg.get("every_n_epochs", 0) or 0)
+            if probe_cfg.get("enabled", False) and probe_every \
+                    and epoch % probe_every == 0:
+                probe_metrics = self._invariance_probe()
+                logger.info(
+                    "  Probe   — " + ", ".join(
+                        f"{key.replace('probe_auc_', 'auc_')}={value:.4f}"
+                        for key, value in probe_metrics.items()
+                    )
+                )
+                if self.writer:
+                    for key, value in probe_metrics.items():
+                        self.writer.add_scalar(f"Val/{key}", value, epoch)
+
+            # Periodic refresh of the discriminator on frozen features.
+            refresh_cfg = self.config["domain_adaptation"].get(
+                "discriminator_refresh", {})
+            refresh_every = int(refresh_cfg.get("every_epochs", 0) or 0)
+            if refresh_every and (epoch + 1) % refresh_every == 0:
+                self._refresh_discriminator(
+                    int(refresh_cfg.get("steps", 300)))
+
+            # Scheduler step (a scheduler may be disabled per optimizer).
+            scheds = (self.scheduler_feature, self.scheduler_classifier,
+                      self.scheduler_discriminator)
+            if any(s is not None for s in scheds):
+                needs_metric = any(
+                    isinstance(s, optim.lr_scheduler.ReduceLROnPlateau)
+                    for s in scheds if s is not None
+                )
+                plateau_metric = None
+                if needs_metric:
                     plateau_metric = val_metrics.get(
                         monitor.replace("val_", ""),
                         train_metrics.get(monitor, 0),
                     )
-                    self.scheduler_feature.step(plateau_metric)
-                    self.scheduler_classifier.step(plateau_metric)
-                    self.scheduler_discriminator.step(plateau_metric)
-                else:
-                    self.scheduler_feature.step()
-                    self.scheduler_classifier.step()
-                    self.scheduler_discriminator.step()
+                for s in scheds:
+                    if s is None:
+                        continue
+                    if isinstance(s, optim.lr_scheduler.ReduceLROnPlateau):
+                        s.step(plateau_metric)
+                    else:
+                        s.step()
 
             if self.writer:
                 self._log_tensorboard_lr(epoch)
@@ -1048,6 +1429,7 @@ class PrefilterDomainAdaptationTrainer:
                 "epoch_time": time.time() - t0,
                 **train_metrics,
                 **{f"val_{k}": v for k, v in val_metrics.items()},
+                **probe_metrics,
             }
             history.append(epoch_entry)
             self._save_history_csv(history)

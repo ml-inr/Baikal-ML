@@ -94,11 +94,11 @@ def predict_sn_probs(data: np.ndarray, ev_starts: np.ndarray, *, device: str = "
             batch_size: int = SN_BATCH, desc: str = "") -> np.ndarray:
     """Per-hit signal probability, in the pipeline's own call pattern.
 
-    `normalize=True` matches `predict_mc_h5.py` / `predict_exp_h5.py`: raw
-    features go in and are normalised on the device.
+    `normalize=True` matches `inference/sig_noise/predict_mc_h5.py` /
+    `predict_exp_h5.py`: raw features go in and are normalised on the device.
     """
     import torch
-    from gplotnikov_sig_noise_models.k_nsol_labelneq0_da_hs128_k0p0001 \
+    from trained_models.sig_noise.k_nsol_labelneq0_da_hs128_k0p0001 \
         .sig_noise_model_v3 import predict_flat
 
     model, _config, resolved = load_sn(device)

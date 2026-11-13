@@ -1,0 +1,10 @@
+# Manual lane for AB-T5 while AB-G finishes on GPU 1.
+poll_seconds: 60
+free_memory_mib: 1000
+max_utilization: 5
+
+jobs:
+  - id: AB-T5
+    config: src/training/configs/track_energy_reconstruction/mu_energy_AB-T5_partsplit.yaml
+    gpu: 3
+    depends_on: []

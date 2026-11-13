@@ -41,7 +41,10 @@ class PositionalEncoding(nn.Module):
                            (-math.log(10000.0) / d_model))
         
         pe[:, 0::2] = torch.sin(position * div_term)
-        pe[:, 1::2] = torch.cos(position * div_term)
+        # Срез нужен только для нечётного d_model: у него косинусных слотов на
+        # один меньше, чем частот в div_term. При чётном d срез равен всему
+        # тензору и ничего не меняет.
+        pe[:, 1::2] = torch.cos(position * div_term[:pe[:, 1::2].shape[1]])
         pe = pe.unsqueeze(0).transpose(0, 1)
         
         self.register_buffer('pe', pe)
@@ -69,6 +72,9 @@ class AttentionFeatureExtractor(nn.Module):
         dropout: Dropout probability
         pooling: Pooling strategy ('cls', 'mean', 'max', 'attention')
         use_positional_encoding: Whether to add positional encoding
+        latent_dim: Optional linear bottleneck after pooling. When set, both the
+            classification head and the domain discriminator read this z instead
+            of the full d_model vector (None = no projection).
     """
     
     def __init__(
@@ -81,7 +87,8 @@ class AttentionFeatureExtractor(nn.Module):
         dropout: float = 0.1,
         pooling: str = 'cls',
         use_positional_encoding: bool = True,
-        max_seq_len: int = 500
+        max_seq_len: int = 500,
+        latent_dim: Optional[int] = None
     ):
         super().__init__()
         
@@ -118,8 +125,16 @@ class AttentionFeatureExtractor(nn.Module):
             num_layers=num_layers
         )
         
+        # Optional linear bottleneck after pooling: classifier and domain
+        # discriminator both read this z instead of the full d_model vector.
+        self.latent_dim = latent_dim
+        if latent_dim is not None:
+            self.latent_projection = nn.Linear(d_model, latent_dim)
+        else:
+            self.latent_projection = None
+
         # Output feature dimension
-        self.feature_dim = d_model
+        self.feature_dim = latent_dim if latent_dim is not None else d_model
         
         # Attention pooling layer (if needed)
         if pooling == 'attention':
@@ -136,7 +151,8 @@ class AttentionFeatureExtractor(nn.Module):
         self.dropout = nn.Dropout(dropout)
         
         logger.info(f"Created AttentionFeatureExtractor: {input_dim}→{d_model}, "
-                   f"{num_layers} layers, {num_heads} heads, pooling={pooling}")
+                   f"{num_layers} layers, {num_heads} heads, pooling={pooling}"
+                   + (f", latent={latent_dim}" if latent_dim is not None else ""))
     
     def forward(
         self, 
@@ -208,6 +224,10 @@ class AttentionFeatureExtractor(nn.Module):
         # Layer normalization and dropout
         features = self.layer_norm(features)
         features = self.dropout(features)
+
+        # Optional linear bottleneck to the latent dimension z.
+        if self.latent_projection is not None:
+            features = self.latent_projection(features)
         
         return features
     
@@ -342,7 +362,8 @@ class NuMuClassifierModel(nn.Module):
             dropout=feature_config.get('dropout', 0.1),
             pooling=feature_config.get('pooling', 'cls'),
             use_positional_encoding=feature_config.get('use_positional_encoding', True),
-            max_seq_len=feature_config.get('max_seq_len', 500)
+            max_seq_len=feature_config.get('max_seq_len', 500),
+            latent_dim=feature_config.get('latent_dim'),
         )
         
         # Binary classifier

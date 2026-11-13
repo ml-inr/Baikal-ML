@@ -18,6 +18,13 @@ sig_noise_model:
   device: "cuda:2"       # "auto" | "cuda" | "cpu"
   batch_size: 256
 
+# Sig-noise source:
+#   "model"    — run the sig-noise model (historical default; old datasets reproduce exactly)
+#   "probs_h5" — read precomputed per-hit probabilities and per-event counts from
+#                sig_noise_probs_path (no model, no GPU; batch size is baked into the file)
+# sig_noise_source: "model"
+# sig_noise_probs_path: "data_manager/data/h5datasets/baikal_mc_merged_probs_k_nsol_labelneq0_da_hs128_k0p0001.h5"
+
 # Probability threshold: hits with prob > threshold are considered signal hits
 sig_noise_threshold: 0.8
 
@@ -28,6 +35,11 @@ event_cuts:
 
 # Class balancing: 2n muatm vs n nuatm + n nue2 (n = min of available pools)
 balance: true
+
+# Balance rule (only used when balance: true):
+#   "three_class" — 2n muatm : n nuatm : n nue2, n = min(muatm//2, nuatm, nue2)  [historical]
+#   "binary"      — n muatm : n (nuatm + nue2), n = min(muatm, nuatm + nue2)
+# balance_mode: "three_class"
 
 # Random seed for balancing and shuffling
 seed: 42

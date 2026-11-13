@@ -1,0 +1,126 @@
+experiment:
+  name: 261020_0514_da_nu_classifier_exp_full_E1_weights_tenth_z128_k10_dlr1e-2_lam0p003_delay8_s42_schedall
+  description: 'LR schedule (owner''s hypothesis): step x0.5 every 8 epochs for ALL
+    optimizers (the 12.10 protocol) at lambda=0.003, K=10. Constant lr may be too
+    large late.'
+  seed: 42
+reproducibility:
+  deterministic: true
+  benchmark: false
+data:
+  device: cuda:1
+  include_probs: false
+  max_hits: 500
+  normalization:
+    enabled: true
+  source_domain:
+    npy_dir: data_manager/datasets/nu_classifier_dataset_h5s0_thr0.8
+    max_events: 500000
+    train_split: 0.9
+    weights_file: data_manager/datasets/nu_classifier_dataset_h5s0_thr0.8/weights.npy
+  target_domain:
+    npy_dir: data_manager/datasets/nu_classifier_dataset_exp_full_thr0.8
+    max_events: 500000
+    train_split: 0.8
+model:
+  type: numu
+  amp_clip: 100
+  feature_extractor:
+    input_dim: 5
+    d_model: 128
+    num_heads: 4
+    num_layers: 4
+    dim_feedforward: 128
+    dropout: 0.0
+    pooling: cls
+    use_positional_encoding: true
+    max_seq_len: 1000
+  classifier:
+    hidden_dims:
+    - 32
+    - 16
+    dropout: 0.0
+    use_batch_norm: false
+  spectral_norm:
+    enabled: false
+domain_adaptation:
+  domain_discriminator:
+    hidden_dims:
+    - 32
+    - 16
+    dropout: 0.0
+    use_batch_norm: false
+    use_gradient_reversal: true
+    lambda_factor: 0.0
+    hidden_layer_norm: true
+    instance_noise: 0.05
+  discriminator_refresh:
+    every_epochs: 5
+    steps: 300
+  lambda_scheduler:
+    type: delayed_constant
+    start_epoch: 8
+    lambda: 0.003
+training:
+  epochs: 100
+  source_batch_size: 512
+  target_batch_size: 256
+  classification_loss: focal
+  focal_gamma: 2.0
+  feature_optimizer:
+    optimizer: adamw
+    learning_rate: 0.0001
+    weight_decay: 0.0
+  classifier_optimizer:
+    optimizer: adamw
+    learning_rate: 0.0001
+    weight_decay: 0.01
+  discriminator_optimizer:
+    optimizer: adamw
+    learning_rate: 0.01
+    weight_decay: 0.0
+  validate_every: 1
+  save_every: 5
+  invariance_probe:
+    enabled: true
+    path: data_manager/probe_sample/probe_sample.npz
+    every_n_epochs: 2
+  early_stopping:
+    enabled: true
+    monitor: val_loss
+    mode: min
+    patience: 30
+    min_delta: 0.0
+  k_steps: 10
+  scheduler: step
+  scheduler_params:
+    step_size: 8
+    gamma: 0.5
+dataloader:
+  num_workers: 0
+  pin_memory: false
+  augmentation:
+    noise_std:
+    - 0.05
+    - 5.0
+    - 1.0
+    - 1.0
+    - 2.0
+    rotation_enabled: true
+    afterpulse:
+      enabled: false
+      prob: 0.02
+      max_afterpulses: 3
+      q_range:
+      - 5.0
+      - 100.0
+logging:
+  level: INFO
+  output_dir: trained_models/classifier
+  log_every: 10
+  tensorboard: true
+  save_config: true
+  save_model_summary: true
+debug:
+  enabled: false
+  max_batches_per_epoch: 10

@@ -1,0 +1,134 @@
+{
+  "note": "Descriptive external 2020 reco comparison; preliminary ROOT-observable 10/13 cut, not full original 13/13; some primaries overlap training",
+  "sources": {
+    "paired": "/home/plotnikovgp/tmp/angle_reconstruction/track_anchor/runs/reco_eval/paired_exact_photon_pair_fixed/reco_paired_events.npz",
+    "root_fields": "/home/plotnikovgp/tmp/angle_reconstruction/track_anchor/runs/reco_eval/paired_exact_photon_pair_fixed/reco_paired_root_fields.csv",
+    "fair_source": "/home/plotnikovgp/tmp/angle_reconstruction/track_anchor/baikal_reco_signal_h8s2_trainnorm_faircompare_with_tres.h5",
+    "nominal": "/home/plotnikovgp/tmp/angle_reconstruction/track_anchor/runs/reco_eval/reco2020_raw_unmasked_v3_high.csv",
+    "candidate": "/home/plotnikovgp/tmp/angle_reconstruction/track_anchor/runs/reco_eval/reco2020_raw_unmasked_v3_photongate200.csv"
+  },
+  "stages": {
+    "root_10_of_13": {
+      "n": 42003,
+      "gate_reruns": 23590,
+      "reco": {
+        "q50": 1.9830751419067383,
+        "q68": 5.575640106201172,
+        "q95": 61.31537780761721
+      },
+      "nominal": {
+        "q50": 1.9536215924394886,
+        "q68": 3.36023292383044,
+        "q95": 13.334041340607277
+      },
+      "photon_gate": {
+        "q50": 1.8233396344048418,
+        "q68": 3.0719075054143854,
+        "q95": 12.8474533716757
+      },
+      "nominal_minus_reco_q50_ci95": [
+        -0.06985393934420298,
+        0.011598029899501547
+      ],
+      "gate_minus_reco_q50_ci95": [
+        -0.20101292817052074,
+        -0.12418095161775508
+      ],
+      "gate_minus_reco_q68_ci95": [
+        -2.6769534060969513,
+        -2.347874140633632
+      ],
+      "gate_minus_nominal_q50_ci95": [
+        -0.15087291022200625,
+        -0.11714395568855833
+      ],
+      "gate_minus_nominal_q68_ci95": [
+        -0.31963314003735366,
+        -0.25398644617733085
+      ],
+      "pivot_reco_q50_deg": 1.9830751419067383,
+      "reco_good_nn_bad": 6456,
+      "reco_bad_nn_good": 6661,
+      "pivot_shortfall_nominal": -205,
+      "pivot_shortfall_gate": -1346,
+      "eventwise_gate_better_fraction_rerun": 0.55498092412039,
+      "reco_good_nn_bad_profile": {
+        "n": 6456,
+        "median_selected_hits": 14.0,
+        "median_gt_span_m": 188.75350189208984,
+        "median_truth_theta_deg": 46.65612030029297,
+        "median_root_hits": 13.0,
+        "median_root_triplets": 4.0
+      },
+      "reco_bad_nn_good_profile": {
+        "n": 6661,
+        "median_selected_hits": 17.0,
+        "median_gt_span_m": 177.64810180664062,
+        "median_truth_theta_deg": 50.44732666015625,
+        "median_root_hits": 13.0,
+        "median_root_triplets": 5.0
+      }
+    },
+    "root_10_of_13_and_official": {
+      "n": 41566,
+      "gate_reruns": 23380,
+      "reco": {
+        "q50": 1.9455636739730835,
+        "q68": 5.380335807800294,
+        "q95": 59.848846435546875
+      },
+      "nominal": {
+        "q50": 1.9390087233509212,
+        "q68": 3.329679911336866,
+        "q95": 13.308464377248825
+      },
+      "photon_gate": {
+        "q50": 1.8091784167584446,
+        "q68": 3.045665229675702,
+        "q95": 12.79964929094677
+      },
+      "nominal_minus_reco_q50_ci95": [
+        -0.04365537727781256,
+        0.030222546685277053
+      ],
+      "gate_minus_reco_q50_ci95": [
+        -0.17360532116669541,
+        -0.09866175799746106
+      ],
+      "gate_minus_reco_q68_ci95": [
+        -2.4790707477475884,
+        -2.183072099178453
+      ],
+      "gate_minus_nominal_q50_ci95": [
+        -0.14777204612875625,
+        -0.11308166475184299
+      ],
+      "gate_minus_nominal_q68_ci95": [
+        -0.3156636919087556,
+        -0.25262771209909585
+      ],
+      "pivot_reco_q50_deg": 1.9455636739730835,
+      "reco_good_nn_bad": 6486,
+      "reco_bad_nn_good": 6537,
+      "pivot_shortfall_nominal": -51,
+      "pivot_shortfall_gate": -1165,
+      "eventwise_gate_better_fraction_rerun": 0.5553036783575706,
+      "reco_good_nn_bad_profile": {
+        "n": 6486,
+        "median_selected_hits": 14.0,
+        "median_gt_span_m": 188.81248474121094,
+        "median_truth_theta_deg": 46.692222595214844,
+        "median_root_hits": 13.0,
+        "median_root_triplets": 4.0
+      },
+      "reco_bad_nn_good_profile": {
+        "n": 6537,
+        "median_selected_hits": 17.0,
+        "median_gt_span_m": 177.6556854248047,
+        "median_truth_theta_deg": 50.30912780761719,
+        "median_root_hits": 13.0,
+        "median_root_triplets": 5.0
+      }
+    }
+  }
+}

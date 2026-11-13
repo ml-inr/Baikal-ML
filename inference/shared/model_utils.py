@@ -64,7 +64,7 @@ def load_sn_model(device: str = "auto") -> Tuple[nn.Module, Any, str]:
     Returns:
         (sn_model, sn_config, resolved_device)
     """
-    from gplotnikov_sig_noise_models.k_nsol_labelneq0_da_hs128_k0p0001.sig_noise_model_v3 import (
+    from trained_models.sig_noise.k_nsol_labelneq0_da_hs128_k0p0001.sig_noise_model_v3 import (
         load_model as _load,
     )
     sn_model, sn_config, resolved_dev = _load(device=device)

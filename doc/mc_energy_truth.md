@@ -8,7 +8,9 @@ match an event across the production chain; [mc_binary_formats.md](mc_binary_for
 to read the upstream `.dat` / `.wout`; [claims_log.md](claims_log.md) — every claim below with
 its evidence and confidence, including the ones that were refuted along the way.
 
-Code: `data_manager/root2h5/energy_truth/`. Working data:
+Code: `data_manager/energy_truth/` (current companion: `read_root.py`, `truth.py`,
+`build_h5.py`, `validate.py`). The superseded extraction/targets pipeline is kept in
+`archive_tracked/data_manager/root2h5/energy_truth/`. Working data:
 `data_manager/data/mc_energy_truth_interactions/`, archive `~/mc_energy_truth_extract/` on
 cluster62.
 

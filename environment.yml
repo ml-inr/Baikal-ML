@@ -544,6 +544,7 @@ dependencies:
       - awkward-pandas==2023.8.0
       - clearml==2.0.2
       - furl==2.1.4
+      - iminuit==2.33.0
       - ipympl==0.10.0
       - nvidia-cublas-cu12==12.4.5.8
       - nvidia-cuda-cupti-cu12==12.4.127

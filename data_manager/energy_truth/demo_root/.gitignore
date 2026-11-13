@@ -1,0 +1,4 @@
+# Demo source files for the notebooks: data, never in git.
+*.root
+*.npz
+*.wout

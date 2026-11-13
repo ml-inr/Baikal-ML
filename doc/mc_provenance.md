@@ -92,7 +92,10 @@ ROOT does not recognise), which is one reason 2019 is left alone.
 
 **`fRunN` / `fEventN` are useless for neutrino productions**: both are −1 in every event of
 nuatm and nue2 (they are filled only for muatm, e.g. run 211285). The primary vertex
-`fX/fY/fZ` is also identically zero for neutrino generation. There is no intrinsic identifier.
+`fX/fY/fZ` is also identically zero for neutrino generation **in the v1.0 ROOT files**; the
+2025 v3.0/v4.0 wout header writes the interaction vertex in words 5–7 (verified on sentinel
+tracks in both; the `ref − c·fFirstMuonTime·d` reconstruction is valid only for sentinels; see
+[mc_binary_formats.md](mc_binary_formats.md)). There is no intrinsic identifier.
 
 What works is a **content fingerprint** of the primary particle:
 
@@ -128,7 +131,7 @@ Established by comparing the same events across `.dat`, `.wout` and ROOT:
 | `fSumEnergyBundleReg` | bundle energy entering the generation volume (size unestablished), **GeV** | annotated `[TeV]` in the schema — wrong; defined for 100% of muons incl. sentinels, see [mc_energy_truth.md](mc_energy_truth.md) §1.1 |
 | `fSumEnergyBundleSurf` | bundle energy at the lake surface, GeV | filled **only for muatm** (median 1737 GeV); identically 0 for nuatm and nue2, where the muon is born under water |
 | `fPrimaryParticleEnergy` | primary energy, **GeV** | StreamerInfo says TeV/particle and is wrong: `nu2.100PeV` maxes at 9.943e7, i.e. 1e8 GeV |
-| `fX/fY/fZ` (event) | shower axis | identically **0** for neutrino generation; non-zero for muatm |
+| `fX/fY/fZ` (event) | shower axis | identically **0** for neutrino generation in v1.0 ROOT; non-zero for muatm; the 2025 v3.0/v4.0 wout header writes the interaction vertex in words 5–7 (verified on sentinels; the reconstruction formula is sentinel-only) |
 | `fRunN`, `fEventN` | run / event id | **−1** for neutrino productions |
 | `fInteractions` | stochastic energy losses (pair production, bremsstrahlung, photonuclear) | energies in TeV while `fMuonEnergy` is in GeV; recorded **by light yield**, not by energy — see §5.1 |
 | `fTracks.fX/fY/fZ` | reference point: closest approach to the array centre | verified perpendicular to 1e-6; median 260 m from the centre — often far from the cluster that saw the event |

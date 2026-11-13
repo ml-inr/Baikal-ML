@@ -50,6 +50,16 @@ bash inference/nu_classifier/run_predict_mc.sh    # MC predictions
 bash inference/nu_classifier/run_predict_exp.sh   # Exp predictions
 bash inference/prefilter/run_predict_mc.sh        # Prefilter MC
 bash inference/prefilter/run_predict_exp.sh       # Prefilter exp
+
+# Sig-noise probabilities (external model); writes companion h5 next to the source,
+# batch size 256 defines the hit selection
+bash inference/sig_noise/run_predict_mc.sh
+bash inference/sig_noise/run_predict_exp.sh
+
+# Angle/track/uncertainty (external release_v3 model); DuckDB by event_fk.
+# GATE=true adds the conditional p>=0.50 200 ns photon gate.
+bash inference/angle_track_uncertainty/run_predict_mc.sh
+bash inference/angle_track_uncertainty/run_predict_exp.sh
 ```
 
 ### Reading sources and predictions

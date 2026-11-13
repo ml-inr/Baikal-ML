@@ -77,8 +77,14 @@ class NotTrained:
     """Drop what this checkpoint was fitted on, via its NPY training dataset.
 
     `domain` is "source" (labelled MC) or "target" (unlabelled DA target).
-    `strictness` is "all" (every event in the dataset, the safe default) or "train"
-    (only the training half, reproducing the trainer's two seeded steps).
+    `strictness` is "all" (every event in the dataset, the safe default), "train"
+    (only the training half, reproducing the trainer's two seeded steps), or "parts"
+    (every event of every h5 part the dataset was built from).
+
+    "parts" is coarser and strictly safer, and it is the only one a dataset without
+    per-event back-links supports -- the prefilter datasets, whose builder writes no
+    `h5_part_keys.npy`.  Asking for a finer strictness on such a dataset raises and
+    names this one.
 
     Raises if the checkpoint's training dataset cannot be resolved.  It does not
     quietly skip the exclusion: an unfiltered result that looks filtered is worse
@@ -97,8 +103,11 @@ class NotTrained:
         frame = training.identity(npy_dir, domain=self.domain,
                                   strictness=self.strictness, selection=selection)
         alias = f"trained_{self.domain}_{self.strictness}"
-        on = [f"{alias}.part_key = l.part_key",
-              f"{alias}.local_idx = l.local_idx"]
+        # Join on whatever the identity frame carries. "parts" has no `local_idx`,
+        # so it matches every event of a listed part rather than one event of it.
+        on = [f"{alias}.part_key = l.part_key"]
+        if "local_idx" in frame.columns:
+            on.append(f"{alias}.local_idx = l.local_idx")
         if "data_class" in frame.columns:
             on.append(f"{alias}.data_class = e.data_class")
         # The frame is registered with string columns; DuckDB reads pandas categories
@@ -113,13 +122,24 @@ class NotTrained:
         return f"NOT_TRAINED({self.domain}, {self.strictness})"
 
 
-#: The h8s3 quality cut used throughout the excess work.
+#: The h8s3 quality cut used throughout the excess work: at least 8 signal hits on at
+#: least 3 strings, as the sig-noise model calls them. Both pipelines store these counts,
+#: copied from the same probabilities file, so the cut means the same thing in each.
+#: Rows where the count is NULL — parts the probabilities file never covered — fail the
+#: comparison and are dropped, which is the intended reading of "not known here".
 H8S3 = Sql("p.n_sn_hits >= 8 AND p.n_sn_strings >= 3", "H8S3")
+
+#: The same cut on MC truth (`raw/labels != 0`) instead of the sig-noise model's guess.
+#: MC only: experimental data has no truth counts and every row fails this.
+H8S3_TRUTH = Sql("p.n_gt_sig_hits >= 8 AND p.n_gt_sig_strings >= 3", "H8S3_TRUTH")
 
 #: Everything the model was fitted on, conservatively.
 NOT_TRAINED = NotTrained("source", "all")
 #: Only what actually reached the training half.
 NOT_TRAINED_EXACT = NotTrained("source", "train")
+#: Every event of every h5 part the training dataset was built from. Coarser and
+#: safer than NOT_TRAINED, and the only one the prefilter datasets support.
+NOT_TRAINED_PARTS = NotTrained("source", "parts")
 #: The unlabelled domain-adaptation target.
 NOT_DA_TARGET = NotTrained("target", "all")
 #: Runs and clusters with recorded faults.

@@ -1,0 +1,71 @@
+# Muon-energy experiment queue for 2026-10-27.
+#
+# GPUs 0, 2 and 4 are occupied by other users; this queue only uses 1, 3, 5.
+# Each GPU lane runs sequentially.  H-* jobs wait for BASE-cont, because they
+# load its best checkpoint as the frozen mean.
+poll_seconds: 60
+free_memory_mib: 1000
+max_utilization: 5
+
+jobs:
+  - id: BASE-cont
+    config: src/training/configs/track_energy_reconstruction/mu_energy_BASE_cont.yaml
+    gpu: 1
+    depends_on: []
+
+  # Detached-sigma and full-gradient-two-optimizer controls (no DA).
+  - id: D-G
+    config: src/training/configs/track_energy_reconstruction/mu_energy_D-G_partsplit.yaml
+    gpu: 3
+    depends_on: []
+  - id: D-T5
+    config: src/training/configs/track_energy_reconstruction/mu_energy_D-T5_partsplit.yaml
+    gpu: 5
+    depends_on: []
+  - id: C-G
+    config: src/training/configs/track_energy_reconstruction/mu_energy_C-G_partsplit.yaml
+    gpu: 3
+    depends_on: [D-G]
+  - id: C-T5
+    config: src/training/configs/track_energy_reconstruction/mu_energy_C-T5_partsplit.yaml
+    gpu: 5
+    depends_on: [D-T5]
+
+  # Frozen-head variants on the continued BASE and on the DA base A.
+  - id: H-G
+    config: src/training/configs/track_energy_reconstruction/mu_energy_H-G_d0base.yaml
+    gpu: 1
+    depends_on: [BASE-cont]
+  - id: H-T5
+    config: src/training/configs/track_energy_reconstruction/mu_energy_H-T5_d0base.yaml
+    gpu: 1
+    depends_on: [H-G]
+  - id: AH-G
+    config: src/training/configs/track_energy_reconstruction/mu_energy_AH-G_abase.yaml
+    gpu: 3
+    depends_on:
+      - trained_models/track_energy_reconstruction/261026_2057_mu_energy_A_lam0p01_detachedcritic_partsplit_scratch_s42/best_model.pth
+  - id: AH-T5
+    config: src/training/configs/track_energy_reconstruction/mu_energy_AH-T5_abase.yaml
+    gpu: 5
+    depends_on:
+      - trained_models/track_energy_reconstruction/261026_2057_mu_energy_A_lam0p01_detachedcritic_partsplit_scratch_s42/best_model.pth
+
+  # DA counterparts of D/C.  They are queued after the no-DA controls so the
+  # detach/optimizer effects can be compared first.
+  - id: AD-G
+    config: src/training/configs/track_energy_reconstruction/mu_energy_AD-G_da.yaml
+    gpu: 3
+    depends_on: [C-G]
+  - id: AD-T5
+    config: src/training/configs/track_energy_reconstruction/mu_energy_AD-T5_da.yaml
+    gpu: 5
+    depends_on: [C-T5]
+  - id: AC-G
+    config: src/training/configs/track_energy_reconstruction/mu_energy_AC-G_da.yaml
+    gpu: 3
+    depends_on: [AD-G]
+  - id: AC-T5
+    config: src/training/configs/track_energy_reconstruction/mu_energy_AC-T5_da.yaml
+    gpu: 5
+    depends_on: [AD-T5]
