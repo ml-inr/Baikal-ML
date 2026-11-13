@@ -148,8 +148,9 @@ is a separate parameter, default **256**, applied independently of `--batch-size
 only affects the classifier). See `doc/sig_noise_batch_size.md`.
 
 External dependency: `trained_models/sig_noise/k_nsol_labelneq0_da_hs128_k0p0001/sig_noise_model_v3.py`.
-The old `gplotnikov_sig_noise_models/...` import path still works through a
-compatibility shim.
+Import it from the canonical `trained_models.sig_noise...` path. The old root-level
+`gplotnikov_sig_noise_models/` package and its compatibility shim were removed on
+2026-11-13; retired code under `archive_tracked/` may still contain the old imports.
 
 ### Energy reconstruction
 

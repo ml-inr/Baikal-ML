@@ -224,7 +224,8 @@ tmp/
 # ============================================================
 # Signal/Noise Models — keep only the canonical model
 # ============================================================
-# Moved from gplotnikov_sig_noise_models/ to trained_models/sig_noise/.
+# The canonical model lives in trained_models/sig_noise/; the old root-level
+# gplotnikov_sig_noise_models/ package was removed on 2026-11-13.
 # All model variants except k_nsol_labelneq0_da_hs128_k0p0001 are excluded.
 trained_models/sig_noise/archive/
 trained_models/sig_noise/encoder_nl5_nh1_dff512_hs512_bs128/

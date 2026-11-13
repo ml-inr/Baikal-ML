@@ -38,5 +38,7 @@ file with a different value.
 ## Model location
 
 Weights and model code live in
-`trained_models/sig_noise/k_nsol_labelneq0_da_hs128_k0p0001/`. The old import path
-`gplotnikov_sig_noise_models...` still works through a compatibility shim.
+`trained_models/sig_noise/k_nsol_labelneq0_da_hs128_k0p0001/`. Import them from the
+canonical `trained_models.sig_noise.k_nsol_labelneq0_da_hs128_k0p0001.sig_noise_model_v3`
+path. The old root-level `gplotnikov_sig_noise_models...` alias was removed on
+2026-11-13; update legacy scripts and notebooks that still use it.

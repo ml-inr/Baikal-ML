@@ -81,8 +81,9 @@
 
 - `my_notes/` — личные заметки владельца, вне общей документации
 - `energy.C` — ROOT-макрос
-- [sig_noise_model_location.md](sig_noise_model_location.md) — где лежит внешняя
-  SN-модель после переноса 2026-11-08 и как работает обратная совместимость импортов
+- [sig_noise_model_location.md](sig_noise_model_location.md) — where the external
+  SN model lives after the 2026-11-08 move; the old root-level alias was removed
+  on 2026-11-13
 - [angle_track_uncertainty.md](angle_track_uncertainty.md) — внешняя модель
   направления, линии трека и неопределённостей: расположение, отбор хитов,
   формат предсказаний и пределы валидации
