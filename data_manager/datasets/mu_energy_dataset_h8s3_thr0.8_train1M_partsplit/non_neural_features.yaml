@@ -1,0 +1,169 @@
+source_dataset: /home/albert/Baikal2025/data_manager/datasets/mu_energy_dataset_h8s3_thr0.8_train1M_partsplit
+created_utc: '2026-10-26T17:23:41.341973+00:00'
+builder: data_manager/mu_energy_ds_builder/build_non_neural_features.py
+n_events: 1000000
+n_features: 50
+amp_clip: 100.0
+row_order: same_as_event_fk
+source_files:
+  features.npy:
+    size_bytes: 404234868
+    mtime_utc: '2026-10-26T17:16:31.408615+00:00'
+  offsets.npy:
+    size_bytes: 8000136
+    mtime_utc: '2026-10-26T17:16:37.890675+00:00'
+  n_sig_hits.npy:
+    size_bytes: 4000128
+    mtime_utc: '2026-10-26T17:16:38.147677+00:00'
+  n_sig_strings.npy:
+    size_bytes: 4000128
+    mtime_utc: '2026-10-26T17:16:38.180677+00:00'
+  energy.npy:
+    size_bytes: 4000128
+    mtime_utc: '2026-10-26T17:16:37.933675+00:00'
+  event_fk.npy:
+    size_bytes: 8000128
+    mtime_utc: '2026-10-26T17:16:51.790803+00:00'
+feature_groups:
+  counts:
+  - n_hits
+  - n_strings
+  - log1p_n_hits
+  - log1p_n_strings
+  - hits_per_string
+  charge:
+  - sumQ
+  - meanQ
+  - stdQ
+  - log10_sumQ
+  - log10_meanQ
+  - log10_stdQ
+  - maxQ
+  - frac_maxQ
+  - frac_Q_gt_1
+  - frac_Q_gt_10
+  - frac_Q_gt_50
+  - n_clip
+  - frac_clip
+  - log1p_n_clip
+  time:
+  - mean_t
+  - std_t
+  - range_t
+  - qweighted_mean_t
+  - qweighted_std_t
+  - corr_Q_t
+  geometry:
+  - mean_x
+  - std_x
+  - range_x
+  - mean_y
+  - std_y
+  - range_y
+  - mean_z
+  - std_z
+  - range_z
+  - lambda1
+  - lambda2
+  - lambda3
+  - linearity
+  - sqrt_lambda1
+  - transverse
+  - range_xy
+  - range_3d
+  - mean_r
+  - std_r
+  - frac_r_lt20
+  - frac_r_20_50
+  - frac_r_gt50
+  - frac_z_pos
+  - hit_density
+  - charge_density
+feature_names:
+- n_hits
+- n_strings
+- log1p_n_hits
+- log1p_n_strings
+- hits_per_string
+- sumQ
+- meanQ
+- stdQ
+- log10_sumQ
+- log10_meanQ
+- log10_stdQ
+- maxQ
+- frac_maxQ
+- frac_Q_gt_1
+- frac_Q_gt_10
+- frac_Q_gt_50
+- n_clip
+- frac_clip
+- log1p_n_clip
+- mean_t
+- std_t
+- range_t
+- qweighted_mean_t
+- qweighted_std_t
+- corr_Q_t
+- mean_x
+- std_x
+- range_x
+- mean_y
+- std_y
+- range_y
+- mean_z
+- std_z
+- range_z
+- lambda1
+- lambda2
+- lambda3
+- linearity
+- sqrt_lambda1
+- transverse
+- range_xy
+- range_3d
+- mean_r
+- std_r
+- frac_r_lt20
+- frac_r_20_50
+- frac_r_gt50
+- frac_z_pos
+- hit_density
+- charge_density
+source_metadata:
+  dataset_info:
+    n_events: 1000000
+    n_sig_hits_total: 20211737
+    sig_noise_threshold: 0.8
+    event_cuts:
+      min_hits: 8
+      min_strings: 3
+    target:
+      column: 1
+      volume_radius_m: 90.0
+      volume_z_half_m: 295.0
+      valid_status:
+      - 0
+      - 1
+      - 4
+      - 5
+      born_inside_status:
+      - 1
+      - 5
+      exclude_nuatm_born_inside: true
+      unit: GeV
+    parts:
+      nuatm: 1600
+      nue2: 333
+  part_split:
+    description: 'Part-level holdout: test parts chosen only outside the old 520-part
+      energy dataset, so the old baseline did not train on them.'
+    n_train_parts:
+      nuatm: 1600
+      nue2: 333
+    n_test_parts:
+      nuatm: 400
+      nue2: 67
+    test_fraction:
+      nuatm: 0.2
+      nue2: 0.1675

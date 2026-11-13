@@ -1,0 +1,256 @@
+{
+  "classes": [
+    "nuatm_2020",
+    "nue2_2020"
+  ],
+  "n_candidates": 254751,
+  "n_selected": 34392,
+  "log10_energy_range": [
+    -0.6145667321750924,
+    7.9859137601637995
+  ],
+  "n_bins": 25,
+  "per_bin": 2000,
+  "max_ratio": 20.0,
+  "seed": 42,
+  "weight_range": [
+    1.0,
+    20.0
+  ],
+  "weight_median": 1.0,
+  "weight_mean": 1.2706443071365356,
+  "fraction_weight_one": 0.8722958827634334,
+  "ess_fraction": 0.41200169920921326,
+  "class_counts_selected": {
+    "nuatm_2020": 2917,
+    "nue2_2020": 31475
+  },
+  "per_bin_report": [
+    {
+      "bin": 0,
+      "lo": -0.6145667321750924,
+      "hi": -0.2705475124815367,
+      "n": 3,
+      "selected": 3,
+      "weight": 20.0,
+      "capped": true
+    },
+    {
+      "bin": 1,
+      "lo": -0.2705475124815367,
+      "hi": 0.07347170721201901,
+      "n": 1,
+      "selected": 1,
+      "weight": 20.0,
+      "capped": true
+    },
+    {
+      "bin": 2,
+      "lo": 0.07347170721201901,
+      "hi": 0.41749092690557477,
+      "n": 13,
+      "selected": 13,
+      "weight": 20.0,
+      "capped": true
+    },
+    {
+      "bin": 3,
+      "lo": 0.41749092690557477,
+      "hi": 0.7615101465991304,
+      "n": 68,
+      "selected": 68,
+      "weight": 20.0,
+      "capped": true
+    },
+    {
+      "bin": 4,
+      "lo": 0.7615101465991304,
+      "hi": 1.1055293662926862,
+      "n": 195,
+      "selected": 195,
+      "weight": 10.256410256410257,
+      "capped": false
+    },
+    {
+      "bin": 5,
+      "lo": 1.1055293662926862,
+      "hi": 1.4495485859862418,
+      "n": 521,
+      "selected": 521,
+      "weight": 3.838771593090211,
+      "capped": false
+    },
+    {
+      "bin": 6,
+      "lo": 1.4495485859862418,
+      "hi": 1.7935678056797975,
+      "n": 1696,
+      "selected": 1696,
+      "weight": 1.179245283018868,
+      "capped": false
+    },
+    {
+      "bin": 7,
+      "lo": 1.7935678056797975,
+      "hi": 2.137587025373353,
+      "n": 6999,
+      "selected": 2000,
+      "weight": 1.0,
+      "capped": false
+    },
+    {
+      "bin": 8,
+      "lo": 2.137587025373353,
+      "hi": 2.4816062450669087,
+      "n": 8880,
+      "selected": 2000,
+      "weight": 1.0,
+      "capped": false
+    },
+    {
+      "bin": 9,
+      "lo": 2.4816062450669087,
+      "hi": 2.8256254647604644,
+      "n": 9937,
+      "selected": 2000,
+      "weight": 1.0,
+      "capped": false
+    },
+    {
+      "bin": 10,
+      "lo": 2.8256254647604644,
+      "hi": 3.16964468445402,
+      "n": 12330,
+      "selected": 2000,
+      "weight": 1.0,
+      "capped": false
+    },
+    {
+      "bin": 11,
+      "lo": 3.16964468445402,
+      "hi": 3.513663904147576,
+      "n": 16199,
+      "selected": 2000,
+      "weight": 1.0,
+      "capped": false
+    },
+    {
+      "bin": 12,
+      "lo": 3.513663904147576,
+      "hi": 3.8576831238411313,
+      "n": 21305,
+      "selected": 2000,
+      "weight": 1.0,
+      "capped": false
+    },
+    {
+      "bin": 13,
+      "lo": 3.8576831238411313,
+      "hi": 4.201702343534688,
+      "n": 29173,
+      "selected": 2000,
+      "weight": 1.0,
+      "capped": false
+    },
+    {
+      "bin": 14,
+      "lo": 4.201702343534688,
+      "hi": 4.545721563228243,
+      "n": 36295,
+      "selected": 2000,
+      "weight": 1.0,
+      "capped": false
+    },
+    {
+      "bin": 15,
+      "lo": 4.545721563228243,
+      "hi": 4.889740782921799,
+      "n": 36246,
+      "selected": 2000,
+      "weight": 1.0,
+      "capped": false
+    },
+    {
+      "bin": 16,
+      "lo": 4.889740782921799,
+      "hi": 5.233760002615355,
+      "n": 28236,
+      "selected": 2000,
+      "weight": 1.0,
+      "capped": false
+    },
+    {
+      "bin": 17,
+      "lo": 5.233760002615355,
+      "hi": 5.57777922230891,
+      "n": 18723,
+      "selected": 2000,
+      "weight": 1.0,
+      "capped": false
+    },
+    {
+      "bin": 18,
+      "lo": 5.57777922230891,
+      "hi": 5.9217984420024665,
+      "n": 12267,
+      "selected": 2000,
+      "weight": 1.0,
+      "capped": false
+    },
+    {
+      "bin": 19,
+      "lo": 5.9217984420024665,
+      "hi": 6.265817661696022,
+      "n": 7306,
+      "selected": 2000,
+      "weight": 1.0,
+      "capped": false
+    },
+    {
+      "bin": 20,
+      "lo": 6.265817661696022,
+      "hi": 6.609836881389578,
+      "n": 4068,
+      "selected": 2000,
+      "weight": 1.0,
+      "capped": false
+    },
+    {
+      "bin": 21,
+      "lo": 6.609836881389578,
+      "hi": 6.953856101083133,
+      "n": 2395,
+      "selected": 2000,
+      "weight": 1.0,
+      "capped": false
+    },
+    {
+      "bin": 22,
+      "lo": 6.953856101083133,
+      "hi": 7.297875320776689,
+      "n": 1230,
+      "selected": 1230,
+      "weight": 1.6260162601626016,
+      "capped": false
+    },
+    {
+      "bin": 23,
+      "lo": 7.297875320776689,
+      "hi": 7.641894540470245,
+      "n": 529,
+      "selected": 529,
+      "weight": 3.780718336483932,
+      "capped": false
+    },
+    {
+      "bin": 24,
+      "lo": 7.641894540470245,
+      "hi": 7.9859137601637995,
+      "n": 136,
+      "selected": 136,
+      "weight": 14.705882352941176,
+      "capped": false
+    }
+  ],
+  "note": "The bulk is subsampled to per_bin with weight 1; bins below per_bin keep all events and get min(per_bin/n, max_ratio).  The cap leaves the extreme tails underfilled on purpose."
+}

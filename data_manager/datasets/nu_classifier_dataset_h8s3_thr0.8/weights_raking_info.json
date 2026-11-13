@@ -1,0 +1,51 @@
+{
+  "n_events": 2021234,
+  "per_class": {
+    "muatm": {
+      "n": 1010616,
+      "grid": [
+        40,
+        60
+      ],
+      "iters": 14,
+      "converged": true,
+      "n_capped": 4775,
+      "ess_fraction": 0.14278950198439222,
+      "cap_factor": 20.0,
+      "energy_spread_fine": 9.690159043574855,
+      "cos_spread_fine": 5.850443727202236,
+      "final_range": [
+        0.19717464363883141,
+        23.856728935358596
+      ],
+      "energy_nan": 1
+    },
+    "neutrino": {
+      "n": 985958,
+      "grid": [
+        40,
+        60
+      ],
+      "iters": 12,
+      "converged": true,
+      "n_capped": 2222,
+      "ess_fraction": 0.24089747219436247,
+      "cap_factor": 20.0,
+      "energy_spread_fine": 2.884414734976065,
+      "cos_spread_fine": 1.2226240768858216,
+      "final_range": [
+        0.19097689960740716,
+        20.32844036353777
+      ],
+      "energy_nan": 24659
+    }
+  },
+  "max_ratio": 20.0,
+  "method": "raking",
+  "group_by": "label",
+  "targets": {
+    "energy": "uniform in ln E within group",
+    "zenith": "uniform in cos(theta) within group"
+  },
+  "output": "weights_raking.npy"
+}

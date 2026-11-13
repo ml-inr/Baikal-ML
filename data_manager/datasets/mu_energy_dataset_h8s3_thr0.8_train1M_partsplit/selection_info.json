@@ -1,0 +1,286 @@
+{
+  "classes": [
+    "nuatm_2020",
+    "nue2_2020"
+  ],
+  "n_candidates": 1965224,
+  "n_selected": 1000000,
+  "target_total": 1000000,
+  "log10_energy_range": [
+    -0.6145667433738708,
+    7.9859137535095215
+  ],
+  "n_bins": 25,
+  "per_bin": 72896,
+  "max_ratio": 20.0,
+  "seed": 42,
+  "weight_range": [
+    1.0,
+    20.0
+  ],
+  "weight_median": 1.0,
+  "weight_mean": 1.4279809999999995,
+  "fraction_weight_one": 0.874761,
+  "ess_fraction": 0.32594871277161974,
+  "class_counts_selected": {
+    "nuatm_2020": 234241,
+    "nue2_2020": 765759
+  },
+  "per_bin_report": [
+    {
+      "bin": 0,
+      "lo": -0.6145667433738708,
+      "hi": -0.27054752349853517,
+      "n": 5,
+      "selected": 5,
+      "weight": 20.0,
+      "capped": true,
+      "extra": false
+    },
+    {
+      "bin": 1,
+      "lo": -0.27054752349853517,
+      "hi": 0.07347169637680051,
+      "n": 8,
+      "selected": 8,
+      "weight": 20.0,
+      "capped": true,
+      "extra": false
+    },
+    {
+      "bin": 2,
+      "lo": 0.07347169637680051,
+      "hi": 0.4174909162521363,
+      "n": 100,
+      "selected": 100,
+      "weight": 20.0,
+      "capped": true,
+      "extra": false
+    },
+    {
+      "bin": 3,
+      "lo": 0.4174909162521363,
+      "hi": 0.7615101361274719,
+      "n": 384,
+      "selected": 384,
+      "weight": 20.0,
+      "capped": true,
+      "extra": false
+    },
+    {
+      "bin": 4,
+      "lo": 0.7615101361274719,
+      "hi": 1.1055293560028074,
+      "n": 1262,
+      "selected": 1262,
+      "weight": 20.0,
+      "capped": true,
+      "extra": false
+    },
+    {
+      "bin": 5,
+      "lo": 1.1055293560028074,
+      "hi": 1.4495485758781435,
+      "n": 3351,
+      "selected": 3351,
+      "weight": 20.0,
+      "capped": true,
+      "extra": false
+    },
+    {
+      "bin": 6,
+      "lo": 1.4495485758781435,
+      "hi": 1.793567795753479,
+      "n": 17899,
+      "selected": 17899,
+      "weight": 4.072629755852282,
+      "capped": false,
+      "extra": false
+    },
+    {
+      "bin": 7,
+      "lo": 1.793567795753479,
+      "hi": 2.1375870156288146,
+      "n": 123530,
+      "selected": 72897,
+      "weight": 1.0,
+      "capped": false,
+      "extra": true
+    },
+    {
+      "bin": 8,
+      "lo": 2.1375870156288146,
+      "hi": 2.48160623550415,
+      "n": 128810,
+      "selected": 72897,
+      "weight": 1.0,
+      "capped": false,
+      "extra": true
+    },
+    {
+      "bin": 9,
+      "lo": 2.48160623550415,
+      "hi": 2.8256254553794857,
+      "n": 111232,
+      "selected": 72897,
+      "weight": 1.0,
+      "capped": false,
+      "extra": true
+    },
+    {
+      "bin": 10,
+      "lo": 2.8256254553794857,
+      "hi": 3.1696446752548217,
+      "n": 114693,
+      "selected": 72896,
+      "weight": 1.0,
+      "capped": false,
+      "extra": false
+    },
+    {
+      "bin": 11,
+      "lo": 3.1696446752548217,
+      "hi": 3.5136638951301578,
+      "n": 133145,
+      "selected": 72897,
+      "weight": 1.0,
+      "capped": false,
+      "extra": true
+    },
+    {
+      "bin": 12,
+      "lo": 3.5136638951301578,
+      "hi": 3.857683115005493,
+      "n": 160346,
+      "selected": 72897,
+      "weight": 1.0,
+      "capped": false,
+      "extra": true
+    },
+    {
+      "bin": 13,
+      "lo": 3.857683115005493,
+      "hi": 4.201702334880829,
+      "n": 202799,
+      "selected": 72896,
+      "weight": 1.0,
+      "capped": false,
+      "extra": false
+    },
+    {
+      "bin": 14,
+      "lo": 4.201702334880829,
+      "hi": 4.545721554756164,
+      "n": 240917,
+      "selected": 72896,
+      "weight": 1.0,
+      "capped": false,
+      "extra": false
+    },
+    {
+      "bin": 15,
+      "lo": 4.545721554756164,
+      "hi": 4.8897407746315,
+      "n": 237873,
+      "selected": 72897,
+      "weight": 1.0,
+      "capped": false,
+      "extra": true
+    },
+    {
+      "bin": 16,
+      "lo": 4.8897407746315,
+      "hi": 5.233759994506836,
+      "n": 185092,
+      "selected": 72897,
+      "weight": 1.0,
+      "capped": false,
+      "extra": true
+    },
+    {
+      "bin": 17,
+      "lo": 5.233759994506836,
+      "hi": 5.577779214382171,
+      "n": 122300,
+      "selected": 72897,
+      "weight": 1.0,
+      "capped": false,
+      "extra": true
+    },
+    {
+      "bin": 18,
+      "lo": 5.577779214382171,
+      "hi": 5.921798434257507,
+      "n": 79248,
+      "selected": 72897,
+      "weight": 1.0,
+      "capped": false,
+      "extra": true
+    },
+    {
+      "bin": 19,
+      "lo": 5.921798434257507,
+      "hi": 6.265817654132842,
+      "n": 46629,
+      "selected": 46629,
+      "weight": 1.56331896459285,
+      "capped": false,
+      "extra": false
+    },
+    {
+      "bin": 20,
+      "lo": 6.265817654132842,
+      "hi": 6.609836874008178,
+      "n": 27653,
+      "selected": 27653,
+      "weight": 2.636097349293024,
+      "capped": false,
+      "extra": false
+    },
+    {
+      "bin": 21,
+      "lo": 6.609836874008178,
+      "hi": 6.953856093883514,
+      "n": 15605,
+      "selected": 15605,
+      "weight": 4.6713232938160845,
+      "capped": false,
+      "extra": false
+    },
+    {
+      "bin": 22,
+      "lo": 6.953856093883514,
+      "hi": 7.2978753137588495,
+      "n": 8016,
+      "selected": 8016,
+      "weight": 9.0938123752495,
+      "capped": false,
+      "extra": false
+    },
+    {
+      "bin": 23,
+      "lo": 7.2978753137588495,
+      "hi": 7.641894533634186,
+      "n": 3397,
+      "selected": 3397,
+      "weight": 20.0,
+      "capped": true,
+      "extra": false
+    },
+    {
+      "bin": 24,
+      "lo": 7.641894533634186,
+      "hi": 7.9859137535095215,
+      "n": 930,
+      "selected": 930,
+      "weight": 20.0,
+      "capped": true,
+      "extra": false
+    }
+  ],
+  "note": "The bulk is subsampled to the per-bin cap with weight 1; bins below the cap keep all events and get min(cap/n, max_ratio). The cap leaves the extreme tails underfilled on purpose.",
+  "n_train_val": 1000000,
+  "n_test_complement": 965224,
+  "flat_weights_file": "flat_weights.npy",
+  "test_note": "Test is the complement of the flat train+val selection inside the h8s3 pool. It is not stored in this training dataset; test predictions must read the full source and exclude this dataset's event_fk values."
+}

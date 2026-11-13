@@ -1,0 +1,47 @@
+# Full-2020 build of the muon-energy training dataset.
+#
+# The dataset contains ONLY the flat-selected train+val population (1,000,000
+# events).  The test complement stays in the h8s3 source and is not stored; test
+# predictions read the full h8s3 pool from h5 + stored SN probs and exclude this
+# dataset's event_fk values.
+#
+# Run from the repository root:
+#   python -m data_manager.mu_energy_ds_builder --config \
+#       data_manager/mu_energy_ds_builder/default_config.yaml
+
+h5_path: "data_manager/data/h5datasets/baikal_mc_merged.h5"
+companion_path: "data_manager/data/h5datasets/baikal_mc_merged_energy_truth.h5"
+catalog_path: "data_manager/catalog_v2.duckdb"
+parts_file: "data_manager/mu_energy_ds_builder/parts_nu.yaml"
+output_dir: "data_manager/datasets/mu_energy_dataset_h8s3_thr0.8_train1M"
+
+sig_noise_model:
+  device: "cuda:0"
+  batch_size: 256
+
+sig_noise_source: "probs_h5"
+sig_noise_probs_path: "data_manager/data/h5datasets/baikal_mc_merged_probs_k_nsol_labelneq0_da_hs128_k0p0001.h5"
+
+sig_noise_threshold: 0.8
+
+event_cuts:
+  min_hits: 8
+  min_strings: 3
+
+target:
+  column: 1
+  volume_radius_m: 90
+  volume_z_half_m: 295
+  valid_status: [0, 1, 4, 5]
+  exclude_nuatm_born_inside: true
+  born_inside_status: [1, 5]
+
+flat_selection:
+  enabled: true
+  classes: ["nuatm_2020", "nue2_2020"]
+  target_total: 1000000   # train+val population; the rest is the test complement
+  bins: 25
+  max_ratio: 20.0
+  seed: 42
+
+seed: 42

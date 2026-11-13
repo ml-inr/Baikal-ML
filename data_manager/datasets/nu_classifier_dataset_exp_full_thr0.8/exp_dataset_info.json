@@ -1,0 +1,18 @@
+{
+  "n_events": 5274536,
+  "n_sig_hits_total": 56117611,
+  "total_bytes": 2299192952,
+  "sig_noise_threshold": 0.8,
+  "event_cuts": {
+    "min_hits": 5,
+    "min_strings": 0
+  },
+  "h5_path_exp": "data_manager/data/h5datasets/exp_full.h5",
+  "h5_group": "exp_full",
+  "max_events_per_part": 200000,
+  "exclude_parts": [
+    "part_s2020_c02_r0020",
+    "part_s2020_c02_r0249"
+  ],
+  "seed": 42
+}

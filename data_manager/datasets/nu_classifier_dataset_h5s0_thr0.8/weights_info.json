@@ -1,0 +1,131 @@
+{
+  "n_events": 5256496,
+  "per_class": {
+    "muatm_2020": {
+      "n": 2628248,
+      "energy_nan": 2124,
+      "energy": {
+        "n": 2626124,
+        "range": [
+          2.483020426750183,
+          146133.359375
+        ],
+        "bins": 50,
+        "cap": 20.000152424051564,
+        "n_capped": 52523,
+        "ess_fraction": 0.04262879390842812,
+        "width_ratio": 4514.966921445139,
+        "weighted_density_spread": 2.0154855919332824
+      },
+      "cos_theta": {
+        "n": 2628248,
+        "range": [
+          -0.9999182224273682,
+          -0.15717081217466908
+        ],
+        "bins": 50,
+        "cap": 20.00027885752768,
+        "n_capped": 0,
+        "ess_fraction": 0.34779465876006455,
+        "width_ratio": 85.1953111606046,
+        "weighted_density_spread": 1.0020567119270254
+      },
+      "joint": {
+        "cap_factor": 20.0,
+        "n_capped": 31326,
+        "ess_fraction": 0.05140845820460251
+      },
+      "final_range": [
+        0.0017840600335393597,
+        31.413322853641915
+      ],
+      "ess_fraction": 0.05140845820460251
+    },
+    "nuatm_2020": {
+      "n": 1314124,
+      "energy_nan": 31420,
+      "energy": {
+        "n": 1282704,
+        "range": [
+          0.5700762550532817,
+          32461.40833593851
+        ],
+        "bins": 50,
+        "cap": 20.000654735972304,
+        "n_capped": 25655,
+        "ess_fraction": 0.028515183725562582,
+        "width_ratio": 18314.173114143457,
+        "weighted_density_spread": 2.298382097799477
+      },
+      "cos_theta": {
+        "n": 1314124,
+        "range": [
+          0.004132017154246569,
+          0.9998337479829789
+        ],
+        "bins": 50,
+        "cap": 20.000013763827003,
+        "n_capped": 0,
+        "ess_fraction": 0.23171019000081122,
+        "width_ratio": 51.85901668770792,
+        "weighted_density_spread": 1.0001902587519025
+      },
+      "joint": {
+        "cap_factor": 20.0,
+        "n_capped": 16685,
+        "ess_fraction": 0.02709305724757855
+      },
+      "final_range": [
+        0.0004933021568279498,
+        48.76001950269452
+      ],
+      "ess_fraction": 0.02709305724757855
+    },
+    "nue2_2020": {
+      "n": 1314124,
+      "energy_nan": 60314,
+      "energy": {
+        "n": 1253810,
+        "range": [
+          1.671863066792488,
+          39177856.0
+        ],
+        "bins": 50,
+        "cap": 20.002071397495726,
+        "n_capped": 25079,
+        "ess_fraction": 0.02515578653132289,
+        "width_ratio": 1767007.5288804339,
+        "weighted_density_spread": 2.37469607139622
+      },
+      "cos_theta": {
+        "n": 1314124,
+        "range": [
+          0.0006335975900292397,
+          0.9995112235844136
+        ],
+        "bins": 50,
+        "cap": 19.999996575521667,
+        "n_capped": 0,
+        "ess_fraction": 0.9525882444212387,
+        "width_ratio": 2.0004422271356104,
+        "weighted_density_spread": 1.000190258751903
+      },
+      "joint": {
+        "cap_factor": 20.0,
+        "n_capped": 25079,
+        "ess_fraction": 0.0407612241774952
+      },
+      "final_range": [
+        6.0155109832458364e-05,
+        34.91137009415284
+      ],
+      "ess_fraction": 0.0407612241774952
+    }
+  },
+  "max_ratio": 20.0,
+  "targets": {
+    "energy": "uniform in ln E within class",
+    "zenith": "uniform in cos(theta) within class"
+  },
+  "output": "weights.npy"
+}

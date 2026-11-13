@@ -1,0 +1,33 @@
+# Full build of the muon-energy dataset (the parts used by the nu-classifier dataset).
+# Run from the repository root:
+#   #   python -m data_manager.mu_energy_ds_builder --config \
+#       data_manager/mu_energy_ds_builder/default_config.yaml
+
+h5_path: "data_manager/data/h5datasets/baikal_mc_merged.h5"
+companion_path: "data_manager/data/h5datasets/baikal_mc_merged_energy_truth.h5"
+catalog_path: "data_manager/catalog_v2.duckdb"
+parts_file: "data_manager/mu_energy_ds_builder/parts_nu.yaml"
+output_dir: "data_manager/datasets/mu_energy_dataset_h8s3_thr0.8"
+
+sig_noise_model:
+  device: "cuda:0"
+  batch_size: 256
+
+sig_noise_source: "probs_h5"
+sig_noise_probs_path: "data_manager/data/h5datasets/baikal_mc_merged_probs_k_nsol_labelneq0_da_hs128_k0p0001.h5"
+
+sig_noise_threshold: 0.8
+
+event_cuts:
+  min_hits: 8
+  min_strings: 3
+
+target:
+  column: 1
+  volume_radius_m: 90
+  volume_z_half_m: 295
+  valid_status: [0, 1, 4, 5]
+  exclude_nuatm_born_inside: true
+  born_inside_status: [1, 5]
+
+seed: 42

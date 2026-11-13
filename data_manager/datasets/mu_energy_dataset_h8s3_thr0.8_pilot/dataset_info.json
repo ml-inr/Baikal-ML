@@ -1,0 +1,60 @@
+{
+  "n_events": 256520,
+  "n_sig_hits_total": 5033960,
+  "total_bytes": 134158283,
+  "sig_noise_threshold": 0.8,
+  "event_cuts": {
+    "min_hits": 8,
+    "min_strings": 3
+  },
+  "target": {
+    "column": 1,
+    "volume_radius_m": 90.0,
+    "volume_z_half_m": 295.0,
+    "valid_status": [
+      0,
+      1,
+      4,
+      5
+    ],
+    "born_inside_status": [
+      1,
+      5
+    ],
+    "exclude_nuatm_born_inside": true,
+    "unit": "GeV"
+  },
+  "h5_source": "data_manager/data/h5datasets/baikal_mc_merged.h5",
+  "companion": "data_manager/data/h5datasets/baikal_mc_merged_energy_truth.h5",
+  "catalog": "data_manager/catalog_v2.duckdb",
+  "particle_encode": {
+    "muatm_2020": 0,
+    "nuatm_2020": 1,
+    "nue2_2020": 2
+  },
+  "parts": {
+    "muatm": 50,
+    "nuatm": 50,
+    "nue2": 50
+  },
+  "counts": {
+    "muatm_2020": 1769,
+    "nuatm_2020": 14104,
+    "nue2_2020": 240647
+  },
+  "status_counts": {
+    "0": 197096,
+    "1": 32674,
+    "4": 3951,
+    "5": 22799
+  },
+  "energy_gev": {
+    "min": 0.2429032176733017,
+    "median": 24510.15234375,
+    "p95": 1078431.0,
+    "max": 96808560.0
+  },
+  "event_fk_missing": 0,
+  "seed": 42,
+  "source_note": "Self-contained copy of the sig-noise/hit-writing code from data_manager/nu_classifier_ds_builder (2026-10-21); the two builders are kept independent on purpose."
+}

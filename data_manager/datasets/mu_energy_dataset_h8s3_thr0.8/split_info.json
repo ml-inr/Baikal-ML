@@ -1,0 +1,59 @@
+{
+  "npy_dir": "data_manager/datasets/mu_energy_dataset_h8s3_thr0.8",
+  "classes": [
+    "nuatm_2020",
+    "nue2_2020"
+  ],
+  "val_fraction_requested": 0.1,
+  "val_actual_fraction": 0.099881,
+  "seed": 42,
+  "n_candidates": 1607364,
+  "n_train": 900119,
+  "n_val": 99881,
+  "n_test": 607364,
+  "n_train_val": 1000000,
+  "n_parts_total": 520,
+  "n_parts_train": 465,
+  "n_parts_val": 55,
+  "class_counts": {
+    "train": {
+      "nuatm_2020": 38709,
+      "nue2_2020": 861410
+    },
+    "val": {
+      "nuatm_2020": 5440,
+      "nue2_2020": 94441
+    },
+    "test": {
+      "nuatm_2020": 3988,
+      "nue2_2020": 603376
+    }
+  },
+  "energy_gev": {
+    "train": {
+      "min": 0.2429032176733017,
+      "median": 19274.322265625,
+      "max": 96808560.0
+    },
+    "val": {
+      "min": 0.3518225848674774,
+      "median": 17883.638671875,
+      "max": 92943520.0
+    },
+    "test": {
+      "min": 1478.0003662109375,
+      "median": 32811.02734375,
+      "max": 378243.8125
+    }
+  },
+  "weight_sum": {
+    "train": 1457384.875,
+    "val": 162750.234375
+  },
+  "test_part_overlap": {
+    "n_test_from_seen_parts": 607364,
+    "fraction": 1.0,
+    "n_test_parts": 520,
+    "note": "Test is the complement of the flat selection, as requested; it is not part-disjoint from train/val.  Use these counts when judging leakage."
+  }
+}

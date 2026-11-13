@@ -1,0 +1,9 @@
+{
+  "enabled": false,
+  "n_candidates": 418153,
+  "n_selected": 418153,
+  "n_train_val": 418153,
+  "n_test_complement": 0,
+  "flat_weights_file": "flat_weights.npy",
+  "test_note": "Test is the complement of the flat train+val selection inside the h8s3 pool. It is not stored in this training dataset; test predictions must read the full source and exclude this dataset's event_fk values."
+}

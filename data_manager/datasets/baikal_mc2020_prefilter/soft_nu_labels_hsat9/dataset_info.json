@@ -1,0 +1,15 @@
+{
+  "n_events": 7822419,
+  "n_hits": 607661991,
+  "total_bytes": 12317511395,
+  "particle_encode": {
+    "muatm_2020": 0,
+    "nuatm_2020": 1,
+    "nue2_2020": 2
+  },
+  "parts": {
+    "muatm": 432,
+    "nuatm": 187,
+    "nue2": 333
+  }
+}

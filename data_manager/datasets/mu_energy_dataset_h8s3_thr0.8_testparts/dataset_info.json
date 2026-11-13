@@ -1,0 +1,78 @@
+{
+  "n_events": 418153,
+  "n_sig_hits_total": 7444089,
+  "total_bytes": 202249995,
+  "sig_noise_threshold": 0.8,
+  "sig_noise_source": "probs_h5",
+  "sig_noise_probs_path": "data_manager/data/h5datasets/baikal_mc_merged_probs_k_nsol_labelneq0_da_hs128_k0p0001.h5",
+  "sig_noise_batch_size": 256,
+  "event_cuts": {
+    "min_hits": 8,
+    "min_strings": 3
+  },
+  "target": {
+    "column": 1,
+    "volume_radius_m": 90.0,
+    "volume_z_half_m": 295.0,
+    "valid_status": [
+      0,
+      1,
+      4,
+      5
+    ],
+    "born_inside_status": [
+      1,
+      5
+    ],
+    "exclude_nuatm_born_inside": true,
+    "unit": "GeV"
+  },
+  "h5_source": "data_manager/data/h5datasets/baikal_mc_merged.h5",
+  "companion": "data_manager/data/h5datasets/baikal_mc_merged_energy_truth.h5",
+  "catalog": "data_manager/catalog_v2.duckdb",
+  "particle_encode": {
+    "muatm_2020": 0,
+    "nuatm_2020": 1,
+    "nue2_2020": 2
+  },
+  "parts": {
+    "nuatm": 400,
+    "nue2": 67
+  },
+  "flat_selection": {
+    "enabled": false,
+    "classes": [
+      "nuatm_2020",
+      "nue2_2020"
+    ],
+    "target_total": null,
+    "bins": null,
+    "max_ratio": null,
+    "seed": null,
+    "n_candidates": 418153,
+    "n_train_val": 418153,
+    "n_test_complement": 0,
+    "flat_weights_file": "flat_weights.npy",
+    "test_note": "Test is the complement of the flat train+val selection inside the h8s3 pool. It is not stored in this training dataset; test predictions must read the full source and exclude this dataset's event_fk values."
+  },
+  "counts": {
+    "muatm_2020": 0,
+    "nuatm_2020": 101995,
+    "nue2_2020": 316158
+  },
+  "status_counts": {
+    "0": 338454,
+    "1": 42669,
+    "4": 6747,
+    "5": 30283
+  },
+  "energy_gev": {
+    "min": 0.5022064447402954,
+    "median": 12805.3916015625,
+    "p95": 840435.3125,
+    "max": 89959816.0
+  },
+  "event_fk_missing": 0,
+  "seed": 42,
+  "source_note": "Self-contained copy of the sig-noise/hit-writing code from data_manager/nu_classifier_ds_builder (2026-10-21); the two builders are kept independent on purpose."
+}

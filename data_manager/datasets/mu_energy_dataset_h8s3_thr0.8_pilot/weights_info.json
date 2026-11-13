@@ -1,0 +1,83 @@
+{
+  "n_events": 256520,
+  "target": "uniform in log10(E) within each class",
+  "equal_class_mass": true,
+  "max_ratio": 20.0,
+  "per_class": {
+    "muatm_2020": {
+      "n": 1769,
+      "class_weight": 48.336159788957985,
+      "weight_range": [
+        11.84371347680747,
+        471.20126748323133
+      ],
+      "weight_median": 18.64229250767372,
+      "ess_fraction": 0.22733021029774503,
+      "energy_flattening": {
+        "n": 1769,
+        "range": [
+          2.12082834392345,
+          4.828381819875039
+        ],
+        "bins": 50,
+        "cap": 20.118332781812125,
+        "n_capped": 0,
+        "ess_fraction": 0.2273302115387641,
+        "width_ratio": 39.78492830988411,
+        "weighted_density_spread": 1.0285714285714291
+      }
+    },
+    "nuatm_2020": {
+      "n": 14104,
+      "class_weight": 6.062582718850445,
+      "weight_range": [
+        1.7835247676659678,
+        49.8627100064773
+      ],
+      "weight_median": 4.076610695191064,
+      "ess_fraction": 0.4026105595648332,
+      "energy_flattening": {
+        "n": 14104,
+        "range": [
+          1.6026306988329815,
+          4.852464012900674
+        ],
+        "bins": 50,
+        "cap": 20.012142025887716,
+        "n_capped": 0,
+        "ess_fraction": 0.4026105562820907,
+        "width_ratio": 27.957396533092872,
+        "weighted_density_spread": 1.00711743772242
+      }
+    },
+    "nue2_2020": {
+      "n": 240647,
+      "class_weight": 0.355319894562021,
+      "weight_range": [
+        0.11092902143485689,
+        3.1317963739436903
+      ],
+      "weight_median": 0.17813604481887102,
+      "ess_fraction": 0.2782506117274221,
+      "energy_flattening": {
+        "n": 240647,
+        "range": [
+          0.8753303384428105,
+          7.662334863089714
+        ],
+        "bins": 50,
+        "cap": 20.00013864162498,
+        "n_capped": 0,
+        "ess_fraction": 0.27825060353816883,
+        "width_ratio": 28.232436647130964,
+        "weighted_density_spread": 1.0008314279775516
+      }
+    }
+  },
+  "final_range": [
+    0.1109290221320037,
+    471.20127044455256
+  ],
+  "final_median": 0.18045937228754655,
+  "ess_fraction_total": 0.01310269749852213
+}

@@ -1,0 +1,11 @@
+{
+  "n_events": 39130,
+  "n_sig_hits_total": 418629,
+  "total_bytes": 16418116,
+  "sig_noise_threshold": 0.8,
+  "event_cuts": {
+    "min_hits": 5,
+    "min_strings": 0
+  },
+  "h5_path_exp": "data_manager/data/h5datasets/exp.h5"
+}

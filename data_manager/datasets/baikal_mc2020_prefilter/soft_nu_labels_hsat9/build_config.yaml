@@ -1,0 +1,28 @@
+# Prefilter NPY dataset builder configuration
+#
+# Usage:
+#   python -m data_manager.prefilter_npy_ds_builder.build --config <this_file>
+
+# Source HDF5 file (the 890 GB merged MC file on NFS)
+h5_path: "/net/62/home3/ivkhar/Baikal/data/h5s/baikal_mc_merged.h5"
+
+# JSON file mapping particle short names → lists of h5 part numbers
+parts_json: "/home2/albert/Baikal/datasets/baikal_mc2020_prefilter/prefilter_h5_parts.json"
+
+# Output directory for .npy files (and a copy of this config)
+output_dir: "/home2/albert/Baikal/datasets/baikal_mc2020_prefilter"
+
+# Soft label configuration
+soft_labels:
+  mode: "sigmoid"       # "linear" or "sigmoid"
+  h_saturate: 9        # saturation threshold
+  # steepness: null    # sigmoid steepness (default: 30 / h_saturate)
+
+# Class balancing (signal vs background)
+balance: true
+
+# Truncate events longer than max_hits (null = no truncation)
+max_hits: null
+
+# Random seed for balancing and shuffling
+seed: 42

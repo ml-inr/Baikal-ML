@@ -196,6 +196,22 @@ docs/_build/
 *.csv
 *.png
 
+# ============================================================
+# Dataset metadata
+# ============================================================
+# Keep small dataset descriptors and build configs; never arrays, logs,
+# notebooks, or plots. The parent `datasets/` rule is overridden only here.
+!data_manager/datasets/
+!data_manager/datasets/**/
+!data_manager/datasets/**/*.json
+!data_manager/datasets/**/*.yaml
+!data_manager/datasets/**/*.yml
+!data_manager/datasets/**/*.md
+data_manager/datasets/**/*.npy
+data_manager/datasets/**/*.log
+data_manager/datasets/**/*.ipynb
+data_manager/datasets/**/*.png
+
 # Paper sources are local-only until publication. Add selected files
 # explicitly (or use `git add -f`) when the paper is ready to be published.
 /papers/

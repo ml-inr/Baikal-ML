@@ -1,0 +1,282 @@
+{
+  "classes": [
+    "nuatm_2020",
+    "nue2_2020"
+  ],
+  "n_candidates": 1607364,
+  "n_selected": 1000000,
+  "target_total": 1000000,
+  "log10_energy_range": [
+    -0.6145667321750924,
+    7.9859137601637995
+  ],
+  "n_bins": 25,
+  "per_bin": 84209,
+  "max_ratio": 20.0,
+  "seed": 42,
+  "weight_range": [
+    1.0,
+    20.0
+  ],
+  "weight_median": 1.0,
+  "weight_mean": 1.6201353073120117,
+  "fraction_weight_one": 0.589465,
+  "ess_fraction": 0.35098978877067566,
+  "class_counts_selected": {
+    "nuatm_2020": 44149,
+    "nue2_2020": 955851
+  },
+  "per_bin_report": [
+    {
+      "bin": 0,
+      "lo": -0.6145667321750924,
+      "hi": -0.2705475124815367,
+      "n": 5,
+      "selected": 5,
+      "weight": 20.0,
+      "capped": true,
+      "extra": false
+    },
+    {
+      "bin": 1,
+      "lo": -0.2705475124815367,
+      "hi": 0.07347170721201901,
+      "n": 8,
+      "selected": 8,
+      "weight": 20.0,
+      "capped": true,
+      "extra": false
+    },
+    {
+      "bin": 2,
+      "lo": 0.07347170721201901,
+      "hi": 0.41749092690557477,
+      "n": 100,
+      "selected": 100,
+      "weight": 20.0,
+      "capped": true,
+      "extra": false
+    },
+    {
+      "bin": 3,
+      "lo": 0.41749092690557477,
+      "hi": 0.7615101465991304,
+      "n": 384,
+      "selected": 384,
+      "weight": 20.0,
+      "capped": true,
+      "extra": false
+    },
+    {
+      "bin": 4,
+      "lo": 0.7615101465991304,
+      "hi": 1.1055293662926862,
+      "n": 1262,
+      "selected": 1262,
+      "weight": 20.0,
+      "capped": true,
+      "extra": false
+    },
+    {
+      "bin": 5,
+      "lo": 1.1055293662926862,
+      "hi": 1.4495485859862418,
+      "n": 3343,
+      "selected": 3343,
+      "weight": 20.0,
+      "capped": true,
+      "extra": false
+    },
+    {
+      "bin": 6,
+      "lo": 1.4495485859862418,
+      "hi": 1.7935678056797975,
+      "n": 10082,
+      "selected": 10082,
+      "weight": 8.352410236064273,
+      "capped": false,
+      "extra": false
+    },
+    {
+      "bin": 7,
+      "lo": 1.7935678056797975,
+      "hi": 2.137587025373353,
+      "n": 33737,
+      "selected": 33737,
+      "weight": 2.4960429202359427,
+      "capped": false,
+      "extra": false
+    },
+    {
+      "bin": 8,
+      "lo": 2.137587025373353,
+      "hi": 2.4816062450669087,
+      "n": 47311,
+      "selected": 47311,
+      "weight": 1.7799031937604362,
+      "capped": false,
+      "extra": false
+    },
+    {
+      "bin": 9,
+      "lo": 2.4816062450669087,
+      "hi": 2.8256254647604644,
+      "n": 58189,
+      "selected": 58189,
+      "weight": 1.4471635532488958,
+      "capped": false,
+      "extra": false
+    },
+    {
+      "bin": 10,
+      "lo": 2.8256254647604644,
+      "hi": 3.16964468445402,
+      "n": 74636,
+      "selected": 74636,
+      "weight": 1.128262500669918,
+      "capped": false,
+      "extra": false
+    },
+    {
+      "bin": 11,
+      "lo": 3.16964468445402,
+      "hi": 3.513663904147576,
+      "n": 98647,
+      "selected": 84210,
+      "weight": 1.0,
+      "capped": false,
+      "extra": true
+    },
+    {
+      "bin": 12,
+      "lo": 3.513663904147576,
+      "hi": 3.8576831238411313,
+      "n": 135524,
+      "selected": 84210,
+      "weight": 1.0,
+      "capped": false,
+      "extra": true
+    },
+    {
+      "bin": 13,
+      "lo": 3.8576831238411313,
+      "hi": 4.201702343534688,
+      "n": 187051,
+      "selected": 84209,
+      "weight": 1.0,
+      "capped": false,
+      "extra": false
+    },
+    {
+      "bin": 14,
+      "lo": 4.201702343534688,
+      "hi": 4.545721563228243,
+      "n": 232764,
+      "selected": 84209,
+      "weight": 1.0,
+      "capped": false,
+      "extra": false
+    },
+    {
+      "bin": 15,
+      "lo": 4.545721563228243,
+      "hi": 4.889740782921799,
+      "n": 235531,
+      "selected": 84209,
+      "weight": 1.0,
+      "capped": false,
+      "extra": false
+    },
+    {
+      "bin": 16,
+      "lo": 4.889740782921799,
+      "hi": 5.233760002615355,
+      "n": 185012,
+      "selected": 84209,
+      "weight": 1.0,
+      "capped": false,
+      "extra": false
+    },
+    {
+      "bin": 17,
+      "lo": 5.233760002615355,
+      "hi": 5.57777922230891,
+      "n": 122300,
+      "selected": 84209,
+      "weight": 1.0,
+      "capped": false,
+      "extra": false
+    },
+    {
+      "bin": 18,
+      "lo": 5.57777922230891,
+      "hi": 5.9217984420024665,
+      "n": 79248,
+      "selected": 79248,
+      "weight": 1.0626009489198465,
+      "capped": false,
+      "extra": false
+    },
+    {
+      "bin": 19,
+      "lo": 5.9217984420024665,
+      "hi": 6.265817661696022,
+      "n": 46629,
+      "selected": 46629,
+      "weight": 1.8059362199489588,
+      "capped": false,
+      "extra": false
+    },
+    {
+      "bin": 20,
+      "lo": 6.265817661696022,
+      "hi": 6.609836881389578,
+      "n": 27653,
+      "selected": 27653,
+      "weight": 3.0452030521100784,
+      "capped": false,
+      "extra": false
+    },
+    {
+      "bin": 21,
+      "lo": 6.609836881389578,
+      "hi": 6.953856101083133,
+      "n": 15605,
+      "selected": 15605,
+      "weight": 5.3962832425504645,
+      "capped": false,
+      "extra": false
+    },
+    {
+      "bin": 22,
+      "lo": 6.953856101083133,
+      "hi": 7.297875320776689,
+      "n": 8016,
+      "selected": 8016,
+      "weight": 10.505114770459082,
+      "capped": false,
+      "extra": false
+    },
+    {
+      "bin": 23,
+      "lo": 7.297875320776689,
+      "hi": 7.641894540470245,
+      "n": 3397,
+      "selected": 3397,
+      "weight": 20.0,
+      "capped": true,
+      "extra": false
+    },
+    {
+      "bin": 24,
+      "lo": 7.641894540470245,
+      "hi": 7.9859137601637995,
+      "n": 930,
+      "selected": 930,
+      "weight": 20.0,
+      "capped": true,
+      "extra": false
+    }
+  ],
+  "note": "The bulk is subsampled to per_bin with weight 1; bins below per_bin keep all events and get min(per_bin/n, max_ratio).  The cap leaves the extreme tails underfilled on purpose."
+}

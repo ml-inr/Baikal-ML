@@ -1,0 +1,25 @@
+{
+  "n_events": 6058412,
+  "n_sig_hits_total": 64430693,
+  "total_bytes": 1722031740,
+  "sig_noise_threshold": 0.5,
+  "event_cuts": {
+    "min_hits": 5,
+    "min_strings": 2
+  },
+  "particle_encode": {
+    "muatm_2020": 0,
+    "nuatm_2020": 1,
+    "nue2_2020": 2
+  },
+  "parts": {
+    "muatm": 432,
+    "nuatm": 187,
+    "nue2": 333
+  },
+  "label_counts": {
+    "neutrino": 3029206,
+    "muatm": 3029206
+  },
+  "h5_source": "mc_merged"
+}

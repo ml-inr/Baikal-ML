@@ -1,0 +1,31 @@
+# Prefilter NPY dataset builder configuration
+#
+# Usage:
+#   python -m data_manager.prefilter_npy_ds_builder.build --config <this_file>
+
+# Source HDF5 file (the 890 GB merged MC file on NFS)
+h5_path: "/net/62/home3/ivkhar/Baikal/data/h5s/baikal_mc_merged.h5"
+
+# JSON file mapping particle short names → lists of h5 part numbers
+parts_json: "/home2/albert/Baikal/datasets/baikal_mc2020_prefilter/prefilter_h5_parts.json"
+
+# Output directory for .npy files (and a copy of this config)
+output_dir: "/home2/albert/Baikal/datasets/baikal_mc2020_prefilter/hard_nu_labels"
+
+# Label configuration
+# mode: "hard"    — all neutrino events get label 1.0 (mu_split disabled in balancing)
+# mode: "linear"  — label = min(1, n_signal_hits / h_saturate); h_saturate<=0: any signal hit → 1.0
+# mode: "sigmoid" — label = sigmoid(steepness * (n_signal_hits - h_saturate/2))
+soft_labels:
+  mode: "hard"
+  h_saturate: 9         # ignored in hard mode; used as mu_split = h_saturate//2 in linear/sigmoid
+  # steepness: null     # sigmoid only (default: 30 / h_saturate)
+
+# Class balancing (signal vs background)
+balance: true
+
+# Truncate events longer than max_hits (null = no truncation)
+max_hits: null
+
+# Random seed for balancing and shuffling
+seed: 42

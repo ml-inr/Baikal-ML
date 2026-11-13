@@ -1,0 +1,30 @@
+{
+  "n_events": 2021234,
+  "n_sig_hits_total": 35423839,
+  "total_bytes": 925084066,
+  "sig_noise_threshold": 0.8,
+  "sig_noise_source": "probs_h5",
+  "sig_noise_probs_path": "data_manager/data/h5datasets/baikal_mc_merged_probs_k_nsol_labelneq0_da_hs128_k0p0001.h5",
+  "sig_noise_batch_size": 256,
+  "event_cuts": {
+    "min_hits": 8,
+    "min_strings": 3
+  },
+  "balance": true,
+  "balance_mode": "binary",
+  "h5_source": "mc_merged",
+  "particle_encode": {
+    "muatm_2020": 0,
+    "nuatm_2020": 1,
+    "nue2_2020": 2
+  },
+  "parts": {
+    "muatm": 432,
+    "nuatm": 187,
+    "nue2": 333
+  },
+  "label_counts": {
+    "neutrino": 1010617,
+    "muatm": 1010617
+  }
+}
