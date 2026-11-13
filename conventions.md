@@ -80,9 +80,14 @@ data = data.to(device)
 ## Data Handling Conventions
 
 **File Naming:**
-- HDF5 files: `train.h5`, `val.h5`, `test.h5`
-- Configs: `experiment_name.yaml`
-- Models: `best_model.pth`, `epoch_XXX.pth`
+- Source HDF5: descriptive stems such as `baikal_mc_merged.h5` and `exp_full.h5`;
+  per-hit SN companions use `{stem}_probs_k_nsol_labelneq0_da_hs128_k0p0001.h5`.
+- Dataset directories: `data_manager/datasets/<task>_dataset_<selection>_thr<value>/`,
+  with `dataset_info.json` and `build_config.yaml` metadata.
+- Training configs: `src/training/configs/{classifier,prefilter,...}/<run>.yaml`.
+- Checkpoints: task-specific names such as `best_model.pth` / `best_da_model.pth`
+  and `checkpoint_epoch_XXX.pth`; external releases may use `.ckpt` names such as
+  `best_mc_2020.ckpt`.
 
 **Dataset Classes:**
 ```python
@@ -134,11 +139,11 @@ def load_config(config_path: Path) -> dict:
 
 **Seed Management:**
 ```python
-def set_seed(seed: int):
-    torch.manual_seed(seed)
-    np.random.seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(seed)
+from src.utils.training import set_reproducible_seeds
+
+set_reproducible_seeds(config["seed"])
+if torch.cuda.is_available():
+    torch.backends.cudnn.deterministic = True
 ```
 
 **Requirements:**
@@ -232,7 +237,8 @@ from src.models.base_models import NuMuClassifierModel, create_model
 ```
 
 **src/data:**
-- PyTorch Dataset classes for HDF5 data with dict-based API
+- PyTorch Dataset classes for memory-mapped NPY datasets (built from HDF5) with a
+  dict-based API
 - Advanced collate functions with data augmentation and preprocessing
 - Data loading utilities with preset normalization support
 ```python
